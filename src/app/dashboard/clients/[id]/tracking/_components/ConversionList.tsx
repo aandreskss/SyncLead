@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import type { ConversionWithStatus, ConversionDefinitionPublic, DiagConversionStatus } from "@/domains/tracking/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TestWizard } from "./TestWizard"
 import { InstallationDrawer } from "./InstallationDrawer"
-import { Beaker, BookOpen, Clock, History } from "lucide-react"
+import { simulateObservationAction } from "@/domains/tracking/actions"
+import { Beaker, BookOpen, Clock, History, Zap, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
 
 type Props = {
   definitions: ConversionWithStatus[]
@@ -90,6 +91,54 @@ function SourceBadge({ source }: { source: "browser" | "server" | "both" }) {
   )
 }
 
+type SimulateState = { status: "ok"; eventName: string } | { status: "err"; message: string }
+
+function SimulateButton({ def, clientId }: { def: ConversionDefinitionPublic; clientId: string }) {
+  const [isPending, startTransition] = useTransition()
+  const [result, setResult] = useState<SimulateState | null>(null)
+
+  function handleSimulate() {
+    setResult(null)
+    startTransition(async () => {
+      const r = await simulateObservationAction({ clientId, conversionDefinitionId: def.id })
+      if (r.error) {
+        setResult({ status: "err", message: r.error })
+      } else {
+        setResult({ status: "ok", eventName: def.providerEventName })
+        // Clear success message after 4s
+        setTimeout(() => setResult(null), 4000)
+      }
+    })
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSimulate}
+        disabled={isPending}
+        title="Simula el evento directamente desde el servidor, sin necesidad de instalar código"
+        className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 text-xs"
+      >
+        {isPending
+          ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+          : <Zap className="h-3.5 w-3.5 mr-1.5" />
+        }
+        Simular
+      </Button>
+      {result && (
+        <span className={`flex items-center gap-1 text-xs ${result.status === "ok" ? "text-emerald-400" : "text-red-400"}`}>
+          {result.status === "ok"
+            ? <><CheckCircle2 className="h-3 w-3" /> {result.eventName} registrado</>
+            : <><AlertCircle className="h-3 w-3" /> {result.message}</>
+          }
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function ConversionList({ definitions, clientId }: Props) {
   const [testWizardDef, setTestWizardDef] = useState<ConversionDefinitionPublic | null>(null)
   const [installDrawerDef, setInstallDrawerDef] = useState<ConversionDefinitionPublic | null>(null)
@@ -131,6 +180,7 @@ export function ConversionList({ definitions, clientId }: Props) {
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
+                <SimulateButton def={def} clientId={clientId} />
                 <Button
                   variant="outline"
                   size="sm"
@@ -138,7 +188,7 @@ export function ConversionList({ definitions, clientId }: Props) {
                   className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 text-xs"
                 >
                   <Beaker className="h-3.5 w-3.5 mr-1.5" />
-                  Probar evento
+                  Probar en vivo
                 </Button>
                 <Button
                   variant="outline"
@@ -148,14 +198,6 @@ export function ConversionList({ definitions, clientId }: Props) {
                 >
                   <BookOpen className="h-3.5 w-3.5 mr-1.5" />
                   Cómo instalar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 text-xs"
-                >
-                  <History className="h-3.5 w-3.5 mr-1.5" />
-                  Ver historial
                 </Button>
               </div>
             </li>
