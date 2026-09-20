@@ -4,16 +4,22 @@ import { eq } from "drizzle-orm"
 import type { NewOrganization, Organization } from "@/lib/db/schema"
 
 export async function getOrganizationById(orgId: string): Promise<Organization | undefined> {
-  return db.query.organizations.findFirst({
-    where: eq(organizations.id, orgId),
-  })
+  const rows = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1)
+  return rows[0]
 }
 
 // Used only during onboarding, before orgMembers is populated.
 export async function getOrganizationByOwnerId(ownerId: string): Promise<Organization | undefined> {
-  return db.query.organizations.findFirst({
-    where: eq(organizations.ownerId, ownerId),
-  })
+  const rows = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.ownerId, ownerId))
+    .limit(1)
+  return rows[0]
 }
 
 export async function createOrganization(data: NewOrganization): Promise<Organization> {
