@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import type {
   TrackingSitePublic,
   ConversionWithStatus,
@@ -9,7 +9,8 @@ import type {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConversionList } from "./ConversionList"
-import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot } from "lucide-react"
+import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X } from "lucide-react"
+import { createTrackingSiteAction } from "@/domains/tracking/actions"
 
 type Props = {
   clientId: string
@@ -190,10 +191,102 @@ function IssuesList({ issues }: { issues: ConversionIssuePublic[] }) {
   )
 }
 
-export function TrackingDashboard({ clientId, sites, definitions, issues }: Props) {
-  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(
-    sites[0]?.id ?? null
+function AddSiteModal({
+  clientId,
+  onClose,
+  onCreated,
+}: {
+  clientId: string
+  onClose: () => void
+  onCreated: (site: TrackingSitePublic) => void
+}) {
+  const [name, setName] = useState("")
+  const [domain, setDomain] = useState("")
+  const [environment, setEnvironment] = useState<"production" | "staging" | "development">("production")
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    startTransition(async () => {
+      const result = await createTrackingSiteAction({ clientId, name, domain, environment })
+      if (result.error) return setError(result.error)
+      if (result.data) {
+        onCreated(result.data)
+        onClose()
+      }
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 shadow-xl">
+        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+          <h2 className="text-sm font-semibold text-zinc-100">Agregar sitio</h2>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4 p-5">
+          <div className="space-y-1.5">
+            <label className="text-xs text-zinc-400">Nombre del sitio</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Mi sitio web"
+              required
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-zinc-400">URL del dominio</label>
+            <input
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="https://ejemplo.com"
+              type="url"
+              required
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-zinc-400">Entorno</label>
+            <select
+              value={environment}
+              onChange={(e) => setEnvironment(e.target.value as typeof environment)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="production">Producción</option>
+              <option value="staging">Staging</option>
+              <option value="development">Desarrollo</option>
+            </select>
+          </div>
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose} className="text-sm text-zinc-400 hover:text-zinc-200">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            >
+              {isPending ? "Creando..." : "Crear sitio"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
+}
+
+export function TrackingDashboard({ clientId, sites: initialSites, definitions, issues }: Props) {
+  const [sites, setSites] = useState<TrackingSitePublic[]>(initialSites)
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(
+    initialSites[0]?.id ?? null
+  )
+  const [showAddSite, setShowAddSite] = useState(false)
 
   const filteredDefinitions =
     selectedSiteId && sites.length > 1
@@ -202,8 +295,20 @@ export function TrackingDashboard({ clientId, sites, definitions, issues }: Prop
         )
       : definitions
 
+  function handleSiteCreated(site: TrackingSitePublic) {
+    setSites((prev) => [...prev, site])
+    setSelectedSiteId(site.id)
+  }
+
   return (
     <div className="space-y-6">
+      {showAddSite && (
+        <AddSiteModal
+          clientId={clientId}
+          onClose={() => setShowAddSite(false)}
+          onCreated={handleSiteCreated}
+        />
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Diagnóstico de conversiones</h1>
@@ -223,6 +328,7 @@ export function TrackingDashboard({ clientId, sites, definitions, issues }: Prop
           <Button
             size="sm"
             className="bg-zinc-700 hover:bg-zinc-600 text-zinc-100"
+            onClick={() => setShowAddSite(true)}
           >
             <Plus className="h-4 w-4 mr-1.5" />
             Agregar sitio
