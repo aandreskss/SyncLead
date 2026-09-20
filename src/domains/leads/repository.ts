@@ -206,6 +206,28 @@ export async function updateLeadNotes(leadId: string, orgId: string, notes: stri
     .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
 }
 
+export async function updateLeadInfo(
+  leadId: string,
+  orgId: string,
+  data: { name?: string | null; email?: string | null; phone?: string | null; city?: string | null }
+) {
+  // name is NOT NULL in schema — only update it when a non-empty value is provided
+  const set: {
+    updatedAt: Date
+    name?: string
+    email?: string | null
+    phone?: string | null
+    city?: string | null
+  } = { updatedAt: new Date() }
+  if (data.name) set.name = data.name
+  if ("email" in data) set.email = data.email
+  if ("phone" in data) set.phone = data.phone
+  if ("city" in data) set.city = data.city
+  await db.update(leads)
+    .set(set)
+    .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
+}
+
 export async function assignLead(
   leadId: string,
   orgId: string,

@@ -54,7 +54,10 @@ export async function GET(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
   const ingestUrl = `${appUrl}/api/ingest/form`
 
-  const script = buildCaptureScript(ingestUrl, publicKey)
+  const rawPreset = request.nextUrl.searchParams.get("preset") ?? "basic"
+  const preset = ["basic", "location", "ecommerce"].includes(rawPreset) ? rawPreset : "basic"
+
+  const script = buildCaptureScript(ingestUrl, publicKey, preset)
 
   return scriptResponse(script, 300)
 }
@@ -72,10 +75,23 @@ function scriptResponse(content: string, maxAge = 0): NextResponse {
   })
 }
 
-function buildCaptureScript(ingestUrl: string, publicKey: string): string {
+function buildCaptureScript(ingestUrl: string, publicKey: string, preset: string): string {
   // Sanitize values before embedding in JS to prevent injection
   const safeIngestUrl = ingestUrl.replace(/['"\\]/g, "")
   const safePublicKey = publicKey.replace(/['"\\]/g, "")
+
+  const withLocation = preset === "location" || preset === "ecommerce"
+  const withPayment = preset === "ecommerce"
+
+  const extraCapture = [
+    withLocation ? `      var city = getVal(form, ['city','ciudad','billing_city','shipping_city','locality','municipio']);` : "",
+    withPayment ? `      var payment = getVal(form, ['payment_method','payment','metodo_pago','forma_pago','payment_type','metodo']);` : "",
+  ].filter(Boolean).join("\n")
+
+  const extraPayload = [
+    withLocation ? `      if (city) payload.city = city;` : "",
+    withPayment ? `      if (payment) payload.payment_method = payment;` : "",
+  ].filter(Boolean).join("\n")
 
   return `(function() {
   function fromMeta() {
@@ -123,9 +139,11 @@ function buildCaptureScript(ingestUrl: string, publicKey: string): string {
       var name = getVal(form, ['name','full_name','nombre','fullname','nombre_completo','first_name']);
       var email = getVal(form, ['email','correo','mail','email_address','correo_electronico']);
       var phone = getVal(form, ['phone','telefono','tel','phone_number','celular','movil']);
+${extraCapture}
       if (!email && !phone) return;
       var attr = getAttr();
       var payload = { name: name, email: email, phone: phone };
+${extraPayload}
       var keys = Object.keys(attr);
       for (var k = 0; k < keys.length; k++) {
         if (attr[keys[k]] != null) payload[keys[k]] = attr[keys[k]];
