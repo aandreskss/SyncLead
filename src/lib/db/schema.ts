@@ -1090,7 +1090,7 @@ export const importRows = pgTable(
       .references(() => leads.id, { onDelete: "set null" }),
     conversionId: uuid("conversion_id")
       .references(() => conversions.id, { onDelete: "set null" }),
-    dedupeKey: text("dedupe_key"),
+    dedupeKey: text("dedupe_key").notNull().unique(),
     fingerprint: text("fingerprint"),
     warning: text("warning"),
     error: text("error"),
