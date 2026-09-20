@@ -14,7 +14,8 @@ import {
 } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 import { updateLeadStageAction } from "@/domains/leads/actions"
-import type { Lead, Funnel, FunnelStageConfig, LeadStage, Temperature } from "@/lib/db/schema"
+import { LeadDrawer } from "@/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer"
+import type { Lead, Funnel, FunnelStageConfig, LeadStage, SalesRep } from "@/lib/db/schema"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,7 +35,15 @@ function formatDate(d: Date | string) {
 
 // ─── Draggable Card ───────────────────────────────────────────────────────────
 
-function KanbanCard({ lead, isDragOverlay = false }: { lead: Lead; isDragOverlay?: boolean }) {
+function KanbanCard({
+  lead,
+  isDragOverlay = false,
+  onCardClick,
+}: {
+  lead: Lead
+  isDragOverlay?: boolean
+  onCardClick?: (lead: Lead) => void
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: lead.id })
 
   const style = transform
@@ -47,6 +56,11 @@ function KanbanCard({ lead, isDragOverlay = false }: { lead: Lead; isDragOverlay
       style={style}
       {...listeners}
       {...attributes}
+      onClick={() => {
+        if (!isDragging && onCardClick) {
+          onCardClick(lead)
+        }
+      }}
       className={`rounded-lg border bg-zinc-950 p-3 cursor-grab active:cursor-grabbing select-none transition-opacity ${
         isDragging && !isDragOverlay ? "opacity-30 border-zinc-700" : "border-zinc-800 hover:border-zinc-700"
       }`}
@@ -75,9 +89,11 @@ function KanbanCard({ lead, isDragOverlay = false }: { lead: Lead; isDragOverlay
 function KanbanColumn({
   stage,
   leads,
+  onCardClick,
 }: {
   stage: FunnelStageConfig
   leads: Lead[]
+  onCardClick: (lead: Lead) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.stageKey })
 
@@ -109,7 +125,7 @@ function KanbanColumn({
       {/* Cards */}
       <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[120px] max-h-[600px]">
         {leads.map((lead) => (
-          <KanbanCard key={lead.id} lead={lead} />
+          <KanbanCard key={lead.id} lead={lead} onCardClick={onCardClick} />
         ))}
         {leads.length === 0 && (
           <div className="h-20 flex items-center justify-center text-zinc-700 text-xs">
@@ -126,11 +142,15 @@ function KanbanColumn({
 interface Props {
   funnel: Funnel
   initialLeads: Lead[]
+  salesReps?: SalesRep[]
+  whatsappNumbers?: string[]
+  clientId?: string
 }
 
-export function KanbanBoard({ funnel, initialLeads }: Props) {
+export function KanbanBoard({ funnel, initialLeads, salesReps = [], whatsappNumbers = [], clientId }: Props) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [activeCard, setActiveCard] = useState<Lead | null>(null)
+  const [drawerLead, setDrawerLead] = useState<Lead | null>(null)
   const [, startTransition] = useTransition()
 
   useEffect(() => setLeads(initialLeads), [initialLeads])
@@ -171,21 +191,40 @@ export function KanbanBoard({ funnel, initialLeads }: Props) {
     })
   }
 
-  return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-6 min-h-[400px]">
-        {funnel.stages.map((stage) => (
-          <KanbanColumn
-            key={stage.stageKey}
-            stage={stage}
-            leads={leads.filter((l) => l.stage === stage.stageKey)}
-          />
-        ))}
-      </div>
+  function handleCardClick(lead: Lead) {
+    setDrawerLead(lead)
+  }
 
-      <DragOverlay>
-        {activeCard && <KanbanCard lead={activeCard} isDragOverlay />}
-      </DragOverlay>
-    </DndContext>
+  return (
+    <>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-6 min-h-[400px]">
+          {funnel.stages.map((stage) => (
+            <KanbanColumn
+              key={stage.stageKey}
+              stage={stage}
+              leads={leads.filter((l) => l.stage === stage.stageKey)}
+              onCardClick={handleCardClick}
+            />
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activeCard && <KanbanCard lead={activeCard} isDragOverlay />}
+        </DragOverlay>
+      </DndContext>
+
+      <LeadDrawer
+        lead={drawerLead}
+        open={!!drawerLead}
+        onClose={() => {
+          setDrawerLead(null)
+          // No router.refresh() here to avoid kanban reload
+        }}
+        whatsappNumbers={whatsappNumbers}
+        clientId={clientId}
+        salesReps={salesReps}
+      />
+    </>
   )
 }

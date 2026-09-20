@@ -64,6 +64,13 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **Conversiones importadas NUNCA crean meta_events** — `runImport()` en `processor.ts` no llama CAPI. Solo ventas registradas manualmente desde el drawer generan eventos CAPI.
 - **`withJobRun(jobName, fn)`** — wrapper obligatorio para todos los crons. Registra cada ejecución en `cron_runs`. Si el insert inicial falla, el job igual corre (non-fatal). `correlationId` = UUID, nunca PII.
 - **`isOverBudget(-1)`** para tests de "siempre excedido" — evita flakiness en entornos rápidos.
+- **`drizzle-kit push` para sincronización de schema**: `npx drizzle-kit migrate` puede reportar éxito sin crear todas las tablas cuando `__drizzle_migrations` no existe o está desincronizado. Usar `npx drizzle-kit push` para comparar el schema Drizzle actual contra la DB y aplicar diferencias directamente. Verificar tablas tras migrar: 48 tablas en Neon después de sync completo.
+- **`drizzle.config.ts` requiere dotenv**: `drizzle-kit` no carga `.env.local` automáticamente. Añadir `import { config } from "dotenv"; config({ path: ".env.local" })` al inicio del archivo; sin esto los comandos drizzle-kit leen `DATABASE_URL` como `undefined`.
+- **`createOrgAction` DEBE llamar `ensureOwnerMembership()`**: `provisionOrganization()` crea la org pero no inserta en `org_members`. `requireOrganizationMembership()` solo consulta `org_members`, por lo que sin este insert todos los usuarios nuevos son redirigidos al onboarding en un bucle infinito. Ver `src/app/onboarding/actions.ts`.
+- **`authorize` en `auth.ts` DEBE tener try/catch**: Si la DB no está disponible y `authorize` lanza una excepción, Auth.js muestra "There was a problem with the server configuration" en lugar de un error manejable. Envolver todo el cuerpo de `authorize` en try/catch y devolver `null` ante cualquier error de DB.
+- **`registerAction` usa dos bloques try/catch separados**: El bloque DB (crear usuario) y el bloque `signIn` deben estar separados. `signIn()` de Auth.js lanza un error especial con `digest.startsWith("NEXT_REDIRECT")` que DEBE ser re-lanzado — usar el helper `isRedirectError()` para detectarlo antes de capturarlo.
+- **`import_rows.dedupe_key` requiere `.notNull().unique()`**: `onConflictDoNothing({ target: importRows.dedupeKey })` necesita un índice único en Postgres o rechaza el INSERT con "no unique constraint matching the ON CONFLICT specification". La columna debe tener `.notNull().unique()` en el schema Drizzle y el constraint aplicado en DB via `drizzle-kit push`.
+- **Design system del dashboard usa clases `sg-*`**: El dashboard usa CSS custom properties definidas en `globals.css` (sg-app, bg-sg-bg, sg-border, sg-accent, sg-s1/s2/s3, sg-ink, sg-muted, sg-subtle, sg-radius). Nuevos componentes del dashboard deben usar estas clases, no `zinc-*` directamente. El componente `DashboardNav` en `src/components/app/DashboardNav.tsx` es el nav principal del dashboard.
 
 ## Arquitectura multi-tenant
 Aislamiento a nivel de aplicación (no RLS). **Todas las tablas tienen `org_id`.**
@@ -278,6 +285,10 @@ docs/
     browser-form.html, server-node.ts, server-curl.sh
 src/components/
   ui/  button, input, label, card, separator, badge, dialog, textarea, sheet
+  app/
+    DashboardNav.tsx  ← nav principal del dashboard (sidebar + links + org info)
+  landing/
+    CapiDemo.tsx, Hero.tsx, InView.tsx, KanbanDemo.tsx, LandingNav.tsx, Logo.tsx, Reveal.tsx, Sections.tsx
 src/proxy.ts  ← protege /dashboard/*, applySecurityHeaders() (CSP+nonce, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy)
 ```
 
@@ -367,6 +378,7 @@ npm run seed             # seed básico original
 npm run create-admin     # crea usuario admin
 npx drizzle-kit generate # generar migración SQL
 npx drizzle-kit migrate  # aplicar migraciones (requiere DATABASE_URL en env)
+npx drizzle-kit push     # sincronizar schema Drizzle → DB directamente (sin migraciones; usar cuando __drizzle_migrations está desincronizado)
 npx drizzle-kit studio   # UI visual de la DB
 ```
 
@@ -469,3 +481,22 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] `docs/QUALIFICATION_ENGINE.md` — documentación completa del motor genérico
   - [x] TypeScript clean (0 errores); 438 tests en 11 suites (todos passing)
   - [x] Criterio de salida: un administrador puede crear, configurar y publicar un perfil de calificación sin tocar código
+- [x] Prompt 17-24: (pendiente documentar — ver commits para detalle)
+- [x] Prompt 25: Diagnóstico de conversiones (Tracking & CAPI health)
+  - [x] Tablas: `tracking_sites`, `conversion_definitions`, `conversion_test_sessions`, `conversion_observations`, `conversion_issues`
+  - [x] `src/domains/tracking/` — types.ts, repository.ts, actions.ts (createTrackingSiteAction, etc.)
+  - [x] `src/app/dashboard/clients/[id]/tracking/` — página SSR + `_components/TrackingDashboard.tsx`
+  - [x] `TrackingDashboard` — modal "Agregar sitio" (nombre, dominio URL, entorno), `HealthSummary`, `SiteSelector`, `IssuesList`, `ConversionList`
+  - [x] Botón "Agregar sitio" conectado con `createTrackingSiteAction` via `useTransition`
+- [x] Fixes críticos de producción (post-lanzamiento beta)
+  - [x] `src/auth.ts` — `authorize` envuelto en try/catch: errores de DB devuelven null en lugar de lanzar
+  - [x] `src/domains/auth/actions.ts` — `registerAction` con dos bloques try/catch separados + helper `isRedirectError()` para re-lanzar NEXT_REDIRECT
+  - [x] `src/app/onboarding/actions.ts` — `ensureOwnerMembership()` llamada en `createOrgAction` para corregir bucle de onboarding
+  - [x] `drizzle.config.ts` — dotenv carga `.env.local` para que drizzle-kit lea DATABASE_URL
+  - [x] `src/lib/db/schema.ts` — `importRows.dedupeKey` cambiado a `.notNull().unique()` para soportar ON CONFLICT DO NOTHING
+  - [x] Schema Neon sincronizado a 48 tablas via `drizzle-kit push` (wa_client_config, message_templates, cron_runs, tracking_sites, etc. faltaban tras migrate)
+- [x] Diseño del dashboard y landing
+  - [x] `src/components/app/DashboardNav.tsx` — nav principal con design system sg-*
+  - [x] `src/components/landing/` — Hero, LandingNav, Sections, CapiDemo, KanbanDemo, Reveal, InView, Logo
+  - [x] `src/app/globals.css` — CSS custom properties sg-* (sg-app, bg-sg-bg, sg-border, sg-accent, sg-s1/s2/s3, sg-ink, sg-muted, sg-subtle, sg-radius)
+  - [x] Dashboard refactorizado con DashboardNav + tokens sg-*

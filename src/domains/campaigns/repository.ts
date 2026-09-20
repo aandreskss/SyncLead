@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
-import { campaigns, clients, leads } from "@/lib/db/schema"
-import { eq, and, count } from "drizzle-orm"
+import { campaigns, leads, conversions } from "@/lib/db/schema"
+import { eq, and, count, inArray } from "drizzle-orm"
 import type { Campaign, Client, NewCampaign } from "@/lib/db/schema"
 
 export type CampaignWithClient = Campaign & {
@@ -41,6 +41,57 @@ export async function getCampaignsWithClientAndCounts(orgId: string): Promise<Ca
   return allCampaigns.map((c) => ({
     ...c,
     leadCount: countMap[c.id] ?? 0,
+  }))
+}
+
+export type CampaignWithCounts = Campaign & {
+  client: Client | null
+  leadCount: number
+  saleCount: number
+}
+
+export async function getCampaignsByClientWithCounts(
+  clientId: string,
+  orgId: string,
+): Promise<CampaignWithCounts[]> {
+  const clientCampaigns = await db.query.campaigns.findMany({
+    where: and(eq(campaigns.clientId, clientId), eq(campaigns.orgId, orgId)),
+    with: { client: true },
+    orderBy: (c, { desc: d }) => [d(c.createdAt)],
+  })
+
+  if (clientCampaigns.length === 0) return []
+  const campaignIds = clientCampaigns.map((c) => c.id)
+
+  const [leadCounts, saleCounts] = await Promise.all([
+    db
+      .select({ campaignId: leads.campaignId, cnt: count(leads.id) })
+      .from(leads)
+      .where(and(eq(leads.orgId, orgId), inArray(leads.campaignId, campaignIds)))
+      .groupBy(leads.campaignId),
+    db
+      .select({ campaignId: leads.campaignId, cnt: count(conversions.id) })
+      .from(conversions)
+      .innerJoin(leads, eq(conversions.leadId, leads.id))
+      .where(
+        and(
+          eq(leads.orgId, orgId),
+          inArray(leads.campaignId, campaignIds),
+          eq(conversions.status, "confirmed"),
+        )
+      )
+      .groupBy(leads.campaignId),
+  ])
+
+  const leadMap: Record<string, number> = {}
+  const saleMap: Record<string, number> = {}
+  for (const r of leadCounts) leadMap[r.campaignId] = Number(r.cnt)
+  for (const r of saleCounts) saleMap[r.campaignId] = Number(r.cnt)
+
+  return clientCampaigns.map((c) => ({
+    ...c,
+    leadCount: leadMap[c.id] ?? 0,
+    saleCount: saleMap[c.id] ?? 0,
   }))
 }
 

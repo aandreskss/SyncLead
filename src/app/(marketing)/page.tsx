@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { JsonLd } from "@/components/marketing/JsonLd"
 import { Hero } from "@/components/landing/Hero"
-import { Audiences, Faq, FAQS, FinalCta, Features, HowItWorks, Pricing, Problem, Showcase, Trust } from "@/components/landing/Sections"
+import { AnalyticsSection, BeforeAfter, CapiSection, Faq, FAQS, FinalCta, Features, FunnelSection, HowItWorks, Pricing, Product, Trust } from "@/components/landing/Sections"
 
 export const metadata: Metadata = {
   title: "SyncLead — CRM de leads para Meta Ads",
@@ -46,11 +46,13 @@ export default function HomePage() {
       <JsonLd data={softwareAppLd} />
       <JsonLd data={faqLd} />
       <Hero />
-      <Problem />
+      <BeforeAfter />
       <HowItWorks />
-      <Showcase />
+      <Product />
       <Features />
-      <Audiences />
+      <CapiSection />
+      <FunnelSection />
+      <AnalyticsSection />
       <Trust />
       <Pricing />
       <Faq />

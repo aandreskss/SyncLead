@@ -1,8 +1,11 @@
 import Link from "next/link"
-import { ArrowRight, Check, Database, KeyRound, Lock, MessageCircle, ShieldCheck, Upload, Users, Zap, ChartColumn, Funnel } from "lucide-react"
+import { ArrowRight, Check, ChartColumn, ClipboardList, Database, Eye, Funnel, Globe, KeyRound, Layers, Lock, MessageCircle, RefreshCw, ShieldCheck, Target, Upload, User, Users, Zap } from "lucide-react"
 import { Reveal } from "./Reveal"
 import { KanbanDemo } from "./KanbanDemo"
 import { CapiDemo } from "./CapiDemo"
+import { Steps } from "./Steps"
+import { ProductTabs } from "./ProductTabs"
+import { Analytics } from "./Analytics"
 
 function Heading({ id, eyebrow, title, lead }: { id: string; eyebrow: string; title: string; lead?: string }) {
   return (
@@ -14,73 +17,59 @@ function Heading({ id, eyebrow, title, lead }: { id: string; eyebrow: string; ti
   )
 }
 
-const PROBLEMS = [
-  { title: "Leads perdidos entre pestañas", body: "Los formularios de Meta, las hojas de cálculo y los chats viven en lugares distintos, y nadie sabe qué lead sigue sin atender." },
-  { title: "Seguimiento sin prioridad", body: "Sin una señal clara de temperatura, el equipo contacta en el orden en que llegan y no en el que más convierte." },
-  { title: "Meta no sabe qué se vendió", body: "Si las ventas no vuelven a la plataforma, la optimización de tus campañas trabaja a ciegas." },
+const BEFORE = [
+  "Leads_septiembre_final(2).xlsx",
+  "Formulario nuevo, hoja distinta",
+  "Origen del lead: sin dato",
+  "Asignación manual por chat",
+  "Venta cerrada… ¿Meta lo sabe?",
+  "¿Qué anuncio vende de verdad?",
+]
+const AFTER = [
+  ["Lead capturado", "Un solo registro, con fecha y datos de contacto"],
+  ["Campaña y anuncio identificados", "Ventas septiembre · Video testimonio 02"],
+  ["Calificado y asignado", "Caliente · Andrea"],
+  ["Venta registrada", "USD 249"],
+  ["Conversión enviada a Meta", "Evento recibido"],
 ]
 
-const STEPS = [
-  { n: "01", title: "Conecta tu campaña", body: "Copia el webhook y la API Key de tu campaña en el Lead Ad de Meta." },
-  { n: "02", title: "Los leads entran solos", body: "Cada formulario aparece en tu CRM con su temperatura, listo para asignar." },
-  { n: "03", title: "Contacta por WhatsApp", body: "Asigna a un vendedor y abre WhatsApp con un clic. El mensaje lo envía la persona, no el sistema." },
-  { n: "04", title: "Cierra y notifica a Meta", body: "Al registrar la venta, SyncLead envía el evento de conversión a Meta CAPI." },
-]
-
-export function Problem() {
+export function BeforeAfter() {
   return (
-    <section className="border-t border-sg-border py-20 md:py-28" aria-labelledby="problem-title">
+    <section className="border-t border-sg-border py-20 md:py-28" aria-labelledby="ba-title">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <Heading id="problem-title" eyebrow="El problema" title="Pagar por leads que nadie sigue es la fuga más cara" />
+          <Heading
+            id="ba-title"
+            eyebrow="Antes y después"
+            title="Del caos de formularios y hojas a un flujo único"
+            lead="Google Sheets funciona bien para empezar. Deja de ser suficiente cuando crece la operación: más campañas, más vendedores, más clientes y ventas que Meta debería conocer."
+          />
         </Reveal>
-        <ul className="mt-12 grid gap-4 md:grid-cols-3">
-          {PROBLEMS.map((p, i) => (
-            <Reveal as="li" key={p.title} delay={i * 80} className="rounded-2xl border border-sg-border bg-sg-s1 p-6">
-              <h3 className="text-base font-semibold">{p.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-sg-muted">{p.body}</p>
-            </Reveal>
-          ))}
-        </ul>
-      </div>
-    </section>
-  )
-}
-
-export function HowItWorks() {
-  return (
-    <section id="producto" className="scroll-mt-20 border-t border-sg-border py-20 md:py-28" aria-labelledby="how-title">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Reveal>
-          <Heading id="how-title" eyebrow="Cómo funciona" title="De la señal a la venta en cuatro pasos" lead="Un flujo continuo: lo que Meta genera, tu equipo lo trabaja y Meta lo aprende." />
-        </Reveal>
-        <ol className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((s, i) => (
-            <Reveal as="li" key={s.n} delay={i * 80} className="rounded-2xl border border-sg-border bg-sg-s1 p-6">
-              <span className="font-mono text-sm text-sg-cyan sg-tabular">{s.n}</span>
-              <h3 className="mt-3 text-base font-semibold">{s.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-sg-muted">{s.body}</p>
-            </Reveal>
-          ))}
-        </ol>
-      </div>
-    </section>
-  )
-}
-
-export function Showcase() {
-  return (
-    <section id="demo" className="scroll-mt-20 border-t border-sg-border py-20 md:py-28" aria-labelledby="demo-title">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Reveal>
-          <Heading id="demo-title" eyebrow="Pruébalo aquí" title="Mueve un lead y mira cómo vuelve la conversión" lead="Dos demos interactivas con datos de ejemplo. Funcionan con teclado y no envían nada." />
-        </Reveal>
-        <div className="mt-12 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-          <Reveal>
-            <KanbanDemo />
+        <div className="mt-12 grid gap-4 md:grid-cols-2">
+          <Reveal className="rounded-2xl border border-sg-border bg-sg-s1 p-6">
+            <h3 className="text-sm font-semibold text-sg-muted">Antes de SyncLead</h3>
+            <ul className="mt-4 space-y-3">
+              {BEFORE.map((b) => (
+                <li key={b} className="flex items-start gap-3 text-sm text-sg-muted">
+                  <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sg-danger" />
+                  {b}
+                </li>
+              ))}
+            </ul>
           </Reveal>
-          <Reveal delay={100}>
-            <CapiDemo />
+          <Reveal delay={100} className="rounded-2xl border border-sg-accent/50 bg-sg-s2 p-6 shadow-sg-glow">
+            <h3 className="text-sm font-semibold text-sg-accent">Con SyncLead</h3>
+            <ul className="mt-4 space-y-3">
+              {AFTER.map(([t, d]) => (
+                <li key={t} className="flex items-start gap-3">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-sg-green" aria-hidden />
+                  <span>
+                    <span className="block text-sm font-medium">{t}</span>
+                    <span className="text-xs text-sg-muted">{d}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Reveal>
         </div>
       </div>
@@ -88,13 +77,50 @@ export function Showcase() {
   )
 }
 
+export function HowItWorks() {
+  return (
+    <section id="como-funciona" className="scroll-mt-20 border-t border-sg-border py-20 md:py-28" aria-labelledby="how-title">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <Reveal>
+          <Heading id="how-title" eyebrow="Cómo funciona" title="Cinco pasos, del formulario a la conversión en Meta" />
+        </Reveal>
+        <Steps />
+      </div>
+    </section>
+  )
+}
+
+export function Product() {
+  return (
+    <section id="producto" className="scroll-mt-20 border-t border-sg-border py-20 md:py-28" aria-labelledby="product-title">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <Reveal>
+          <Heading
+            id="product-title"
+            eyebrow="Producto"
+            title="Cinco vistas, un mismo panel"
+            lead="Datos de ejemplo del dominio SyncLead. Cambia de vista para ver cómo se conectan leads, ventas y anuncios."
+          />
+        </Reveal>
+        <ProductTabs />
+      </div>
+    </section>
+  )
+}
+
 const FEATURES = [
-  { icon: Zap, title: "Captura en tiempo real", body: "Webhook por campaña con API Key propia: los leads entran al CRM apenas Meta los entrega." },
-  { icon: Funnel, title: "Kanban con etapas propias", body: "Personaliza tu embudo y mueve leads entre etapas con historial de actividad completo." },
-  { icon: MessageCircle, title: "WhatsApp con un clic", body: "Asigna leads a vendedores y abre la conversación en WhatsApp. Nunca se envía un mensaje por ti." },
-  { icon: ChartColumn, title: "Rendimiento por anuncio", body: "Dashboard y tabla por anuncio. El costo por lead y el ROAS aparecen cuando conectas Meta Ads Insights." },
-  { icon: Users, title: "Multi-cliente", body: "Agencias: un cliente por marca, cada uno con sus campañas y su información de Pixel." },
-  { icon: Upload, title: "Importa y exporta", body: "Importa leads y exporta tus datos a CSV cuando los necesites." },
+  { icon: Zap, title: "Captura automática", body: "El formulario de tu landing envía cada lead a SyncLead sin copiar ni pegar nada." },
+  { icon: Target, title: "Atribución por campaña y anuncio", body: "Cada lead conserva campaña, conjunto, anuncio, UTMs, fbc y fbp." },
+  { icon: Layers, title: "Calificación frío, tibio y caliente", body: "Prioriza a quién responder primero." },
+  { icon: User, title: "Asignación comercial", body: "Cada lead tiene un vendedor responsable." },
+  { icon: MessageCircle, title: "WhatsApp", body: "Abre la conversación desde la ficha del lead. Abrir el chat no confirma que el mensaje se envió." },
+  { icon: Funnel, title: "Funnel visual", body: "Ve en qué etapa está cada oportunidad." },
+  { icon: ClipboardList, title: "Registro de ventas", body: "Guarda el monto y el anuncio de origen." },
+  { icon: RefreshCw, title: "Meta Conversions API", body: "Devuelve la conversión a Meta y sigue su estado. Venta guardada no es lo mismo que Meta notificado." },
+  { icon: ChartColumn, title: "Rendimiento de campañas", body: "Leads, ventas, conversión e ingresos por campaña y anuncio. CPL, CPA y ROAS aparecen con Meta Ads Insights." },
+  { icon: Users, title: "Arquitectura multi-cliente", body: "Varios clientes y campañas dentro de una organización." },
+  { icon: Upload, title: "Importación y exportación", body: "Importa leads y ventas históricas desde CSV, XLSX o XLS y exporta tus datos a CSV." },
+  { icon: RefreshCw, title: "Reintentos de eventos", body: "Si Meta no responde, el evento se guarda y se reintenta. Ves su estado en todo momento." },
 ]
 
 export function Features() {
@@ -102,11 +128,11 @@ export function Features() {
     <section id="funciones" className="scroll-mt-20 border-t border-sg-border py-20 md:py-28" aria-labelledby="features-title">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <Heading id="features-title" eyebrow="Funciones" title="Todo lo que necesita un equipo que vive de los leads" />
+          <Heading id="features-title" eyebrow="Funciones" title="Todo lo que pasa entre el clic y la venta" />
         </Reveal>
         <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
-            <Reveal as="li" key={f.title} delay={(i % 3) * 80} className="group rounded-2xl border border-sg-border bg-sg-s1 p-6 transition-colors hover:border-sg-border-strong/60">
+            <Reveal as="li" key={f.title} delay={(i % 3) * 80} className="rounded-2xl border border-sg-border bg-sg-s1 p-6 transition-colors hover:border-sg-border-strong/60">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-sg-s3 text-sg-accent">
                 <f.icon className="h-5 w-5" aria-hidden />
               </span>
@@ -115,77 +141,114 @@ export function Features() {
             </Reveal>
           ))}
         </ul>
-        <Reveal className="mt-4 rounded-2xl border border-sg-border bg-sg-s1 p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-base font-semibold">Métricas honestas</h3>
-              <p className="mt-1 max-w-xl text-sm text-sg-muted">
-                Sin conexión a Meta Ads Insights no inventamos costos: verás N/D en lugar de una cifra que no existe.
-              </p>
-            </div>
-            <dl className="grid grid-cols-3 gap-6 text-center">
-              {["CPL", "CPA", "ROAS"].map((k) => (
-                <div key={k}>
-                  <dt className="text-xs text-sg-subtle">{k}</dt>
-                  <dd className="sg-tabular font-mono text-xl text-sg-muted">N/D</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
+        <p className="mt-6 text-center text-sm">
+          <Link href="/features" className="font-medium text-sg-accent hover:underline">
+            Ver todas las funciones
+          </Link>
+        </p>
+      </div>
+    </section>
+  )
+}
+
+export function CapiSection() {
+  return (
+    <section className="border-t border-sg-border py-20 md:py-28" aria-labelledby="capi-title">
+      <div className="mx-auto grid max-w-6xl items-start gap-10 px-4 sm:px-6 lg:grid-cols-2">
+        <Reveal>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sg-accent">Meta Conversions API</p>
+          <h2 id="capi-title" className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+            Cierra el ciclo de atribución
+          </h2>
+          <p className="mt-4 leading-relaxed text-sg-muted">
+            SyncLead registra la venta y envía la conversión a Meta para que puedas medir qué campañas generan negocio, no solo formularios.
+          </p>
+          <p className="mt-4 text-sm text-sg-muted">
+            Venta guardada no significa Meta notificado. SyncLead muestra cada estado por separado para que sepas qué ya llegó y qué falta.
+          </p>
+        </Reveal>
+        <Reveal delay={100}>
+          <CapiDemo />
         </Reveal>
       </div>
     </section>
   )
 }
 
-const AUDIENCES = [
-  { title: "Para agencias", body: "Gestiona varios clientes desde una sola organización, con campañas y Pixel separados por marca." },
-  { title: "Para equipos comerciales", body: "Prioriza por temperatura, reparte leads entre vendedores y sigue cada conversación desde el CRM." },
-]
-
-export function Audiences() {
+export function FunnelSection() {
   return (
-    <section className="border-t border-sg-border py-20 md:py-28" aria-labelledby="aud-title">
+    <section className="border-t border-sg-border py-20 md:py-28" aria-labelledby="funnel-title">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <Heading id="aud-title" eyebrow="A quién ayuda" title="Hecho para quien compra leads y para quien los cierra" />
+          <Heading
+            id="funnel-title"
+            eyebrow="Funnel y equipo comercial"
+            title="Un funnel que tu equipo entiende de un vistazo"
+            lead="Prueba el tablero: mueve una oportunidad con los botones de flecha. En SyncLead también puedes arrastrar las tarjetas entre etapas."
+          />
         </Reveal>
-        <div className="mt-12 grid gap-4 md:grid-cols-2">
-          {AUDIENCES.map((a, i) => (
-            <Reveal key={a.title} delay={i * 80} className="rounded-2xl border border-sg-border bg-sg-s1 p-8">
-              <h3 className="text-lg font-semibold">{a.title}</h3>
-              <p className="mt-3 leading-relaxed text-sg-muted">{a.body}</p>
-            </Reveal>
-          ))}
-        </div>
+        <Reveal className="mt-12">
+          <KanbanDemo />
+          <p className="mt-4 text-center text-xs text-sg-muted">
+            El botón de WhatsApp abre la conversación. Abrir el chat no confirma que el mensaje se envió.
+          </p>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
+export function AnalyticsSection() {
+  return (
+    <section className="border-t border-sg-border py-20 md:py-28" aria-labelledby="analytics-title">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <Reveal>
+          <Heading
+            id="analytics-title"
+            eyebrow="Analítica y rendimiento"
+            title="De cada anuncio a cada dólar"
+            lead="Leads, ventas, conversión e ingresos siempre están disponibles. CPL, CPA y ROAS aparecen cuando hay sincronización con Meta Ads Insights; sin ella verás N/D."
+          />
+        </Reveal>
+        <Analytics />
       </div>
     </section>
   )
 }
 
 const SECURITY = [
-  { icon: Lock, title: "Tokens cifrados", body: "Los tokens de Meta se guardan con AES-256-GCM." },
-  { icon: Database, title: "Aislamiento multi-tenant", body: "Cada organización ve únicamente sus propios datos." },
-  { icon: KeyRound, title: "API Key por campaña", body: "Puedes rotar la llave de una campaña sin afectar al resto." },
-  { icon: ShieldCheck, title: "Tus datos son tuyos", body: "No compartimos ni vendemos tus datos." },
+  { icon: Database, title: "Separación entre organizaciones", body: "Cada consulta se limita a la organización del usuario autenticado." },
+  { icon: Lock, title: "Tokens de Meta cifrados", body: "Se guardan cifrados con AES-256-GCM." },
+  { icon: KeyRound, title: "API keys protegidas", body: "Una API key por campaña para recibir tus leads." },
+  { icon: Users, title: "Acceso por roles", body: "Cada persona ve y hace lo que su rol permite." },
+  { icon: Eye, title: "Auditoría", body: "Historial de actividad de cada lead." },
+  { icon: RefreshCw, title: "Reintentos de eventos", body: "Si Meta no responde, el evento se reintenta." },
+  { icon: ShieldCheck, title: "Privacidad de datos", body: "No compartimos ni vendemos tus datos." },
+  { icon: Globe, title: "Neon PostgreSQL, server-side", body: "Los datos viven en Neon PostgreSQL y se acceden desde el servidor." },
 ]
 
 export function Trust() {
   return (
-    <section className="border-t border-sg-border py-20 md:py-28" aria-labelledby="trust-title">
+    <section id="seguridad" className="scroll-mt-20 border-t border-sg-border py-20 md:py-28" aria-labelledby="trust-title">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <Heading id="trust-title" eyebrow="Confianza" title="Seguridad y control desde el primer lead" />
+          <Heading
+            id="trust-title"
+            eyebrow="Seguridad"
+            title="Datos separados, tokens cifrados"
+            lead="Un diseño sobrio: cada organización ve solo lo suyo y los secretos nunca viajan al navegador."
+          />
         </Reveal>
         <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {SECURITY.map((s, i) => (
-            <Reveal as="li" key={s.title} delay={i * 60} className="rounded-2xl border border-sg-border bg-sg-s1 p-6">
+            <Reveal as="li" key={s.title} delay={(i % 4) * 60} className="rounded-2xl border border-sg-border bg-sg-s1 p-6">
               <s.icon className="h-5 w-5 text-sg-cyan" aria-hidden />
               <h3 className="mt-4 text-base font-semibold">{s.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-sg-muted">{s.body}</p>
             </Reveal>
           ))}
         </ul>
+        <p className="mt-6 text-center text-xs text-sg-subtle">SyncLead no declara certificaciones ni cumplimiento normativo que no estén confirmados.</p>
       </div>
     </section>
   )
@@ -197,9 +260,9 @@ const INCLUDED = [
   "Kanban con etapas personalizables",
   "Asignación a WhatsApp",
   "Meta Conversions API (CAPI)",
-  "Dashboard y tabla de rendimiento",
-  "Exportación de datos a CSV",
-  "Historial de actividad completo",
+  "Dashboard de analytics",
+  "Tabla de rendimiento por anuncio",
+  "Export de datos a CSV",
 ]
 
 export function Pricing() {
@@ -207,13 +270,19 @@ export function Pricing() {
     <section id="precios" className="scroll-mt-20 border-t border-sg-border py-20 md:py-28" aria-labelledby="pricing-title">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <Heading id="pricing-title" eyebrow="Precios" title="Acceso anticipado gratuito" lead="Usa todas las funciones sin costo mientras SyncLead está en beta. Los precios se anunciarán antes de salir de beta." />
+          <Heading
+            id="pricing-title"
+            eyebrow="Acceso anticipado"
+            title="Empieza gratis durante el acceso anticipado"
+            lead="Todas las funciones, por organización y sin tarjeta de crédito. Los precios se anunciarán antes de salir de beta."
+          />
         </Reveal>
         <Reveal className="mx-auto mt-12 max-w-xl rounded-2xl border border-sg-border-strong/40 bg-sg-s1 p-8 shadow-sg-glow">
           <p className="flex items-baseline gap-2">
             <span className="sg-tabular text-5xl font-semibold tracking-tight">$0</span>
-            <span className="text-sg-muted">/ mes durante el acceso anticipado</span>
+            <span className="text-sg-muted">/ mes</span>
           </p>
+          <p className="mt-2 text-sm text-sg-muted">Por organización · Todas las funciones incluidas · Sin tarjeta de crédito</p>
           <ul className="mt-6 grid gap-3 sm:grid-cols-2">
             {INCLUDED.map((i) => (
               <li key={i} className="flex items-start gap-2.5 text-sm text-sg-muted">
@@ -228,7 +297,11 @@ export function Pricing() {
           >
             Crear cuenta gratis <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
-          <p className="mt-3 text-center text-xs text-sg-subtle">Sin tarjeta de crédito.</p>
+          <p className="mt-3 text-center text-xs">
+            <Link href="/pricing" className="text-sg-accent hover:underline">
+              Ver precios
+            </Link>
+          </p>
         </Reveal>
       </div>
     </section>
@@ -236,14 +309,14 @@ export function Pricing() {
 }
 
 export const FAQS = [
-  { q: "¿Cuándo tendrá precios SyncLead?", a: "SyncLead está en fase de acceso anticipado. Mientras tanto puedes crear tu cuenta gratis y usar todas las funciones. Los precios se anunciarán antes de salir de beta." },
-  { q: "¿Mis datos están seguros durante el beta?", a: "Los datos se almacenan con aislamiento multi-tenant y los tokens de Meta se cifran con AES-256-GCM. No compartimos ni vendemos tus datos." },
-  { q: "¿Necesito una cuenta de Meta Business?", a: "Sí. Necesitas una cuenta de Meta Business Suite con campañas de Lead Ads activas: SyncLead captura los leads que generan esas campañas." },
-  { q: "¿Puedo gestionar varios clientes desde una cuenta?", a: "Sí. Puedes crear varios clientes (marcas o negocios) dentro de tu organización, cada uno con sus campañas y su información de Pixel." },
-  { q: "¿Cómo funciona Meta CAPI con SyncLead?", a: "Cuando registras una venta, SyncLead envía el evento de conversión a Meta Conversions API con tu token de acceso, guardado cifrado, para que Meta optimice con ventas reales." },
-  { q: "¿SyncLead envía mensajes de WhatsApp por mí?", a: "No. SyncLead abre WhatsApp con el contacto del lead para que la persona escriba y envíe el mensaje. Nunca se marca un mensaje como enviado por el sistema." },
-  { q: "¿Puedo importar mis leads actuales?", a: "Sí, puedes importar leads desde el módulo Importar y exportar tus datos a CSV en cualquier momento." },
-  { q: "¿Cómo contacto al equipo?", a: "Desde tu cuenta tienes soporte por WhatsApp. Si aún no tienes cuenta, créala gratis y te atendemos desde ahí." },
+  { q: "¿Cómo llegan los leads a SyncLead?", a: "Se envían desde el formulario de tu landing mediante una API key por campaña. SyncLead guarda cada lead con su campaña, anuncio, UTMs, fbc y fbp." },
+  { q: "¿Puedo administrar varios clientes?", a: "Sí. Dentro de una organización puedes crear varios clientes, cada uno con sus campañas y su información de Meta Pixel." },
+  { q: "¿Cómo identifica la campaña y el anuncio?", a: "Con los parámetros que llegan junto al lead: UTMs y datos del anuncio. Puedes ver el origen en la ficha de cada lead." },
+  { q: "¿Qué sucede cuando registro una venta?", a: "La venta queda guardada en el lead y SyncLead envía el evento Purchase a Meta mediante Conversions API. El estado del envío se muestra por separado: guardar la venta no significa que Meta ya la recibió." },
+  { q: "¿Necesito conectar Meta?", a: "Para enviar conversiones a Meta necesitas conectar tu cuenta. CPL, CPA y ROAS solo se muestran cuando existe sincronización con Meta Ads Insights; sin ella verás N/D." },
+  { q: "¿SyncLead envía mensajes por WhatsApp?", a: "No. Abre la conversación en WhatsApp desde la ficha del lead. Abrir el chat no confirma que el mensaje se envió." },
+  { q: "¿Qué ocurre si Meta está temporalmente caído?", a: "El evento queda guardado y SyncLead lo reintenta. Puedes ver si está pendiente, reintentando, enviado o con error." },
+  { q: "¿Puedo importar mis leads desde Google Sheets?", a: "Puedes importar leads y ventas históricas desde un archivo CSV, XLSX o XLS (por ejemplo, descargado desde Google Sheets), de hasta 5 MB, y exportar tus datos a CSV. No hay conexión directa con Google Sheets." },
 ]
 
 export function Faq() {
@@ -274,21 +347,14 @@ export function FinalCta() {
     <section className="border-t border-sg-border py-20 md:py-28" aria-labelledby="cta-title">
       <Reveal className="mx-auto max-w-3xl px-4 text-center sm:px-6">
         <h2 id="cta-title" className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-          Convierte tus leads de Meta en ventas que Meta puede ver
+          Deja de contar formularios. Empieza a medir ventas.
         </h2>
-        <p className="mt-4 text-sg-muted">Crea tu cuenta gratis y conecta tu primera campaña.</p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/register"
             className="sg-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-sg-accent px-6 text-base font-semibold text-sg-on-accent transition-shadow hover:shadow-sg-glow sm:w-auto"
           >
-            Empezar gratis <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-sg-border-strong/50 px-6 text-base font-medium hover:bg-sg-s2 sm:w-auto"
-          >
-            Iniciar sesión
+            Comenzar con SyncLead <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
       </Reveal>

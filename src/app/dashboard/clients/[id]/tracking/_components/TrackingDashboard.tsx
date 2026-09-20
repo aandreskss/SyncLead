@@ -9,8 +9,8 @@ import type {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConversionList } from "./ConversionList"
-import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X } from "lucide-react"
-import { createTrackingSiteAction } from "@/domains/tracking/actions"
+import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, ChevronRight } from "lucide-react"
+import { createTrackingSiteAction, applyBusinessTemplateAction } from "@/domains/tracking/actions"
 
 type Props = {
   clientId: string
@@ -31,26 +31,31 @@ function HealthSummary({
 }) {
   const hasPixelDetected = definitions.some(
     (d) =>
-      d.diagStatus === "code_detected" ||
       d.diagStatus === "observed_browser" ||
       d.diagStatus === "observed_both" ||
       d.diagStatus === "accepted_by_meta"
   )
+  const hasPixelConfigured = sites.some((s) => s.expectedPixelId)
   const hasCapi = definitions.some(
     (d) =>
       d.diagStatus === "observed_server" ||
       d.diagStatus === "observed_both" ||
       d.diagStatus === "accepted_by_meta"
   )
+  const hasCAPIConfigured = definitions.some(
+    (d) => d.provider === "meta_capi" || d.provider === "both"
+  )
   const criticalCount = issues.filter(
     (i) => i.severity === "critical" && i.status === "open"
   ).length
 
   const pixelStatus = sites.length === 0
-    ? "no_escaneado"
+    ? "sin_sitio"
     : hasPixelDetected
     ? "detectado"
-    : "no_detectado"
+    : hasPixelConfigured
+    ? "configurado"
+    : "sin_pixel"
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -59,15 +64,19 @@ function HealthSummary({
         <div className="flex items-center gap-2">
           {pixelStatus === "detectado" ? (
             <CheckCircle2 className="h-4 w-4 text-green-500" />
+          ) : pixelStatus === "configurado" ? (
+            <CircleDot className="h-4 w-4 text-amber-500" />
           ) : (
             <CircleDot className="h-4 w-4 text-zinc-500" />
           )}
           <span className="text-sm font-medium text-zinc-200">
             {pixelStatus === "detectado"
               ? "Detectado"
-              : pixelStatus === "no_detectado"
-              ? "No detectado"
-              : "Sin escanear"}
+              : pixelStatus === "configurado"
+              ? "Configurado"
+              : pixelStatus === "sin_pixel"
+              ? "Sin Pixel ID"
+              : "Sin sitio"}
           </span>
         </div>
       </div>
@@ -77,11 +86,13 @@ function HealthSummary({
         <div className="flex items-center gap-2">
           {hasCapi ? (
             <CheckCircle2 className="h-4 w-4 text-green-500" />
+          ) : hasCAPIConfigured ? (
+            <CircleDot className="h-4 w-4 text-amber-500" />
           ) : (
             <CircleDot className="h-4 w-4 text-zinc-500" />
           )}
           <span className="text-sm font-medium text-zinc-200">
-            {hasCapi ? "Activo" : "Inactivo"}
+            {hasCapi ? "Activo" : hasCAPIConfigured ? "Configurado" : "Inactivo"}
           </span>
         </div>
       </div>
@@ -202,6 +213,7 @@ function AddSiteModal({
 }) {
   const [name, setName] = useState("")
   const [domain, setDomain] = useState("")
+  const [pixelId, setPixelId] = useState("")
   const [environment, setEnvironment] = useState<"production" | "staging" | "development">("production")
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -210,7 +222,13 @@ function AddSiteModal({
     e.preventDefault()
     setError(null)
     startTransition(async () => {
-      const result = await createTrackingSiteAction({ clientId, name, domain, environment })
+      const result = await createTrackingSiteAction({
+        clientId,
+        name,
+        domain,
+        environment,
+        expectedPixelId: pixelId.trim() || undefined,
+      })
       if (result.error) return setError(result.error)
       if (result.data) {
         onCreated(result.data)
@@ -251,6 +269,18 @@ function AddSiteModal({
             />
           </div>
           <div className="space-y-1.5">
+            <label className="text-xs text-zinc-400">
+              Pixel ID de Meta{" "}
+              <span className="text-zinc-600">(opcional)</span>
+            </label>
+            <input
+              value={pixelId}
+              onChange={(e) => setPixelId(e.target.value)}
+              placeholder="123456789012345"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="space-y-1.5">
             <label className="text-xs text-zinc-400">Entorno</label>
             <select
               value={environment}
@@ -281,12 +311,136 @@ function AddSiteModal({
   )
 }
 
+function ApplyTemplateModal({
+  clientId,
+  sites,
+  onClose,
+  onApplied,
+}: {
+  clientId: string
+  sites: TrackingSitePublic[]
+  onClose: () => void
+  onApplied: () => void
+}) {
+  const [template, setTemplate] = useState<"lead_gen" | "ecommerce" | "bookings">("lead_gen")
+  const [siteId, setSiteId] = useState(sites[0]?.id ?? "")
+  const [result, setResult] = useState<{ created: number; skipped: number } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleApply(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    startTransition(async () => {
+      const res = await applyBusinessTemplateAction({
+        clientId,
+        trackingSiteId: siteId || undefined,
+        template,
+      })
+      if (res.error) return setError(res.error)
+      setResult({ created: res.created ?? 0, skipped: res.skipped ?? 0 })
+    })
+  }
+
+  const TEMPLATES = [
+    { value: "lead_gen", label: "Generación de leads", desc: "PageView, Lead, Contact" },
+    { value: "ecommerce", label: "E-commerce", desc: "ViewContent, AddToCart, Purchase" },
+    { value: "bookings", label: "Reservas / Citas", desc: "PageView, Lead, Schedule" },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 shadow-xl">
+        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+          <h2 className="text-sm font-semibold text-zinc-100">Aplicar plantilla de eventos</h2>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {result ? (
+          <div className="p-5 text-center space-y-3">
+            <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto" />
+            <p className="text-sm text-zinc-200">
+              {result.created} evento{result.created !== 1 ? "s" : ""} creado{result.created !== 1 ? "s" : ""}
+              {result.skipped > 0 && `, ${result.skipped} ya existía${result.skipped !== 1 ? "n" : ""}`}
+            </p>
+            <button
+              onClick={onApplied}
+              className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+            >
+              Listo
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleApply} className="space-y-4 p-5">
+            {sites.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs text-zinc-400">Sitio</label>
+                <select
+                  value={siteId}
+                  onChange={(e) => setSiteId(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="">Sin sitio específico</option>
+                  {sites.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-xs text-zinc-400">Plantilla</label>
+              {TEMPLATES.map((t) => (
+                <label
+                  key={t.value}
+                  className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    template === t.value
+                      ? "border-indigo-500 bg-indigo-500/10"
+                      : "border-zinc-700 hover:border-zinc-600"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="template"
+                    value={t.value}
+                    checked={template === t.value}
+                    onChange={() => setTemplate(t.value as typeof template)}
+                    className="accent-indigo-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-zinc-200">{t.label}</p>
+                    <p className="text-xs text-zinc-500">{t.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {error && <p className="text-sm text-red-400">{error}</p>}
+            <div className="flex justify-end gap-3 pt-1">
+              <button type="button" onClick={onClose} className="text-sm text-zinc-400 hover:text-zinc-200">
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+              >
+                {isPending ? "Aplicando..." : "Aplicar plantilla"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function TrackingDashboard({ clientId, sites: initialSites, definitions, issues }: Props) {
   const [sites, setSites] = useState<TrackingSitePublic[]>(initialSites)
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(
     initialSites[0]?.id ?? null
   )
   const [showAddSite, setShowAddSite] = useState(false)
+  const [showTemplate, setShowTemplate] = useState(false)
 
   const filteredDefinitions =
     selectedSiteId && sites.length > 1
@@ -309,6 +463,17 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
           onCreated={handleSiteCreated}
         />
       )}
+      {showTemplate && (
+        <ApplyTemplateModal
+          clientId={clientId}
+          sites={sites}
+          onClose={() => setShowTemplate(false)}
+          onApplied={() => {
+            setShowTemplate(false)
+            window.location.reload()
+          }}
+        />
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Diagnóstico de conversiones</h1>
@@ -321,6 +486,7 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
             variant="outline"
             size="sm"
             className="border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+            onClick={() => setShowTemplate(true)}
           >
             <Layout className="h-4 w-4 mr-1.5" />
             Aplicar plantilla
