@@ -591,10 +591,15 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
         ))}
       </div>
 
-      {/* Footer tip */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-500 space-y-1">
+      {/* Footer tips */}
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-500 space-y-2">
         <p>Los UTMs y el fbclid de Meta se capturan automáticamente al cargar cualquier página.</p>
         <p><code className="text-indigo-400 bg-indigo-400/10 px-1 rounded">SyncLead.capture()</code> registra el lead · <code className="text-emerald-400 bg-emerald-400/10 px-1 rounded">SyncLead.purchase()</code> registra la venta y dispara el evento CAPI a Meta.</p>
+        <p className="border-t border-zinc-800 pt-2">
+          Para ver el <span className="text-zinc-400 font-medium">conjunto de anuncios y anuncio</span> de cada lead, agrega estos parámetros en la URL de destino de tus anuncios en Meta Ads Manager:
+          <br />
+          <code className="text-indigo-300 bg-indigo-400/10 px-1 rounded mt-1 inline-block">adset_name={"{{"}adset.name{"}}"}&amp;ad_name={"{{"}ad.name{"}}"}</code>
+        </p>
       </div>
     </div>
   )

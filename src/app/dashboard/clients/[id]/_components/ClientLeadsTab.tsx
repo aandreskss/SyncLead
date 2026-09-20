@@ -290,6 +290,13 @@ export function ClientLeadsTab({
                     {lead.city && (
                       <span className="block text-xs text-zinc-500 mt-0.5">{lead.city}</span>
                     )}
+                    {(lead.metaAdsetName || lead.metaAdName) && (
+                      <span className="block text-xs text-zinc-600 mt-0.5 truncate max-w-[180px]" title={[lead.metaAdsetName, lead.metaAdName].filter(Boolean).join(" · ")}>
+                        {lead.metaAdsetName && <span className="text-indigo-500/70">{lead.metaAdsetName}</span>}
+                        {lead.metaAdsetName && lead.metaAdName && <span className="text-zinc-700"> · </span>}
+                        {lead.metaAdName && <span>{lead.metaAdName}</span>}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-zinc-400 font-mono text-xs">
                     {lead.phone ?? <span className="text-zinc-600">—</span>}

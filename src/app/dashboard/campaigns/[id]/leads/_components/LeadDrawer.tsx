@@ -774,7 +774,14 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
               <span className={current.negocio ? "text-emerald-400" : "text-zinc-600"}>{current.negocio ? "Sí" : "No"}</span>
               {current.platform && (<><span className="text-zinc-500">Plataforma</span><span className="text-zinc-300 capitalize">{current.platform}</span></>)}
               {current.device && (<><span className="text-zinc-500">Dispositivo</span><span className="text-zinc-300 capitalize">{current.device}</span></>)}
+              {current.metaAdsetName && (<><span className="text-zinc-500">Conjunto de anuncios</span><span className="text-indigo-300 text-xs truncate" title={current.metaAdsetName}>{current.metaAdsetName}</span></>)}
+              {current.metaAdName && (<><span className="text-zinc-500">Anuncio</span><span className="text-indigo-300 text-xs truncate" title={current.metaAdName}>{current.metaAdName}</span></>)}
+              {current.metaCampaignName && (<><span className="text-zinc-500">Campaña Meta</span><span className="text-zinc-300 text-xs truncate" title={current.metaCampaignName}>{current.metaCampaignName}</span></>)}
+              {current.utmSource && (<><span className="text-zinc-500">UTM Source</span><span className="text-zinc-300 text-xs truncate">{current.utmSource}</span></>)}
+              {current.utmMedium && (<><span className="text-zinc-500">UTM Medium</span><span className="text-zinc-300 text-xs truncate">{current.utmMedium}</span></>)}
               {current.utmCampaign && (<><span className="text-zinc-500">UTM Campaign</span><span className="text-zinc-300 text-xs truncate">{current.utmCampaign}</span></>)}
+              {current.utmContent && (<><span className="text-zinc-500">UTM Content</span><span className="text-zinc-300 text-xs truncate">{current.utmContent}</span></>)}
+              {current.landingUrl && (<><span className="text-zinc-500">Landing URL</span><a href={current.landingUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 text-xs truncate block max-w-[160px]" title={current.landingUrl}>{(() => { try { return new URL(current.landingUrl).pathname } catch { return current.landingUrl } })()}</a></>)}
               <span className="text-zinc-500">Ingresó</span>
               <span className="text-zinc-400 text-xs">{formatDateTime(current.createdAt)}</span>
             </div>
