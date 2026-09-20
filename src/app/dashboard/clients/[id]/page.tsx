@@ -5,6 +5,7 @@ import { getClientById } from "@/domains/clients/repository"
 import { getMetaConnectionsByClientId } from "@/domains/meta/repository"
 import { listSalesReps } from "@/domains/team/repository"
 import { getWaClientConfig, listMessageTemplates } from "@/domains/whatsapp/repository"
+import { getClientCapiStats } from "@/domains/health/repository"
 import { db } from "@/lib/db"
 import { metaConnections } from "@/lib/db/schema"
 import { and, eq, isNotNull } from "drizzle-orm"
@@ -17,6 +18,7 @@ import {
 } from "@/domains/tracking/actions"
 import { getMetaConnectionsAction } from "@/domains/meta/actions"
 import { MetaConnectionPanel } from "./_components/MetaConnectionPanel"
+import { CapiStatusCard } from "./_components/CapiStatusCard"
 import { MetaInsightsPanel } from "./_components/MetaInsightsPanel"
 import { QualificationProfilesPanel } from "./_components/QualificationProfilesPanel"
 import { SalesTeamPanel } from "./_components/SalesTeamPanel"
@@ -108,7 +110,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       />
     )
   } else if (tab === "configuracion") {
-    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections] =
+    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats] =
       await Promise.all([
         getMetaConnectionsByClientId(id, ctx.orgId),
         listSalesReps(ctx.orgId, id),
@@ -121,6 +123,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
             isNotNull(metaConnections.adAccountId),
           ),
         }),
+        getClientCapiStats(ctx.orgId, id),
       ])
 
     const publicConnections = metaConnectionsList.map((c) => ({
@@ -150,6 +153,8 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     tabContent = (
       <div className="space-y-6">
         <MetaConnectionPanel clientId={client.id} connections={publicConnections} />
+        <div className="border-t border-zinc-800" />
+        <CapiStatusCard clientId={client.id} stats={capiStats} />
         <div className="border-t border-zinc-800" />
         <MetaInsightsPanel clientId={client.id} initialConnections={publicInsightsConnections} />
         <div className="border-t border-zinc-800" />

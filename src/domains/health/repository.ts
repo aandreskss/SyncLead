@@ -7,8 +7,10 @@ import {
   importBatches,
   cronRuns,
   clients,
+  leads,
+  campaigns,
 } from "@/lib/db/schema"
-import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm"
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm"
 
 // ─── DB Ping ──────────────────────────────────────────────────────────────────
 
@@ -238,6 +240,113 @@ export async function getStuckCronRuns(stuckAfterMs = 5 * 60 * 1000): Promise<Cr
     .where(and(eq(cronRuns.status, "running"), sql`${cronRuns.startedAt} < ${cutoff}`))
 
   return rows
+}
+
+// ─── CAPI Stats por cliente ───────────────────────────────────────────────────
+
+export interface ClientCapiStats {
+  sent: number
+  failed: number
+  pending: number
+  retrying: number
+  total: number
+  recentEvents: {
+    id: string
+    eventName: string
+    status: string
+    attemptCount: number
+    lastError: string | null
+    createdAt: Date
+  }[]
+}
+
+export async function getClientCapiStats(
+  orgId: string,
+  clientId: string,
+  limit = 10
+): Promise<ClientCapiStats> {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+  const [statRows, recentRows] = await Promise.all([
+    db
+      .select({
+        status: metaEvents.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(metaEvents)
+      .leftJoin(leads, eq(metaEvents.leadId, leads.id))
+      .leftJoin(campaigns, eq(leads.campaignId, campaigns.id))
+      .where(
+        and(
+          eq(metaEvents.orgId, orgId),
+          eq(campaigns.clientId, clientId),
+          gte(metaEvents.createdAt, thirtyDaysAgo)
+        )
+      )
+      .groupBy(metaEvents.status),
+
+    db
+      .select({
+        id: metaEvents.id,
+        eventName: metaEvents.eventName,
+        status: metaEvents.status,
+        attemptCount: metaEvents.attemptCount,
+        lastError: metaEvents.lastError,
+        createdAt: metaEvents.createdAt,
+      })
+      .from(metaEvents)
+      .leftJoin(leads, eq(metaEvents.leadId, leads.id))
+      .leftJoin(campaigns, eq(leads.campaignId, campaigns.id))
+      .where(
+        and(
+          eq(metaEvents.orgId, orgId),
+          eq(campaigns.clientId, clientId)
+        )
+      )
+      .orderBy(desc(metaEvents.createdAt))
+      .limit(limit),
+  ])
+
+  const counts = { sent: 0, failed: 0, pending: 0, retrying: 0, total: 0 }
+  for (const r of statRows) {
+    const key = r.status as keyof typeof counts
+    if (key in counts) counts[key] = r.count
+    counts.total += r.count
+  }
+
+  return { ...counts, recentEvents: recentRows }
+}
+
+export async function getCapiQueueStatsByClient(
+  orgId: string,
+  clientId: string
+): Promise<CapiQueueStats> {
+  const rows = await db
+    .select({
+      status: metaEvents.status,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(metaEvents)
+    .leftJoin(leads, eq(metaEvents.leadId, leads.id))
+    .leftJoin(campaigns, eq(leads.campaignId, campaigns.id))
+    .where(
+      and(
+        eq(metaEvents.orgId, orgId),
+        eq(campaigns.clientId, clientId)
+      )
+    )
+    .groupBy(metaEvents.status)
+
+  const stats: CapiQueueStats = {
+    pending: 0, processing: 0, retrying: 0,
+    sent: 0, failed: 0, skipped: 0, cancelled: 0, total: 0,
+  }
+  for (const r of rows) {
+    const key = r.status as keyof CapiQueueStats
+    if (key in stats) stats[key] = r.count
+    stats.total += r.count
+  }
+  return stats
 }
 
 // ─── Composite snapshot ───────────────────────────────────────────────────────
