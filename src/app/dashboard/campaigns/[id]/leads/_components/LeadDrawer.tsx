@@ -84,6 +84,17 @@ function historyLabel(field: string, value: string | null) {
 
 // ─── CAPI status display ──────────────────────────────────────────────────────
 
+function formatRelative(date: Date | string): string {
+  const diff = Date.now() - new Date(date).getTime()
+  const minutes = Math.floor(diff / 60_000)
+  const hours = Math.floor(diff / 3_600_000)
+  const days = Math.floor(diff / 86_400_000)
+  if (minutes < 1) return "ahora"
+  if (minutes < 60) return `hace ${minutes}m`
+  if (hours < 24) return `hace ${hours}h`
+  return `hace ${days}d`
+}
+
 function CAPIStatus({ capi }: { capi: ConversionStatusPublic["capi"] }) {
   if (!capi) return <span className="text-xs text-zinc-600">Sin conexión Meta configurada</span>
   const map: Record<string, { label: string; cls: string }> = {
@@ -96,7 +107,17 @@ function CAPIStatus({ capi }: { capi: ConversionStatusPublic["capi"] }) {
     cancelled: { label: "Cancelado", cls: "text-zinc-500" },
   }
   const m = map[capi.status] ?? { label: capi.status, cls: "text-zinc-400" }
-  return <span className={`text-xs font-mono ${m.cls}`}>{m.label}</span>
+  return (
+    <div className="space-y-0.5">
+      <span className={`text-xs font-mono ${m.cls}`}>{m.label}</span>
+      {capi.pixelId && (
+        <p className="text-xs text-zinc-600">Pixel: {capi.pixelId}</p>
+      )}
+      {capi.sentAt && (
+        <p className="text-xs text-zinc-600">Enviado: {formatRelative(capi.sentAt)}</p>
+      )}
+    </div>
+  )
 }
 
 // ─── Conversion panel ─────────────────────────────────────────────────────────

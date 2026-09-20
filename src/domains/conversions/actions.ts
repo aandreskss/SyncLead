@@ -30,6 +30,8 @@ export type CAPIStatusPublic = {
   lastError: string | null
   lastResponse: string | null
   nextAttemptAt: Date | null
+  pixelId: string | null
+  sentAt: Date | null
 }
 
 export type ConversionStatusPublic = {
@@ -72,6 +74,8 @@ export async function fetchConversionStatusAction(
           lastError: metaEvent.lastError,
           lastResponse: metaEvent.lastResponse,
           nextAttemptAt: metaEvent.nextAttemptAt,
+          pixelId: metaEvent.pixelId,
+          sentAt: metaEvent.status === "sent" ? metaEvent.updatedAt : null,
         }
       : null,
   }

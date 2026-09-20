@@ -34,6 +34,9 @@ export type MetaConnectionPublic = {
   webhookVerifyToken: string | null
   leadAdsEnabled: boolean
   captureScriptKey: string | null
+  // Auto-event toggles (Prompt 28)
+  sendLeadEvents: boolean
+  sendContactEvents: boolean
 }
 
 function toPublic(conn: MetaConnection): MetaConnectionPublic {
@@ -53,6 +56,8 @@ function toPublic(conn: MetaConnection): MetaConnectionPublic {
     webhookVerifyToken: conn.webhookVerifyToken ?? null,
     leadAdsEnabled: conn.leadAdsEnabled,
     captureScriptKey: conn.captureScriptKey ?? null,
+    sendLeadEvents: conn.sendLeadEvents,
+    sendContactEvents: conn.sendContactEvents,
   }
 }
 
@@ -306,6 +311,29 @@ export async function disableLeadAdsAction(
   await db
     .update(metaConnections)
     .set({ leadAdsEnabled: false, updatedAt: new Date() })
+    .where(and(eq(metaConnections.clientId, clientId), eq(metaConnections.orgId, ctx.orgId)))
+
+  return { success: true }
+}
+
+// ─── Auto-event config ────────────────────────────────────────────────────────
+
+export async function updateMetaEventConfigAction(
+  clientId: string,
+  config: { sendLeadEvents?: boolean; sendContactEvents?: boolean }
+): Promise<{ success: true } | { error: string }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch {
+    return { error: "No autorizado" }
+  }
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() }
+  if (config.sendLeadEvents !== undefined) updates.sendLeadEvents = config.sendLeadEvents
+  if (config.sendContactEvents !== undefined) updates.sendContactEvents = config.sendContactEvents
+
+  await db
+    .update(metaConnections)
+    .set(updates)
     .where(and(eq(metaConnections.clientId, clientId), eq(metaConnections.orgId, ctx.orgId)))
 
   return { success: true }
