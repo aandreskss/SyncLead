@@ -1539,6 +1539,11 @@ export const pipelineStagesRelations = relations(pipelineStages, ({ one }) => ({
   organization: one(organizations, { fields: [pipelineStages.orgId], references: [organizations.id] }),
 }))
 
+export const leadStageHistoryRelations = relations(leadStageHistory, ({ one }) => ({
+  lead: one(leads, { fields: [leadStageHistory.leadId], references: [leads.id] }),
+  organization: one(organizations, { fields: [leadStageHistory.orgId], references: [organizations.id] }),
+}))
+
 export const leadsRelations = relations(leads, ({ one, many }) => ({
   organization: one(organizations, { fields: [leads.orgId], references: [organizations.id] }),
   campaign: one(campaigns, { fields: [leads.campaignId], references: [campaigns.id] }),
