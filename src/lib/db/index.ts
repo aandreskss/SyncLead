@@ -1,11 +1,25 @@
 import { neon } from "@neondatabase/serverless"
 import { drizzle } from "drizzle-orm/neon-http"
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http"
 import * as schema from "./schema"
 
-// neon() stores the URL but does NOT connect at this point — it only
-// makes HTTP requests when a query is actually executed.
-// The fallback URL allows the module to initialize during build time
-// without a real DATABASE_URL; queries at runtime will use the real value.
-const url = process.env.DATABASE_URL ?? "postgres://build:build@build-placeholder.neon.tech/build"
+type Db = NeonHttpDatabase<typeof schema>
 
-export const db = drizzle(neon(url), { schema })
+let _db: Db | undefined
+
+function getInstance(): Db {
+  if (!_db) {
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error("DATABASE_URL is required")
+    _db = drizzle(neon(url), { schema })
+  }
+  return _db
+}
+
+// Proxy para lazy init: neon() no se llama hasta la primera query,
+// lo que permite que el módulo se importe durante el build sin DATABASE_URL.
+export const db: Db = new Proxy({} as Db, {
+  get(_, prop) {
+    return Reflect.get(getInstance(), prop)
+  },
+})
