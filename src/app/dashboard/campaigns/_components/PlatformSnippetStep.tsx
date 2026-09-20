@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Copy, Check, ChevronLeft } from "lucide-react"
+import { Copy, Check, ChevronLeft, ShoppingCart } from "lucide-react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,7 @@ interface Step {
   description?: string
   blocks?: CodeBlock[]
   notes?: string[]
+  isPurchase?: true
 }
 
 // ─── Script builders ─────────────────────────────────────────────────────────
@@ -130,12 +131,96 @@ async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 });`
 }
 
+function purchaseExample(platform: PlatformId, config: ScriptConfig, appUrl: string): string {
+  const configCode = buildConfigBlock(config, appUrl)
+  const fullInstall = `<script>\n  ${configCode}\n</script>\n<script src="${appUrl}/sl.js" defer></script>`
+
+  if (platform === "shopify") {
+    return `<!-- Shopify: Configuración → Checkout → Scripts adicionales -->
+<!-- Se ejecuta solo en la página de confirmación del pedido -->
+{% if first_time_accessed %}
+${fullInstall}
+<script>
+  SyncLead.purchase({
+    amount:   {{ checkout.total_price | divided_by: 100.0 }},
+    currency: "{{ checkout.currency }}",
+    order_id: "{{ checkout.order_id }}",
+    email:    "{{ checkout.email }}",
+  });
+</script>
+{% endif %}`
+  }
+
+  if (platform === "wordpress") {
+    return `<?php
+// WPCode → Agregar snippet → PHP Snippet
+// Condición de visibilidad: "WooCommerce → Thank You Page"
+add_action('woocommerce_thankyou', function($order_id) {
+  $order = wc_get_order($order_id);
+  if (!$order) return;
+  ?>
+  <script>
+    SyncLead.purchase({
+      amount:   <?= (float) $order->get_total() ?>,
+      currency: "<?= get_woocommerce_currency() ?>",
+      order_id: "<?= esc_js((string)$order_id) ?>",
+      email:    "<?= esc_js($order->get_billing_email()) ?>",
+    });
+  </script>
+  <?php
+}, 10, 1);`
+  }
+
+  if (platform === "nextjs") {
+    return `// En tu página de confirmación de pedido
+"use client"
+import { useEffect } from "react"
+
+declare global {
+  interface Window {
+    SyncLead?: {
+      capture: (d: Record<string, unknown>) => Promise<unknown>
+      purchase: (d: Record<string, unknown>) => Promise<unknown>
+    }
+  }
+}
+
+// Llama esto cuando tienes los datos del pedido confirmado
+export function useRegisterPurchase(order: {
+  id: string; total: number; currency: string; email: string
+} | null) {
+  useEffect(() => {
+    if (!order) return
+    window.SyncLead?.purchase({
+      amount:   order.total,
+      currency: order.currency,
+      order_id: order.id,
+      email:    order.email,
+    })
+  }, [order?.id])
+}`
+  }
+
+  // html genérico
+  return `<!-- Pega esto en tu página de confirmación de pedido -->
+<script>
+  // Reemplaza con los datos reales de tu sistema
+  SyncLead.purchase({
+    amount:   99.99,              // Monto total (número, no string)
+    currency: "USD",              // Código ISO-4217: USD, EUR, VES...
+    order_id: "ORDER-12345",      // ID único del pedido (evita duplicados)
+    email:    "cliente@email.com" // Para identificar al lead existente
+  });
+</script>`
+}
+
 // ─── Per-platform step definitions ───────────────────────────────────────────
 
 function getSteps(platform: PlatformId, config: ScriptConfig, appUrl: string): Step[] {
   const configCode = buildConfigBlock(config, appUrl)
   const installScript = `<script>\n  ${configCode}\n</script>\n<script src="${appUrl}/sl.js" defer></script>`
   const captureScript = captureExample(platform)
+  const purchaseScript = purchaseExample(platform, config, appUrl)
 
   if (platform === "shopify") {
     return [
@@ -154,13 +239,23 @@ function getSteps(platform: PlatformId, config: ScriptConfig, appUrl: string): S
         blocks: [{ label: "theme.liquid — antes de </body>", filename: "theme.liquid", code: installScript }],
       },
       {
-        title: "Agrega el script de captura",
+        title: "Agrega el script de captura de leads",
         description: "Inmediatamente después del script anterior, pega el código de captura. Ajusta los selectores según los campos de tu formulario de contacto:",
         blocks: [{ label: "Script de captura — theme.liquid", code: `<script>\n${captureScript}\n</script>` }],
         notes: [
           "Los selectores [name='contact[name]'], [name='contact[email]'], etc. son los que usa el formulario estándar de Shopify.",
           "Si usas una app de formularios (Klaviyo, Omnisend…), consulta su documentación para el evento de submit.",
         ],
+      },
+      {
+        title: "Registra ventas automáticamente",
+        description: "En Shopify ve a Configuración → Pago → Scripts adicionales y pega esto. Se ejecuta solo en la página de confirmación del pedido y registra la venta en SyncLead:",
+        blocks: [{ label: "Settings → Checkout → Additional scripts", code: purchaseScript }],
+        notes: [
+          "checkout.total_price está en centavos — el script lo convierte a número automáticamente.",
+          "Si el comprador ya existía como lead, la venta se asocia a él. Si es nuevo, SyncLead crea el registro.",
+        ],
+        isPurchase: true,
       },
       {
         title: "Guarda y prueba",
@@ -190,13 +285,23 @@ function getSteps(platform: PlatformId, config: ScriptConfig, appUrl: string): S
         ],
       },
       {
-        title: "Agrega el script de captura",
+        title: "Agrega el script de captura de leads",
         description: "Crea un segundo snippet HTML en WPCode con el código de captura:",
         blocks: [{ label: "Snippet HTML — captura del lead", code: `<script>\n${captureScript}\n</script>` }],
         notes: [
-          "Para Contact Form 7: los nombres de campo (your-name, your-email, your-phone) deben coincidir con los de tu formulario. Revísalos en el editor del formulario.",
+          "Para Contact Form 7: los nombres de campo (your-name, your-email, your-phone) deben coincidir con los de tu formulario.",
           "Para WPForms o Gravity Forms: cambia la lógica al evento submit del formulario correspondiente.",
         ],
+      },
+      {
+        title: "Registra ventas de WooCommerce",
+        description: "Crea un nuevo snippet en WPCode de tipo PHP Snippet con condición de visibilidad 'WooCommerce Thank You Page'. Esto registra automáticamente cada venta completada:",
+        blocks: [{ label: "WPCode — PHP Snippet (Thank You page)", code: purchaseScript }],
+        notes: [
+          "Requiere WooCommerce activo. El hook woocommerce_thankyou se dispara solo en la página de confirmación de pedido.",
+          "Si el comprador ya era un lead en SyncLead, la venta queda asociada a su registro.",
+        ],
+        isPurchase: true,
       },
       {
         title: "Prueba el formulario",
@@ -241,6 +346,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         blocks: [{ label: "FormularioContacto.tsx", filename: "components/FormularioContacto.tsx", code: captureScript }],
       },
       {
+        title: "Registra ventas en la página de confirmación",
+        description: "En tu página o componente de 'Pedido confirmado', usa el hook useRegisterPurchase para enviar la venta a SyncLead:",
+        blocks: [{ label: "OrderConfirmation.tsx", filename: "components/OrderConfirmation.tsx", code: purchaseScript }],
+        notes: [
+          "El useEffect garantiza que la llamada ocurre una sola vez por order.id (dep array).",
+          "SyncLead.purchase() busca el lead por email. Si no lo encuentra, crea uno nuevo.",
+        ],
+        isPurchase: true,
+      },
+      {
         title: "Prueba en desarrollo",
         description: "Corre npm run dev, llena el formulario y verifica en la consola que SyncLead.capture() responde con { success: true, leadId: '...' }.",
       },
@@ -255,9 +370,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       blocks: [{ label: "HTML — <head> o antes de </body>", code: installScript }],
     },
     {
-      title: "Agrega el script de captura",
+      title: "Agrega el script de captura de leads",
       description: "Justo después del script anterior (o en un archivo .js separado), pega el código de captura. Ajusta los IDs de los campos de tu formulario:",
       blocks: [{ label: "Script de captura", code: `<script>\n${captureScript}\n</script>` }],
+    },
+    {
+      title: "Registra ventas en la página de confirmación",
+      description: "En tu página de 'Gracias por tu compra' o confirmación de pedido, pega el script de venta con los datos reales del pedido:",
+      blocks: [{ label: "Página de confirmación de pedido", code: purchaseScript }],
+      notes: [
+        "Reemplaza los valores de ejemplo con los datos reales que tu sistema genera para cada pedido.",
+        "El campo order_id evita registrar la misma venta dos veces si el usuario recarga la página.",
+      ],
+      isPurchase: true,
     },
     {
       title: "Prueba en tu navegador",
@@ -337,6 +462,7 @@ interface Props {
 
 export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
   const [platform, setPlatform] = useState<PlatformId | null>(null)
+  const [withPurchase, setWithPurchase] = useState(false)
 
   if (!platform) {
     return (
@@ -378,7 +504,8 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
   }
 
   const platformInfo = PLATFORMS.find((p) => p.id === platform)!
-  const steps = getSteps(platform, config, appUrl)
+  const allSteps = getSteps(platform, config, appUrl)
+  const visibleSteps = allSteps.filter((s) => !s.isPurchase || withPurchase)
 
   return (
     <div className="space-y-5">
@@ -397,9 +524,35 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
         </span>
       </div>
 
+      {/* Toggle: tracking de ventas */}
+      <button
+        onClick={() => setWithPurchase((v) => !v)}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors text-left ${
+          withPurchase
+            ? "border-emerald-500/40 bg-emerald-500/10"
+            : "border-zinc-700 bg-zinc-900 hover:border-zinc-600"
+        }`}
+      >
+        {/* Toggle pill */}
+        <div className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${withPurchase ? "bg-emerald-500" : "bg-zinc-700"}`}>
+          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${withPurchase ? "translate-x-4" : "translate-x-0.5"}`} />
+        </div>
+        <ShoppingCart className={`h-3.5 w-3.5 flex-shrink-0 ${withPurchase ? "text-emerald-400" : "text-zinc-500"}`} />
+        <div className="flex-1 min-w-0">
+          <p className={`text-xs font-medium ${withPurchase ? "text-emerald-300" : "text-zinc-400"}`}>
+            Incluir tracking de ventas
+          </p>
+          <p className="text-xs text-zinc-600 leading-tight">
+            {withPurchase
+              ? "Se incluye el código para registrar compras en la página de confirmación"
+              : "Actívalo si tu sitio tiene checkout o tienda (Shopify, WooCommerce, etc.)"}
+          </p>
+        </div>
+      </button>
+
       {/* Steps */}
       <div className="space-y-5">
-        {steps.map((step, i) => (
+        {visibleSteps.map((step, i) => (
           <div key={i} className="space-y-2">
             {/* Step number + title */}
             <div className="flex items-start gap-3">
@@ -439,8 +592,9 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
       </div>
 
       {/* Footer tip */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-500">
-        Los UTMs y el fbclid de Meta se capturan automáticamente al cargar cualquier página. No necesitas configurar nada extra para el tracking de atribución.
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-500 space-y-1">
+        <p>Los UTMs y el fbclid de Meta se capturan automáticamente al cargar cualquier página.</p>
+        <p><code className="text-indigo-400 bg-indigo-400/10 px-1 rounded">SyncLead.capture()</code> registra el lead · <code className="text-emerald-400 bg-emerald-400/10 px-1 rounded">SyncLead.purchase()</code> registra la venta y dispara el evento CAPI a Meta.</p>
       </div>
     </div>
   )

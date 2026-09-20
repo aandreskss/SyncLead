@@ -1,5 +1,5 @@
 /**
- * SyncLead Universal Script v2
+ * SyncLead Universal Script v3
  *
  * ── Modo campaña única ──────────────────────────────────────────────────────
  *   window.SyncLeadKey  = "api_key_de_la_campaña";
@@ -13,8 +13,9 @@
  *     "_default":             "api_key_fallback",
  *   };
  *
- * Uso (igual en ambos modos):
+ * Métodos disponibles:
  *   SyncLead.capture({ name, email, phone, city, negocio })
+ *   SyncLead.purchase({ amount, currency, order_id, email, phone })
  */
 (function () {
   'use strict';
@@ -92,7 +93,31 @@
     }).then(function (r) { return r.json(); });
   }
 
-  window.SyncLead = { capture: capture };
+  // ── Registra una venta en la página de confirmación de pedido ────────────
+  // data: { amount (número), currency (ISO-4217), order_id?, email?, phone?, name? }
+  function purchase(data) {
+    var key = _resolveKey();
+    if (!key) { console.error('[SyncLead] No se encontró un API key para registrar la venta.'); return Promise.reject('no key'); }
+    if (!data || !data.amount || !data.currency) { console.error('[SyncLead] purchase() requiere amount y currency.'); return Promise.reject('missing fields'); }
+
+    var payload = {};
+    for (var k in data) {
+      if (Object.prototype.hasOwnProperty.call(data, k)) payload[k] = data[k];
+    }
+    if (!payload.event_id) {
+      try { payload.event_id = crypto.randomUUID(); } catch (e) {
+        payload.event_id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      }
+    }
+
+    return fetch(host + '/api/leads/purchase', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Campaign-Key': key },
+      body:    JSON.stringify(payload),
+    }).then(function (r) { return r.json(); });
+  }
+
+  window.SyncLead = { capture: capture, purchase: purchase };
 
   // Almacena UTMs en cuanto se carga el script
   _store();
