@@ -1,10 +1,11 @@
 "use client"
 import Link from "next/link"
-import { LayoutDashboard, Users, Settings, Activity } from "lucide-react"
+import { LayoutDashboard, Users, Settings, Activity, Radio } from "lucide-react"
 
 const TABS = [
   { key: "resumen", label: "Resumen", Icon: LayoutDashboard },
   { key: "leads", label: "Leads", Icon: Users },
+  { key: "fuentes", label: "Fuentes", Icon: Radio },
   { key: "configuracion", label: "Configuración", Icon: Settings },
   { key: "diagnostico", label: "Diagnóstico", Icon: Activity },
 ]

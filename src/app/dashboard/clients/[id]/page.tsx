@@ -27,6 +27,7 @@ import { MessageTemplatesPanel } from "./_components/MessageTemplatesPanel"
 import { ClientHubTabs } from "./_components/ClientHubTabs"
 import { ClientResumenTab } from "./_components/ClientResumenTab"
 import { ClientLeadsTab } from "./_components/ClientLeadsTab"
+import { LeadSourcesPanel } from "./_components/LeadSourcesPanel"
 import { TrackingDashboard } from "./tracking/_components/TrackingDashboard"
 import { ArrowLeft, Building2 } from "lucide-react"
 import Link from "next/link"
@@ -109,6 +110,28 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         }}
       />
     )
+  } else if (tab === "fuentes") {
+    const metaConnectionsList = await getMetaConnectionsByClientId(id, ctx.orgId)
+    const publicConnections = metaConnectionsList.map((c) => ({
+      id: c.id,
+      pixelId: c.pixelId,
+      datasetId: c.datasetId,
+      graphApiVersion: c.graphApiVersion,
+      status: c.status,
+      scopes: c.scopes,
+      expiresAt: c.expiresAt,
+      lastVerifiedAt: c.lastVerifiedAt,
+      lastError: c.lastError,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      metaPageId: c.metaPageId ?? null,
+      webhookVerifyToken: c.webhookVerifyToken ?? null,
+      leadAdsEnabled: c.leadAdsEnabled,
+      captureScriptKey: c.captureScriptKey ?? null,
+    }))
+    tabContent = (
+      <LeadSourcesPanel clientId={id} metaConnections={publicConnections} />
+    )
   } else if (tab === "configuracion") {
     const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats] =
       await Promise.all([
@@ -138,6 +161,10 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       lastError: c.lastError,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
+      metaPageId: c.metaPageId ?? null,
+      webhookVerifyToken: c.webhookVerifyToken ?? null,
+      leadAdsEnabled: c.leadAdsEnabled,
+      captureScriptKey: c.captureScriptKey ?? null,
     }))
 
     const publicInsightsConnections = insightsConnections.map((c) => ({
