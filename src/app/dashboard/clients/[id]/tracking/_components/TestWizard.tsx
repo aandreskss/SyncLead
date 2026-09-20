@@ -73,10 +73,15 @@ function buildDiagnosticScript(token: string): string {
   // API manual: window.__synclead_collect("Purchase", { value: true, currency: true })
   window.__synclead_collect = sendToDiagnostic;
 
-  // Intercepta llamadas reales a fbq('track') / fbq('trackCustom')
-  // Usa getters/setters para delegar TODAS las propiedades al original en vivo.
-  // Esto evita que fbevents.js vea queue/version/callMethod como undefined
-  // y trate de reinicializar el pixel (causa "Multiple pixels" error).
+  // Intercepta fbq('track') / fbq('trackCustom') sin romper el pixel de Meta.
+  //
+  // Problema raíz (resuelto aquí):
+  // fbevents.js asigna callMethod en window.fbq (nuestro wrapper), no en el stub
+  // original. Si el wrapper llama original.apply(), el stub busca n.callMethod en
+  // el original → undefined → los eventos caen en una cola muerta sin procesar.
+  //
+  // Fix v5: si wrapper.callMethod ya fue inicializado por fbevents.js, delegar
+  // directamente a él en lugar de al original, para que los eventos se procesen.
   function wrapFbq(original) {
     if (original && original._synclead_wrapped) return original;
     var wrapper = function() {
@@ -84,9 +89,18 @@ function buildDiagnosticScript(token: string): string {
       if (args[0] === "track" || args[0] === "trackCustom") {
         sendToDiagnostic(args[1], args[2] || {});
       }
+      // Una vez fbevents.js cargó, asigna callMethod en el wrapper (window.fbq).
+      // Debemos delegar a wrapper.callMethod, no al stub original, o los eventos
+      // no se procesarán (original.callMethod permanece undefined).
+      if (typeof wrapper.callMethod === "function") {
+        return wrapper.callMethod.apply(wrapper, args);
+      }
       return original.apply(this, arguments);
     };
-    // Forward all property access to original so fbevents.js always sees a consistent stub
+    // Delegar propiedades del stub al wrapper en vivo con getters/setters.
+    // Esto evita que fbevents.js vea queue/version/loaded como undefined
+    // y trate de reinicializar el pixel ("Multiple pixels" error).
+    // Propiedades añadidas después (como callMethod) se escriben directo en wrapper.
     try {
       var skip = { length: 1, name: 1, prototype: 1, caller: 1, arguments: 1 };
       Object.getOwnPropertyNames(original).forEach(function(key) {
