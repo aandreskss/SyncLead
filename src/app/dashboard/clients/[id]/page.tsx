@@ -43,6 +43,7 @@ interface Props {
     campaignId?: string
     repId?: string
     assignment?: string
+    converted?: string
   }>
 }
 
@@ -81,11 +82,14 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     )
   } else if (tab === "leads") {
     const campaigns = await getCampaignsByClientWithCounts(id, ctx.orgId)
+    const convertedFilter =
+      sp.converted === "yes" ? true : sp.converted === "no" ? false : undefined
     const [leadsData, salesRepsData] = await Promise.all([
       getLeadsByClient(id, ctx.orgId, {
         search: sp.search,
         temperature: (sp.temperature as Temperature) || undefined,
         stage: (sp.stage as LeadStage) || undefined,
+        converted: convertedFilter,
       }),
       listSalesReps(ctx.orgId, id),
     ])
@@ -107,6 +111,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
           campaignId: sp.campaignId ?? "",
           repId: sp.repId ?? "",
           assignment: sp.assignment ?? "",
+          converted: sp.converted ?? "",
         }}
       />
     )
