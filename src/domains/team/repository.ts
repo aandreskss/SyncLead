@@ -80,25 +80,87 @@ export async function deleteSalesRep(id: string, orgId: string) {
 // ─── Assignments ──────────────────────────────────────────────────────────────
 
 export async function getCurrentAssignment(leadId: string, orgId: string): Promise<AssignmentWithRep | null> {
-  const rows = await db.query.leadAssignments.findFirst({
-    where: and(
-      eq(leadAssignments.leadId, leadId),
-      eq(leadAssignments.orgId, orgId),
-      eq(leadAssignments.isCurrent, true),
-    ),
-    with: { salesRep: true },
-  })
-  if (!rows) return null
-  return rows as AssignmentWithRep
+  const rows = await db
+    .select({
+      id: leadAssignments.id,
+      leadId: leadAssignments.leadId,
+      salesRepId: leadAssignments.salesRepId,
+      assignedById: leadAssignments.assignedById,
+      reason: leadAssignments.reason,
+      note: leadAssignments.note,
+      isCurrent: leadAssignments.isCurrent,
+      assignedAt: leadAssignments.assignedAt,
+      unassignedAt: leadAssignments.unassignedAt,
+      repId: salesReps.id,
+      repDisplayName: salesReps.displayName,
+      repWhatsappNumber: salesReps.whatsappNumber,
+      repActive: salesReps.active,
+    })
+    .from(leadAssignments)
+    .leftJoin(salesReps, eq(salesReps.id, leadAssignments.salesRepId))
+    .where(
+      and(
+        eq(leadAssignments.leadId, leadId),
+        eq(leadAssignments.orgId, orgId),
+        eq(leadAssignments.isCurrent, true),
+      )
+    )
+    .limit(1)
+
+  if (!rows[0]) return null
+  const r = rows[0]
+  return {
+    id: r.id,
+    leadId: r.leadId,
+    salesRepId: r.salesRepId,
+    assignedById: r.assignedById,
+    reason: r.reason,
+    note: r.note,
+    isCurrent: r.isCurrent,
+    assignedAt: r.assignedAt,
+    unassignedAt: r.unassignedAt,
+    salesRep: r.repId
+      ? { id: r.repId, displayName: r.repDisplayName!, whatsappNumber: r.repWhatsappNumber, active: r.repActive! }
+      : null,
+  }
 }
 
 export async function getAssignmentHistory(leadId: string, orgId: string): Promise<AssignmentWithRep[]> {
-  const rows = await db.query.leadAssignments.findMany({
-    where: and(eq(leadAssignments.leadId, leadId), eq(leadAssignments.orgId, orgId)),
-    with: { salesRep: true },
-    orderBy: [desc(leadAssignments.assignedAt)],
-  })
-  return rows as AssignmentWithRep[]
+  const rows = await db
+    .select({
+      id: leadAssignments.id,
+      leadId: leadAssignments.leadId,
+      salesRepId: leadAssignments.salesRepId,
+      assignedById: leadAssignments.assignedById,
+      reason: leadAssignments.reason,
+      note: leadAssignments.note,
+      isCurrent: leadAssignments.isCurrent,
+      assignedAt: leadAssignments.assignedAt,
+      unassignedAt: leadAssignments.unassignedAt,
+      repId: salesReps.id,
+      repDisplayName: salesReps.displayName,
+      repWhatsappNumber: salesReps.whatsappNumber,
+      repActive: salesReps.active,
+    })
+    .from(leadAssignments)
+    .leftJoin(salesReps, eq(salesReps.id, leadAssignments.salesRepId))
+    .where(and(eq(leadAssignments.leadId, leadId), eq(leadAssignments.orgId, orgId)))
+    .orderBy(desc(leadAssignments.assignedAt))
+
+  return rows.map((r) => ({
+    id: r.id,
+    leadId: r.leadId,
+    salesRepId: r.salesRepId,
+    assignedById: r.assignedById,
+    reason: r.reason,
+    note: r.note,
+    isCurrent: r.isCurrent,
+    assignedAt: r.assignedAt,
+    unassignedAt: r.unassignedAt,
+    salesRep: r.repId
+      ? { id: r.repId, displayName: r.repDisplayName!, whatsappNumber: r.repWhatsappNumber, active: r.repActive! }
+      : null,
+  }))
 }
 
 export async function assignLeadToRep(
