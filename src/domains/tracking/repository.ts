@@ -299,6 +299,36 @@ export async function getRecentObservationsByClient(
     .limit(limit)
 }
 
+export type ObservationWithMeta = ConversionObservation & {
+  definitionDisplayName: string | null
+}
+
+export async function getRecentObservationsWithMeta(
+  orgId: string,
+  clientId: string,
+  limit = 50
+): Promise<ObservationWithMeta[]> {
+  const rows = await db
+    .select({
+      obs: conversionObservations,
+      defName: conversionDefinitions.displayName,
+    })
+    .from(conversionObservations)
+    .leftJoin(
+      conversionDefinitions,
+      eq(conversionObservations.conversionDefinitionId, conversionDefinitions.id)
+    )
+    .where(
+      and(
+        eq(conversionObservations.orgId, orgId),
+        eq(conversionObservations.clientId, clientId)
+      )
+    )
+    .orderBy(desc(conversionObservations.observedAt))
+    .limit(limit)
+  return rows.map((r) => ({ ...r.obs, definitionDisplayName: r.defName ?? null }))
+}
+
 export async function getLastObservationByDefinition(
   defId: string,
   orgId: string
