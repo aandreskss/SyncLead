@@ -54,6 +54,7 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
   const [pageIdInput, setPageIdInput] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [utmOpen, setUtmOpen] = useState(false)
+  const [capturePreset, setCapturePreset] = useState<"basic" | "location" | "ecommerce">("basic")
 
   // Get the first connection (most orgs have one)
   const conn = metaConnections[0]
@@ -61,8 +62,6 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
   const webhookVerifyToken = conn?.webhookVerifyToken ?? null
   const metaPageId = conn?.metaPageId ?? null
   const captureScriptKey = conn?.captureScriptKey ?? null
-
-  const [capturePreset, setCapturePreset] = useState<"basic" | "location" | "ecommerce">("basic")
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : ""
   const webhookUrl = `${appUrl}/api/webhook/meta/${clientId}`
