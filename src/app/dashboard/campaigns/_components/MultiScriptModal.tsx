@@ -8,10 +8,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { Check, Code2, Star } from "lucide-react"
+import { Check, Code2, Star, Loader2 } from "lucide-react"
 import { PlatformSnippetStep } from "./PlatformSnippetStep"
 import type { ScriptConfig } from "./PlatformSnippetStep"
 import type { CampaignWithClient } from "@/domains/campaigns/repository"
+import { ensureOrganicCampaignAction } from "@/domains/campaigns/actions"
 
 interface Props {
   open: boolean
@@ -28,6 +29,8 @@ export function MultiScriptModal({ open, onOpenChange, campaigns, appUrl }: Prop
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [utmKeys, setUtmKeys] = useState<Map<string, string>>(new Map())
   const [defaultId, setDefaultId] = useState<string>("")
+  const [organicKey, setOrganicKey] = useState<string | null>(null)
+  const [loadingOrganic, setLoadingOrganic] = useState(false)
   const [step, setStep] = useState<"select" | "platform">("select")
 
   const activeCampaigns = campaigns.filter((c) => c.active && c.apiKey)
@@ -91,7 +94,22 @@ export function MultiScriptModal({ open, onOpenChange, campaigns, appUrl }: Prop
         name: c.name,
       })),
       defaultUtmKey: defaultCampaign ? (utmKeys.get(defaultCampaign.id) ?? "").trim() : "",
+      organicKey: organicKey ?? undefined,
     }
+  }
+
+  async function handleContinue() {
+    // Auto-create the "Orgánico / Directo" campaign for the client — never lose a lead
+    const clientId = selectedCampaigns[0]?.clientId
+    if (clientId) {
+      setLoadingOrganic(true)
+      try {
+        const result = await ensureOrganicCampaignAction(clientId)
+        if (result.apiKey) setOrganicKey(result.apiKey)
+      } catch { /* non-blocking: snippet still works without organic key */ }
+      finally { setLoadingOrganic(false) }
+    }
+    setStep("platform")
   }
 
   function handleClose(open: boolean) {
@@ -100,6 +118,7 @@ export function MultiScriptModal({ open, onOpenChange, campaigns, appUrl }: Prop
       setSelected(new Set())
       setUtmKeys(new Map())
       setDefaultId("")
+      setOrganicKey(null)
     }
     onOpenChange(open)
   }
@@ -229,10 +248,11 @@ export function MultiScriptModal({ open, onOpenChange, campaigns, appUrl }: Prop
 
                 <div className="flex justify-end pt-2 border-t border-zinc-800">
                   <button
-                    onClick={() => setStep("platform")}
-                    disabled={!canGenerate}
-                    className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={handleContinue}
+                    disabled={!canGenerate || loadingOrganic}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
+                    {loadingOrganic && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                     Continuar → elegir plataforma
                   </button>
                 </div>
