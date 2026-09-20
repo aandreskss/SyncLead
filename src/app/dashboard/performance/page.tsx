@@ -1,0 +1,59 @@
+import { redirect } from "next/navigation"
+import { requireOrganizationMembership } from "@/lib/auth/server"
+import { AuthError, ForbiddenError } from "@/lib/auth/errors"
+import { getOrganizationById } from "@/domains/organizations/repository"
+import { parseDateRange, formatRangeLabel } from "@/lib/date-range"
+import { getPerformanceTable } from "@/domains/analytics/repository"
+import { DateRangeSelector } from "../_components/DateRangeSelector"
+import { SummaryCards } from "./_components/SummaryCards"
+import { PerformanceView } from "./_components/PerformanceView"
+
+export default async function PerformancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>
+}) {
+  let ctx: { orgId: string; userId: string }
+  let orgName: string
+
+  try {
+    ctx = await requireOrganizationMembership()
+    const org = await getOrganizationById(ctx.orgId)
+    if (!org) redirect("/onboarding")
+    orgName = org.name
+  } catch (e) {
+    if (e instanceof AuthError) redirect("/login")
+    if (e instanceof ForbiddenError) redirect("/onboarding")
+    throw e
+  }
+
+  const sp = await searchParams
+  const range = parseDateRange(sp.range ?? "30d", sp.from, sp.to)
+
+  const [rows, prevRows] = await Promise.all([
+    getPerformanceTable(ctx.orgId, range.from, range.to),
+    getPerformanceTable(ctx.orgId, range.prevFrom, range.prevTo),
+  ])
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-100">Rendimiento de anuncios</h1>
+          <p className="text-sm text-zinc-500 mt-0.5">
+            {formatRangeLabel(range.from, range.to)} · {orgName}
+          </p>
+        </div>
+        <DateRangeSelector
+          currentPreset={range.preset}
+          customFrom={sp.from}
+          customTo={sp.to}
+          basePath="/dashboard/performance"
+        />
+      </div>
+
+      <SummaryCards rows={rows} />
+      <PerformanceView rows={rows} prevRows={prevRows} />
+    </div>
+  )
+}

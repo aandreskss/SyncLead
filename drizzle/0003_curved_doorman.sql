@@ -1,0 +1,2 @@
+ALTER TABLE "ingestion_credentials" ADD COLUMN "allowed_origins" text[] DEFAULT '{}' NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "webhook_events_campaign_event_idx" ON "webhook_events" USING btree ("campaign_id","event_id");

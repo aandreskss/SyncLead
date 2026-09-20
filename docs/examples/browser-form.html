@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!--
+  MODO A — Formulario público para navegador
+  ==========================================
+  Credencial: PUBLIC TOKEN (pub_xxx...)
+  Endpoint:   POST /api/ingest/form
+  Header:     X-Ingest-Token: <public_token>
+
+  Este token ES SEGURO incluir en el HTML/JS del navegador porque:
+  - Es revocable sin cambiar la integración
+  - El tipo "public_form" está restringido por Turnstile + honeypot + rate limit
+  - El servidor NUNCA crea un token de tipo "server_secret" aquí
+
+  NUNCA uses aquí una credencial de tipo server_secret (slk_...).
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Formulario de contacto</title>
+  <!-- Cloudflare Turnstile (opcional pero recomendado) -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+
+<form id="lead-form">
+  <input type="text" name="name" placeholder="Tu nombre" required>
+  <input type="email" name="email" placeholder="Tu email">
+  <input type="tel" name="phone" placeholder="+58412...">
+
+  <!-- Honeypot: oculto para humanos, bots lo llenan -->
+  <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off">
+  <!-- Timestamp de render para verificar tiempo mínimo de envío -->
+  <input type="hidden" name="_t" id="submit-time">
+
+  <!-- Widget de Turnstile (reemplaza data-sitekey con el tuyo) -->
+  <div class="cf-turnstile" data-sitekey="0x4AAAAAAA_TU_SITE_KEY_AQUI"></div>
+
+  <button type="submit">Enviar</button>
+  <p id="msg"></p>
+</form>
+
+<script>
+(function () {
+  // Marca el tiempo de carga de la página
+  document.getElementById('submit-time').value = Date.now();
+
+  // PUBLIC TOKEN — seguro en el navegador (no da acceso a ningún dato)
+  const PUBLIC_TOKEN = 'pub_REPLACE_WITH_YOUR_PUBLIC_TOKEN';
+  const INGEST_URL = 'https://app.tudominio.com/api/ingest/form';
+
+  document.getElementById('lead-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const msg = document.getElementById('msg');
+
+    // Lee el token de Turnstile del widget
+    const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value ?? '';
+
+    const payload = {
+      name: form.name.value.trim(),
+      email: form.email.value.trim() || null,
+      phone: form.phone.value.trim() || null,
+      _hp: form._hp.value,         // Honeypot (debe estar vacío)
+      _t: parseInt(form._t.value), // Timestamp de render
+      'cf-turnstile-response': turnstileToken,
+      // UTM (leídos de la URL automáticamente)
+      utm_source: new URLSearchParams(location.search).get('utm_source'),
+      utm_medium: new URLSearchParams(location.search).get('utm_medium'),
+      utm_campaign: new URLSearchParams(location.search).get('utm_campaign'),
+      utm_content: new URLSearchParams(location.search).get('utm_content'),
+      fbclid: new URLSearchParams(location.search).get('fbclid'),
+      landing_url: location.href,
+      referrer_url: document.referrer || null,
+      // Genera un event_id único para idempotencia (reenvío sin duplicados)
+      event_id: crypto.randomUUID(),
+    };
+
+    try {
+      const res = await fetch(INGEST_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ingest-Token': PUBLIC_TOKEN,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        msg.textContent = '¡Gracias! Nos pondremos en contacto pronto.';
+        form.reset();
+      } else {
+        msg.textContent = 'Ocurrió un problema. Intenta de nuevo.';
+      }
+    } catch {
+      msg.textContent = 'Error de conexión. Intenta de nuevo.';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

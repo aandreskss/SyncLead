@@ -1,0 +1,503 @@
+import "server-only"
+
+import { db } from "@/lib/db"
+import {
+  trackingSites,
+  conversionDefinitions,
+  conversionTestSessions,
+  conversionObservations,
+  conversionIssues,
+  type TrackingSite,
+  type NewTrackingSite,
+  type ConversionDefinition,
+  type NewConversionDefinition,
+  type ConversionTestSession,
+  type NewConversionTestSession,
+  type ConversionObservation,
+  type NewConversionObservation,
+  type ConversionIssue,
+  type NewConversionIssue,
+} from "@/lib/db/schema"
+import { eq, and, desc, lt, isNull, or, ne, sql } from "drizzle-orm"
+
+// ─── Tracking Sites ───────────────────────────────────────────────────────────
+
+export async function getTrackingSitesByClient(
+  orgId: string,
+  clientId: string
+): Promise<TrackingSite[]> {
+  return db
+    .select()
+    .from(trackingSites)
+    .where(and(eq(trackingSites.orgId, orgId), eq(trackingSites.clientId, clientId)))
+    .orderBy(desc(trackingSites.createdAt))
+}
+
+export async function getTrackingSiteById(
+  id: string,
+  orgId: string
+): Promise<TrackingSite | null> {
+  const rows = await db
+    .select()
+    .from(trackingSites)
+    .where(and(eq(trackingSites.id, id), eq(trackingSites.orgId, orgId)))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+export async function createTrackingSite(
+  data: NewTrackingSite
+): Promise<TrackingSite> {
+  const rows = await db.insert(trackingSites).values(data).returning()
+  return rows[0]
+}
+
+export async function updateTrackingSite(
+  id: string,
+  orgId: string,
+  data: Partial<NewTrackingSite>
+): Promise<TrackingSite | null> {
+  const rows = await db
+    .update(trackingSites)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(trackingSites.id, id), eq(trackingSites.orgId, orgId)))
+    .returning()
+  return rows[0] ?? null
+}
+
+export async function deleteTrackingSite(
+  id: string,
+  orgId: string
+): Promise<void> {
+  await db
+    .delete(trackingSites)
+    .where(and(eq(trackingSites.id, id), eq(trackingSites.orgId, orgId)))
+}
+
+// ─── Conversion Definitions ───────────────────────────────────────────────────
+
+export async function getConversionDefinitionsByClient(
+  orgId: string,
+  clientId: string
+): Promise<ConversionDefinition[]> {
+  return db
+    .select()
+    .from(conversionDefinitions)
+    .where(
+      and(
+        eq(conversionDefinitions.orgId, orgId),
+        eq(conversionDefinitions.clientId, clientId)
+      )
+    )
+    .orderBy(desc(conversionDefinitions.createdAt))
+}
+
+export async function getConversionDefinitionById(
+  id: string,
+  orgId: string
+): Promise<ConversionDefinition | null> {
+  const rows = await db
+    .select()
+    .from(conversionDefinitions)
+    .where(and(eq(conversionDefinitions.id, id), eq(conversionDefinitions.orgId, orgId)))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+export async function createConversionDefinition(
+  data: NewConversionDefinition
+): Promise<ConversionDefinition> {
+  const rows = await db.insert(conversionDefinitions).values(data).returning()
+  return rows[0]
+}
+
+export async function updateConversionDefinition(
+  id: string,
+  orgId: string,
+  data: Partial<NewConversionDefinition>
+): Promise<ConversionDefinition | null> {
+  const rows = await db
+    .update(conversionDefinitions)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(conversionDefinitions.id, id), eq(conversionDefinitions.orgId, orgId)))
+    .returning()
+  return rows[0] ?? null
+}
+
+export async function deleteConversionDefinition(
+  id: string,
+  orgId: string
+): Promise<void> {
+  await db
+    .delete(conversionDefinitions)
+    .where(and(eq(conversionDefinitions.id, id), eq(conversionDefinitions.orgId, orgId)))
+}
+
+export async function bulkCreateConversionDefinitions(
+  definitions: NewConversionDefinition[]
+): Promise<ConversionDefinition[]> {
+  if (definitions.length === 0) return []
+  const rows = await db
+    .insert(conversionDefinitions)
+    .values(definitions)
+    .onConflictDoNothing()
+    .returning()
+  return rows
+}
+
+// ─── Test Sessions ────────────────────────────────────────────────────────────
+
+export async function createTestSession(
+  data: NewConversionTestSession
+): Promise<ConversionTestSession> {
+  const rows = await db.insert(conversionTestSessions).values(data).returning()
+  return rows[0]
+}
+
+export async function getTestSessionByTokenHash(
+  tokenHash: string
+): Promise<ConversionTestSession | null> {
+  const rows = await db
+    .select()
+    .from(conversionTestSessions)
+    .where(eq(conversionTestSessions.publicTokenHash, tokenHash))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+export async function getTestSessionById(
+  id: string,
+  orgId: string
+): Promise<ConversionTestSession | null> {
+  const rows = await db
+    .select()
+    .from(conversionTestSessions)
+    .where(
+      and(
+        eq(conversionTestSessions.id, id),
+        eq(conversionTestSessions.orgId, orgId)
+      )
+    )
+    .limit(1)
+  return rows[0] ?? null
+}
+
+export async function updateTestSessionStatus(
+  id: string,
+  status: ConversionTestSession["status"],
+  completedAt?: Date
+): Promise<void> {
+  await db
+    .update(conversionTestSessions)
+    .set({
+      status,
+      ...(completedAt !== undefined ? { completedAt } : {}),
+    })
+    .where(eq(conversionTestSessions.id, id))
+}
+
+/**
+ * Marks all non-terminal sessions whose expiresAt is in the past as "expired".
+ * Returns the count of sessions expired.
+ */
+export async function expireOldSessions(): Promise<number> {
+  const now = new Date()
+  const rows = await db
+    .update(conversionTestSessions)
+    .set({ status: "expired" })
+    .where(
+      and(
+        lt(conversionTestSessions.expiresAt, now),
+        or(
+          eq(conversionTestSessions.status, "pending"),
+          eq(conversionTestSessions.status, "active")
+        )
+      )
+    )
+    .returning({ id: conversionTestSessions.id })
+  return rows.length
+}
+
+export async function getActiveSessionsByClient(
+  orgId: string,
+  clientId: string
+): Promise<ConversionTestSession[]> {
+  return db
+    .select()
+    .from(conversionTestSessions)
+    .where(
+      and(
+        eq(conversionTestSessions.orgId, orgId),
+        eq(conversionTestSessions.clientId, clientId),
+        or(
+          eq(conversionTestSessions.status, "pending"),
+          eq(conversionTestSessions.status, "active")
+        )
+      )
+    )
+    .orderBy(desc(conversionTestSessions.startedAt))
+}
+
+// ─── Observations ─────────────────────────────────────────────────────────────
+
+export async function createObservation(
+  data: NewConversionObservation
+): Promise<ConversionObservation> {
+  const rows = await db.insert(conversionObservations).values(data).returning()
+  return rows[0]
+}
+
+export async function getObservationsByDefinition(
+  defId: string,
+  orgId: string,
+  limit = 50
+): Promise<ConversionObservation[]> {
+  return db
+    .select()
+    .from(conversionObservations)
+    .where(
+      and(
+        eq(conversionObservations.conversionDefinitionId, defId),
+        eq(conversionObservations.orgId, orgId)
+      )
+    )
+    .orderBy(desc(conversionObservations.observedAt))
+    .limit(limit)
+}
+
+export async function getObservationsBySession(
+  sessionId: string,
+  orgId: string
+): Promise<ConversionObservation[]> {
+  return db
+    .select()
+    .from(conversionObservations)
+    .where(
+      and(
+        eq(conversionObservations.testSessionId, sessionId),
+        eq(conversionObservations.orgId, orgId)
+      )
+    )
+    .orderBy(desc(conversionObservations.observedAt))
+}
+
+export async function getRecentObservationsByClient(
+  orgId: string,
+  clientId: string,
+  limit = 20
+): Promise<ConversionObservation[]> {
+  return db
+    .select()
+    .from(conversionObservations)
+    .where(
+      and(
+        eq(conversionObservations.orgId, orgId),
+        eq(conversionObservations.clientId, clientId)
+      )
+    )
+    .orderBy(desc(conversionObservations.observedAt))
+    .limit(limit)
+}
+
+export async function getLastObservationByDefinition(
+  defId: string,
+  orgId: string
+): Promise<ConversionObservation | null> {
+  const rows = await db
+    .select()
+    .from(conversionObservations)
+    .where(
+      and(
+        eq(conversionObservations.conversionDefinitionId, defId),
+        eq(conversionObservations.orgId, orgId)
+      )
+    )
+    .orderBy(desc(conversionObservations.observedAt))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+/**
+ * Deletes observations whose retentionExpiresAt is in the past.
+ * Returns the count of deleted rows.
+ */
+export async function deleteExpiredObservations(): Promise<number> {
+  const now = new Date()
+  const rows = await db
+    .delete(conversionObservations)
+    .where(lt(conversionObservations.retentionExpiresAt, now))
+    .returning({ id: conversionObservations.id })
+  return rows.length
+}
+
+// ─── Issues ───────────────────────────────────────────────────────────────────
+
+/**
+ * Upsert a conversion issue.
+ * If an open/acknowledged issue with the same (orgId, clientId, defId, issueCode) exists,
+ * updates lastDetectedAt. Otherwise creates a new issue.
+ */
+export async function upsertIssue(
+  orgId: string,
+  clientId: string,
+  defId: string | null,
+  issueCode: string,
+  data: Partial<NewConversionIssue>
+): Promise<ConversionIssue> {
+  // Try to find an existing non-resolved issue
+  const existing = await db
+    .select()
+    .from(conversionIssues)
+    .where(
+      and(
+        eq(conversionIssues.orgId, orgId),
+        eq(conversionIssues.clientId, clientId),
+        defId != null
+          ? eq(conversionIssues.conversionDefinitionId, defId)
+          : isNull(conversionIssues.conversionDefinitionId),
+        eq(conversionIssues.issueCode, issueCode),
+        ne(conversionIssues.status, "resolved")
+      )
+    )
+    .limit(1)
+
+  if (existing[0]) {
+    const updated = await db
+      .update(conversionIssues)
+      .set({ lastDetectedAt: new Date() })
+      .where(eq(conversionIssues.id, existing[0].id))
+      .returning()
+    return updated[0]
+  }
+
+  const rows = await db
+    .insert(conversionIssues)
+    .values({
+      orgId,
+      clientId,
+      conversionDefinitionId: defId,
+      issueCode,
+      ...data,
+    })
+    .returning()
+  return rows[0]
+}
+
+export async function getOpenIssuesByClient(
+  orgId: string,
+  clientId: string
+): Promise<ConversionIssue[]> {
+  return db
+    .select()
+    .from(conversionIssues)
+    .where(
+      and(
+        eq(conversionIssues.orgId, orgId),
+        eq(conversionIssues.clientId, clientId),
+        or(
+          eq(conversionIssues.status, "open"),
+          eq(conversionIssues.status, "acknowledged")
+        )
+      )
+    )
+    .orderBy(desc(conversionIssues.lastDetectedAt))
+}
+
+export async function getIssuesByDefinition(
+  defId: string,
+  orgId: string
+): Promise<ConversionIssue[]> {
+  return db
+    .select()
+    .from(conversionIssues)
+    .where(
+      and(
+        eq(conversionIssues.conversionDefinitionId, defId),
+        eq(conversionIssues.orgId, orgId)
+      )
+    )
+    .orderBy(desc(conversionIssues.lastDetectedAt))
+}
+
+export async function resolveIssue(id: string, orgId: string): Promise<void> {
+  await db
+    .update(conversionIssues)
+    .set({ status: "resolved", resolvedAt: new Date() })
+    .where(and(eq(conversionIssues.id, id), eq(conversionIssues.orgId, orgId)))
+}
+
+export async function acknowledgeIssue(id: string, orgId: string): Promise<void> {
+  await db
+    .update(conversionIssues)
+    .set({ status: "acknowledged" })
+    .where(and(eq(conversionIssues.id, id), eq(conversionIssues.orgId, orgId)))
+}
+
+// ─── Status computation ───────────────────────────────────────────────────────
+
+/**
+ * Computes the diagnostic status for a conversion definition based on its
+ * most recent observation and open issues. Pure function — no DB queries.
+ */
+export async function computeDiagStatus(
+  def: ConversionDefinition,
+  lastObservation: ConversionObservation | null,
+  openIssues: ConversionIssue[]
+): Promise<string> {
+  // Check for critical issues first
+  const hasCriticalPixelMissing = openIssues.some(
+    (i) => i.issueCode === "pixel_base_missing" && (i.status === "open" || i.status === "acknowledged")
+  )
+  if (hasCriticalPixelMissing) return "code_not_detected"
+
+  const hasMisconfigured = openIssues.some(
+    (i) => i.issueCode === "misconfigured" && (i.status === "open" || i.status === "acknowledged")
+  )
+  if (hasMisconfigured) return "misconfigured"
+
+  const hasDuplicateRisk = openIssues.some(
+    (i) => i.issueCode === "duplicate_risk" && (i.status === "open" || i.status === "acknowledged")
+  )
+  if (hasDuplicateRisk) return "duplicate_risk"
+
+  // No observation yet
+  if (lastObservation === null) {
+    if (!def.enabled) return "not_configured"
+    return "unknown"
+  }
+
+  // Check for source mismatch
+  if (
+    lastObservation.source === "browser_pixel" &&
+    def.expectedSource === "server"
+  ) {
+    return "misconfigured"
+  }
+
+  // Check staleness — extract freshnessPolicyDays from the JSON blob
+  const freshnessPolicy = def.freshnessPolicyJson as Record<string, unknown>
+  const freshnessDays =
+    typeof freshnessPolicy.days === "number" ? freshnessPolicy.days : 30
+  const now = new Date()
+  const staleThresholdMs = freshnessDays * 24 * 60 * 60 * 1000
+  const observationAgeMs = now.getTime() - lastObservation.observedAt.getTime()
+  if (observationAgeMs > staleThresholdMs) return "stale"
+
+  // Source-based status
+  const source = lastObservation.source
+  const expectedSource = def.expectedSource
+
+  if (source === "browser_pixel") {
+    if (expectedSource === "browser" || expectedSource === "both") {
+      return "observed_browser"
+    }
+  }
+
+  if (source === "server_capi") {
+    if (expectedSource === "server" || expectedSource === "both") {
+      return "observed_server"
+    }
+  }
+
+  return "unknown"
+}
