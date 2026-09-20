@@ -127,12 +127,14 @@ function CAPIStatus({ capi }: { capi: ConversionStatusPublic["capi"] }) {
 
 function ConversionPanel({
   leadId,
-  conversion,
+  capiStatus,
+  allConversions,
   onDone,
   onMutated,
 }: {
   leadId: string
-  conversion: ConversionStatusPublic | null
+  capiStatus: ConversionStatusPublic | null
+  allConversions: ConversionSummary[]
   onDone: () => void
   onMutated?: () => void
 }) {
@@ -160,108 +162,122 @@ function ConversionPanel({
     }
     setError("")
     startTransition(async () => {
-      const r = await registerSaleAction(leadId, { amount: amountNum, currency, orderId, convertedAt: new Date(date) })
-      if (r.success) { setShowForm(false); onMutated?.(); onDone() }
-      else setError(r.error ?? "Error desconocido")
+      try {
+        const r = await registerSaleAction(leadId, { amount: amountNum, currency, orderId, convertedAt: new Date(date) })
+        if (r.success) { setShowForm(false); onMutated?.(); onDone() }
+        else setError(r.error ?? "Error desconocido")
+      } catch {
+        setError("Error inesperado al registrar la venta")
+      }
     })
   }
 
   function handleRetry() {
-    if (!conversion?.conversionId) return
-    startRetry(async () => { await retryCAPIAction(conversion.conversionId); onDone() })
+    if (!capiStatus?.conversionId) return
+    startRetry(async () => { await retryCAPIAction(capiStatus.conversionId); onDone() })
   }
 
-  // ── Already converted ────────────────────────────────────────────────────────
-  if (conversion) {
-    const capi = conversion.capi
-    const canRetry = capi && !["sent", "cancelled"].includes(capi.status)
-    return (
-      <div className="space-y-3">
-        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-4 py-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-            <span className="text-sm font-semibold text-emerald-300">Venta registrada</span>
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs ml-6">
-            <span className="text-zinc-500">Monto</span>
-            <span className="text-zinc-300 font-mono">{conversion.amount} {conversion.currency}</span>
-            <span className="text-zinc-500">Fecha</span>
-            <span className="text-zinc-300">{new Date(conversion.convertedAt).toLocaleDateString("es")}</span>
-            {conversion.orderId && (<><span className="text-zinc-500">Order ID</span><span className="text-zinc-400 font-mono truncate">{conversion.orderId}</span></>)}
-          </div>
-        </div>
-
-        {/* CAPI — separate panel, separate status */}
-        <div className="rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-3 py-2.5 space-y-1.5">
-          <p className="text-xs font-medium text-zinc-500">Notificación Meta CAPI</p>
-          <div className="flex items-center justify-between gap-2">
-            <CAPIStatus capi={capi} />
-            {canRetry && (
-              <button onClick={handleRetry} disabled={retryPending} className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors disabled:opacity-50">
-                {retryPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                Reintentar
-              </button>
-            )}
-          </div>
-          {capi?.lastError && capi.status !== "sent" && (
-            <p className="text-xs text-red-400/80 flex items-start gap-1 mt-0.5">
-              <AlertCircle className="h-3 w-3 flex-shrink-0 mt-px" />{capi.lastError}
-            </p>
-          )}
-          {capi?.nextAttemptAt && capi.status === "retrying" && (
-            <p className="text-xs text-zinc-600">Próximo intento: {formatDateTime(capi.nextAttemptAt)}</p>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // ── Registration form ───────────────────────────────────────────────────────
-  if (showForm) {
-    return (
-      <div className="space-y-3">
-        <div className="flex gap-2">
-          <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
-            onChange={(e) => { setAmount(e.target.value); setError("") }}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
-          />
-          <select value={currency} onChange={(e) => setCurrency(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
-          >
-            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
-        />
-        <div className="space-y-1">
-          <label className="text-xs text-zinc-500">Order ID (para idempotencia)</label>
-          <input type="text" value={orderId} onChange={(e) => setOrderId(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-400 font-mono focus:outline-none focus:border-indigo-500 transition-colors"
-          />
-        </div>
-        {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" />{error}</p>}
-        <div className="flex gap-2">
-          <button onClick={handleRegister} disabled={pending}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50"
-          >
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            {pending ? "Registrando…" : "Confirmar venta"}
-          </button>
-          <button onClick={() => { setShowForm(false); setError("") }} disabled={pending}
-            className="p-2 text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    )
-  }
+  const capi = capiStatus?.capi
+  const canRetry = capi && !["sent", "cancelled"].includes(capi.status)
 
   return (
-    <button onClick={openForm} className="w-full px-3 py-2 text-sm font-medium border border-emerald-700/50 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors">
-      + Registrar venta
-    </button>
+    <div className="space-y-4">
+      {/* Registration form or button */}
+      {showForm ? (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input type="number" min="0" step="0.01" placeholder="0.00" value={amount}
+              onChange={(e) => { setAmount(e.target.value); setError("") }}
+              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+            >
+              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          />
+          <div className="space-y-1">
+            <label className="text-xs text-zinc-500">Order ID (para idempotencia)</label>
+            <input type="text" value={orderId} onChange={(e) => setOrderId(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-400 font-mono focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+          {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" />{error}</p>}
+          <div className="flex gap-2">
+            <button onClick={handleRegister} disabled={pending}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50"
+            >
+              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {pending ? "Registrando…" : "Confirmar venta"}
+            </button>
+            <button onClick={() => { setShowForm(false); setError("") }} disabled={pending}
+              className="p-2 text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={openForm} className="w-full px-3 py-2 text-sm font-medium border border-emerald-700/50 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors">
+          + Registrar venta
+        </button>
+      )}
+
+      {/* Historial de ventas */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-zinc-500">
+          Historial {allConversions.length > 0 ? `(${allConversions.length})` : ""}
+        </p>
+        {allConversions.length === 0 ? (
+          <p className="text-xs text-zinc-600">Sin ventas registradas.</p>
+        ) : (
+          allConversions.map((c) => {
+            const s = CONVERSION_STATUS_MAP[c.status] ?? { label: c.status, cls: "text-zinc-400" }
+            const isLatest = c.conversionId === capiStatus?.conversionId
+            return (
+              <div key={c.conversionId} className="rounded-lg border border-zinc-700/60 bg-zinc-800/40 px-3 py-2.5 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-zinc-200">
+                    {c.amount} {c.currency}
+                  </span>
+                  <span className={`text-xs ${s.cls}`}>{s.label}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span>{new Date(c.convertedAt).toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                  {c.orderId && <span className="font-mono truncate max-w-[120px]">{c.orderId.slice(0, 8)}…</span>}
+                </div>
+                {c.notes && <p className="text-xs text-zinc-500 italic">{c.notes}</p>}
+                {/* CAPI status inline for the latest conversion */}
+                {isLatest && capi && (
+                  <div className="pt-1 border-t border-zinc-700/40 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <CAPIStatus capi={capi} />
+                      {canRetry && (
+                        <button onClick={handleRetry} disabled={retryPending} className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors disabled:opacity-50">
+                          {retryPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                          Reintentar
+                        </button>
+                      )}
+                    </div>
+                    {capi.lastError && capi.status !== "sent" && (
+                      <p className="text-xs text-red-400/80 flex items-start gap-1">
+                        <AlertCircle className="h-3 w-3 flex-shrink-0 mt-px" />{capi.lastError}
+                      </p>
+                    )}
+                    {capi.nextAttemptAt && capi.status === "retrying" && (
+                      <p className="text-xs text-zinc-600">Próximo intento: {formatDateTime(capi.nextAttemptAt)}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -296,20 +312,24 @@ function EditInfoPanel({
   function handleSave() {
     setError("")
     start(async () => {
-      const r = await updateLeadInfoAction(leadId, {
-        name: name.trim() || null,
-        email: email.trim() || null,
-        phone: phone.trim() || null,
-        city: city.trim() || null,
-      })
-      if (r.error) { setError(r.error); return }
-      onSaved({
-        name: name.trim() || null,
-        email: email.trim() || null,
-        phone: phone.trim() || null,
-        city: city.trim() || null,
-      })
-      setEditing(false)
+      try {
+        const r = await updateLeadInfoAction(leadId, {
+          name: name.trim() || null,
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          city: city.trim() || null,
+        })
+        if (!r.success) { setError(r.error ?? "Error al guardar"); return }
+        onSaved({
+          name: name.trim() || null,
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          city: city.trim() || null,
+        })
+        setEditing(false)
+      } catch {
+        setError("Error inesperado al guardar la información")
+      }
     })
   }
 
@@ -814,7 +834,7 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
             </h3>
             {loading
               ? <p className="text-xs text-zinc-600">Cargando…</p>
-              : <ConversionPanel leadId={leadId} conversion={conversion} onMutated={onMutated} onDone={() => {
+              : <ConversionPanel leadId={leadId} capiStatus={conversion} allConversions={allConversions} onMutated={onMutated} onDone={() => {
                   Promise.all([
                     fetchConversionStatusAction(leadId),
                     getAllConversionsByLeadAction(leadId),
@@ -822,15 +842,6 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
                 }} />
             }
           </section>
-
-          {!loading && allConversions.length > 0 && (
-            <section className="space-y-3">
-              <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                <DollarSign className="h-3.5 w-3.5" />Historial de ventas ({allConversions.length})
-              </h3>
-              <AllConversionsPanel conversions={allConversions} />
-            </section>
-          )}
 
           {/* Assignment panel */}
           <section className="space-y-2">

@@ -140,9 +140,13 @@ export async function fetchLeadDetailAction(leadId: string) {
 export async function updateLeadInfoAction(
   leadId: string,
   data: { name?: string | null; email?: string | null; phone?: string | null; city?: string | null }
-) {
+): Promise<{ success: boolean; error?: string }> {
   let ctx
-  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
-  await updateLeadInfo(leadId, ctx.orgId, data)
-  return { success: true }
+  try { ctx = await requireOrganizationMembership() } catch { return { success: false, error: "No autorizado" } }
+  try {
+    await updateLeadInfo(leadId, ctx.orgId, data)
+    return { success: true }
+  } catch {
+    return { success: false, error: "Error al actualizar la información" }
+  }
 }
