@@ -11,6 +11,7 @@ export type ScriptConfig =
       mode: "multi"
       campaigns: Array<{ utmKey: string; apiKey: string; name: string }>
       defaultUtmKey: string
+      organicKey?: string  // key de la campaña "Orgánico / Directo" — fallback absoluto
     }
 
 type PlatformId = "shopify" | "wordpress" | "nextjs" | "html"
@@ -35,17 +36,25 @@ function buildConfigBlock(config: ScriptConfig, appUrl: string): string {
     return `window.SyncLeadKey  = "${config.apiKey}";
 window.SyncLeadHost = "${appUrl}";`
   }
-  const defaultKey = config.campaigns.find((c) => c.utmKey === config.defaultUtmKey)?.apiKey ?? ""
+
+  const lines: string[] = []
+
+  // Organic fallback — always the last resort, captures leads with no UTM match
+  if (config.organicKey) {
+    lines.push(`window.SyncLeadKey       = "${config.organicKey}"; // ← orgánico / sin UTM (nunca pierde un lead)`)
+  }
+  lines.push(`window.SyncLeadHost      = "${appUrl}";`)
+
   const entries = config.campaigns
     .map((c) => {
       const isDefault = c.utmKey === config.defaultUtmKey
-      return `    "${c.utmKey}": "${c.apiKey}"${isDefault ? ", // ← fallback" : ","}`
+      return `    "${c.utmKey}": "${c.apiKey}"${isDefault ? ", // ← default si no hay UTM conocido" : ","}`
     })
     .join("\n")
-  return `window.SyncLeadHost      = "${appUrl}";
-window.SyncLeadCampaigns = {
-${entries}
-};`
+
+  lines.push(`window.SyncLeadCampaigns = {\n${entries}\n};`)
+
+  return lines.join("\n")
 }
 
 function captureExample(platform: PlatformId): string {

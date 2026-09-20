@@ -58,13 +58,13 @@
   }
 
   // ── Resuelve el API key correcto según el UTM almacenado ──────────────────
+  // Prioridad: coincidencia exacta → _default → SyncLeadKey (orgánico) → primer key del mapa
   function _resolveKey() {
     if (window.SyncLeadCampaigns) {
       var utmCampaign = '';
       try { utmCampaign = localStorage.getItem('_sl_utm_campaign') || ''; } catch (e) {}
-      // Busca coincidencia exacta → luego fallback _default → luego primer key
       var map = window.SyncLeadCampaigns;
-      return map[utmCampaign] || map['_default'] || Object.values(map)[0] || '';
+      return map[utmCampaign] || map['_default'] || window.SyncLeadKey || Object.values(map)[0] || '';
     }
     return window.SyncLeadKey || '';
   }

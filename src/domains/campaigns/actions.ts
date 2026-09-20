@@ -6,6 +6,9 @@ import { createCampaign, updateCampaign, deleteCampaign } from "./repository"
 import type { CampaignFormState } from "./types"
 import { requireOrganizationMembership } from "@/lib/auth/server"
 import { AuthError } from "@/lib/auth/errors"
+import { db } from "@/lib/db"
+import { campaigns } from "@/lib/db/schema"
+import { and, eq } from "drizzle-orm"
 
 function generateApiKey(): string {
   return "slk_" + randomBytes(24).toString("hex")
@@ -128,4 +131,39 @@ export async function toggleCampaignActiveAction(
   if (!updated) return { error: "Campaña no encontrada." }
 
   return { success: true }
+}
+
+// Finds or auto-creates the "Orgánico / Directo" campaign for a client.
+// Called when generating a script snippet so organic traffic is never lost.
+export async function ensureOrganicCampaignAction(
+  clientId: string
+): Promise<{ apiKey?: string; error?: string }> {
+  let ctx
+  try {
+    ctx = await requireOrganizationMembership()
+  } catch (e) {
+    if (e instanceof AuthError) redirect("/login")
+    return { error: "Sin acceso." }
+  }
+
+  const existing = await db.query.campaigns.findFirst({
+    where: and(
+      eq(campaigns.orgId, ctx.orgId),
+      eq(campaigns.clientId, clientId),
+      eq(campaigns.slug, "organico-directo")
+    ),
+    columns: { id: true, apiKey: true },
+  })
+
+  if (existing) return { apiKey: existing.apiKey }
+
+  const created = await createCampaign({
+    orgId: ctx.orgId,
+    clientId,
+    name: "Orgánico / Directo",
+    slug: "organico-directo",
+    apiKey: generateApiKey(),
+  })
+
+  return { apiKey: created.apiKey }
 }
