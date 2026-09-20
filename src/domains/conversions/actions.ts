@@ -115,14 +115,28 @@ export async function registerSaleAction(
   const input = parsed.data
 
   try {
-    // Load lead (org-scoped)
+    // Load lead (org-scoped) — select only needed columns to avoid schema-drift errors
     const lead = await db.query.leads.findFirst({
       where: and(eq(leads.id, leadId), eq(leads.orgId, ctx.orgId)),
+      columns: {
+        id: true,
+        campaignId: true,
+        email: true,
+        phone: true,
+        name: true,
+        city: true,
+        fbc: true,
+        fbp: true,
+        ip: true,
+        userAgent: true,
+        landingUrl: true,
+      },
     })
     if (!lead) return { success: false, error: "Lead no encontrado" }
 
     const campaign = await db.query.campaigns.findFirst({
       where: and(eq(campaigns.id, lead.campaignId), eq(campaigns.orgId, ctx.orgId)),
+      columns: { id: true, clientId: true },
     })
 
     // 1. Insert conversion (idempotency anchor on orgId + orderId)
