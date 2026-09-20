@@ -17,9 +17,10 @@ interface Props {
   to: Date
   prevFrom: Date
   prevTo: Date
+  clientId?: string
 }
 
-export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo }: Props) {
+export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clientId }: Props) {
   const [
     current,
     prev,
@@ -31,15 +32,15 @@ export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo }: Pr
     byCities,
     byTempDay,
   ] = await Promise.all([
-    getKPIMetrics(orgId, from, to),
-    getKPIMetrics(orgId, prevFrom, prevTo),
-    getLeadsByDay(orgId, from, to),
-    getLeadsByCampaignChart(orgId, from, to),
-    getLeadsByUtmContent(orgId, from, to),
-    getLeadsByPlatform(orgId, from, to),
-    getLeadsByDevice(orgId, from, to),
-    getTopCities(orgId, from, to),
-    getLeadsByTemperatureDay(orgId, from, to),
+    getKPIMetrics(orgId, from, to, clientId),
+    getKPIMetrics(orgId, prevFrom, prevTo, clientId),
+    getLeadsByDay(orgId, from, to, clientId),
+    getLeadsByCampaignChart(orgId, from, to, clientId),
+    getLeadsByUtmContent(orgId, from, to, clientId),
+    getLeadsByPlatform(orgId, from, to, clientId),
+    getLeadsByDevice(orgId, from, to, clientId),
+    getTopCities(orgId, from, to, clientId),
+    getLeadsByTemperatureDay(orgId, from, to, clientId),
   ])
 
   return (
