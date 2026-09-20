@@ -8,21 +8,44 @@ import { getWaClientConfig, listMessageTemplates } from "@/domains/whatsapp/repo
 import { db } from "@/lib/db"
 import { metaConnections } from "@/lib/db/schema"
 import { and, eq, isNotNull } from "drizzle-orm"
+import { getCampaignsByClientWithCounts } from "@/domains/campaigns/repository"
+import { getLeadsByClient } from "@/domains/leads/repository"
+import {
+  getTrackingSitesAction,
+  getTrackingOverviewAction,
+  getOpenIssuesAction,
+} from "@/domains/tracking/actions"
 import { MetaConnectionPanel } from "./_components/MetaConnectionPanel"
 import { MetaInsightsPanel } from "./_components/MetaInsightsPanel"
 import { QualificationProfilesPanel } from "./_components/QualificationProfilesPanel"
 import { SalesTeamPanel } from "./_components/SalesTeamPanel"
 import { WhatsAppConfigPanel } from "./_components/WhatsAppConfigPanel"
 import { MessageTemplatesPanel } from "./_components/MessageTemplatesPanel"
+import { ClientHubTabs } from "./_components/ClientHubTabs"
+import { ClientResumenTab } from "./_components/ClientResumenTab"
+import { ClientLeadsTab } from "./_components/ClientLeadsTab"
+import { TrackingDashboard } from "./tracking/_components/TrackingDashboard"
 import { ArrowLeft, Building2 } from "lucide-react"
 import Link from "next/link"
+import type { LeadStage, Temperature } from "@/lib/db/schema"
 
 interface Props {
   params: Promise<{ id: string }>
+  searchParams: Promise<{
+    tab?: string
+    search?: string
+    temperature?: string
+    stage?: string
+    campaignId?: string
+    repId?: string
+    assignment?: string
+  }>
 }
 
-export default async function ClientDetailPage({ params }: Props) {
+export default async function ClientDetailPage({ params, searchParams }: Props) {
   const { id } = await params
+  const sp = await searchParams
+  const tab = sp.tab ?? "resumen"
 
   let ctx
   try {
@@ -33,50 +56,130 @@ export default async function ClientDetailPage({ params }: Props) {
     redirect("/login")
   }
 
-  const [client, metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections] = await Promise.all([
-    getClientById(id, ctx.orgId),
-    getMetaConnectionsByClientId(id, ctx.orgId),
-    listSalesReps(ctx.orgId, id),
-    getWaClientConfig(id, ctx.orgId),
-    listMessageTemplates(ctx.orgId, id),
-    db.query.metaConnections.findMany({
-      where: and(
-        eq(metaConnections.clientId, id),
-        eq(metaConnections.orgId, ctx.orgId),
-        isNotNull(metaConnections.adAccountId),
-      ),
-    }),
-  ])
-
+  const client = await getClientById(id, ctx.orgId)
   if (!client) notFound()
 
-  const publicConnections = metaConnectionsList.map((c) => ({
-    id: c.id,
-    pixelId: c.pixelId,
-    datasetId: c.datasetId,
-    graphApiVersion: c.graphApiVersion,
-    status: c.status,
-    scopes: c.scopes,
-    expiresAt: c.expiresAt,
-    lastVerifiedAt: c.lastVerifiedAt,
-    lastError: c.lastError,
-    createdAt: c.createdAt,
-    updatedAt: c.updatedAt,
-  }))
+  let tabContent: React.ReactNode
 
-  const publicInsightsConnections = insightsConnections.map((c) => ({
-    id: c.id,
-    adAccountId: c.adAccountId,
-    connectionMode: c.connectionMode,
-    status: c.status,
-    lastVerifiedAt: c.lastVerifiedAt,
-    lastError: c.lastError,
-    createdAt: c.createdAt,
-  }))
+  if (tab === "resumen") {
+    const [campaigns, metaConn] = await Promise.all([
+      getCampaignsByClientWithCounts(id, ctx.orgId),
+      getMetaConnectionsByClientId(id, ctx.orgId),
+    ])
+    const salesRepsData = await listSalesReps(ctx.orgId, id)
+    tabContent = (
+      <ClientResumenTab
+        client={client}
+        campaigns={campaigns}
+        hasMetaConnection={metaConn.some((c) => c.status === "active")}
+        hasSalesReps={salesRepsData.length > 0}
+      />
+    )
+  } else if (tab === "leads") {
+    const campaigns = await getCampaignsByClientWithCounts(id, ctx.orgId)
+    const [leadsData, salesRepsData] = await Promise.all([
+      getLeadsByClient(id, ctx.orgId, {
+        search: sp.search,
+        temperature: (sp.temperature as Temperature) || undefined,
+        stage: (sp.stage as LeadStage) || undefined,
+      }),
+      listSalesReps(ctx.orgId, id),
+    ])
+    const filteredLeads = sp.campaignId
+      ? leadsData.filter((l) => l.campaignId === sp.campaignId)
+      : leadsData
+    tabContent = (
+      <ClientLeadsTab
+        clientId={id}
+        leads={filteredLeads}
+        totalLeads={leadsData.length}
+        campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
+        salesReps={salesRepsData}
+        whatsappNumbers={client.whatsappNumbers ?? []}
+        filters={{
+          search: sp.search ?? "",
+          temperature: sp.temperature ?? "",
+          stage: sp.stage ?? "",
+          campaignId: sp.campaignId ?? "",
+          repId: sp.repId ?? "",
+          assignment: sp.assignment ?? "",
+        }}
+      />
+    )
+  } else if (tab === "configuracion") {
+    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections] =
+      await Promise.all([
+        getMetaConnectionsByClientId(id, ctx.orgId),
+        listSalesReps(ctx.orgId, id),
+        getWaClientConfig(id, ctx.orgId),
+        listMessageTemplates(ctx.orgId, id),
+        db.query.metaConnections.findMany({
+          where: and(
+            eq(metaConnections.clientId, id),
+            eq(metaConnections.orgId, ctx.orgId),
+            isNotNull(metaConnections.adAccountId),
+          ),
+        }),
+      ])
+
+    const publicConnections = metaConnectionsList.map((c) => ({
+      id: c.id,
+      pixelId: c.pixelId,
+      datasetId: c.datasetId,
+      graphApiVersion: c.graphApiVersion,
+      status: c.status,
+      scopes: c.scopes,
+      expiresAt: c.expiresAt,
+      lastVerifiedAt: c.lastVerifiedAt,
+      lastError: c.lastError,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }))
+
+    const publicInsightsConnections = insightsConnections.map((c) => ({
+      id: c.id,
+      adAccountId: c.adAccountId,
+      connectionMode: c.connectionMode,
+      status: c.status,
+      lastVerifiedAt: c.lastVerifiedAt,
+      lastError: c.lastError,
+      createdAt: c.createdAt,
+    }))
+
+    tabContent = (
+      <div className="space-y-6">
+        <MetaConnectionPanel clientId={client.id} connections={publicConnections} />
+        <div className="border-t border-zinc-800" />
+        <MetaInsightsPanel clientId={client.id} initialConnections={publicInsightsConnections} />
+        <div className="border-t border-zinc-800" />
+        <QualificationProfilesPanel clientId={client.id} orgId={ctx.orgId} />
+        <div className="border-t border-zinc-800" />
+        <SalesTeamPanel clientId={client.id} initialReps={salesRepsData} />
+        <div className="border-t border-zinc-800" />
+        <WhatsAppConfigPanel clientId={client.id} initial={waConfig} />
+        <div className="border-t border-zinc-800" />
+        <MessageTemplatesPanel clientId={client.id} initialTemplates={templates} />
+      </div>
+    )
+  } else {
+    // diagnostico
+    const [sitesResult, definitionsResult, issuesResult] = await Promise.all([
+      getTrackingSitesAction(id),
+      getTrackingOverviewAction(id),
+      getOpenIssuesAction(id),
+    ])
+    tabContent = (
+      <TrackingDashboard
+        clientId={id}
+        sites={sitesResult.data ?? []}
+        definitions={definitionsResult.data ?? []}
+        issues={issuesResult.data ?? []}
+      />
+    )
+  }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
-      {/* Back nav */}
+    <div className="p-6 space-y-6 max-w-7xl">
       <Link
         href="/dashboard/clients"
         className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
@@ -85,16 +188,13 @@ export default async function ClientDetailPage({ params }: Props) {
         Clientes
       </Link>
 
-      {/* Client header */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0">
           <Building2 className="h-5 w-5 text-zinc-400" />
         </div>
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">{client.name}</h1>
-          {client.industry && (
-            <p className="text-sm text-zinc-500">{client.industry}</p>
-          )}
+          {client.industry && <p className="text-sm text-zinc-500">{client.industry}</p>}
         </div>
         <span
           className={`ml-auto inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -103,67 +203,16 @@ export default async function ClientDetailPage({ params }: Props) {
               : "text-zinc-500 bg-zinc-700/50"
           }`}
         >
-          <span className={`h-1.5 w-1.5 rounded-full ${client.active ? "bg-emerald-400" : "bg-zinc-500"}`} />
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${client.active ? "bg-emerald-400" : "bg-zinc-500"}`}
+          />
           {client.active ? "Activo" : "Inactivo"}
         </span>
       </div>
 
-      {/* Tracking link */}
-      <Link
-        href={`/dashboard/clients/${id}/tracking`}
-        className="flex items-center justify-between p-3 rounded-lg border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/50 transition-colors"
-      >
-        <div>
-          <p className="text-sm font-medium text-zinc-200">Diagnóstico de conversiones</p>
-          <p className="text-xs text-zinc-500 mt-0.5">Pixel, CAPI, eventos y pruebas en tiempo real</p>
-        </div>
-        <span className="text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded">Ver →</span>
-      </Link>
+      <ClientHubTabs clientId={id} currentTab={tab} />
 
-      {/* Divider */}
-      <div className="border-t border-zinc-800" />
-
-      {/* Meta Conversions API section */}
-      <MetaConnectionPanel
-        clientId={client.id}
-        connections={publicConnections}
-      />
-
-      {/* Divider */}
-      <div className="border-t border-zinc-800" />
-
-      {/* Meta Ads Insights — beta interna */}
-      <MetaInsightsPanel
-        clientId={client.id}
-        initialConnections={publicInsightsConnections}
-      />
-
-      {/* Divider */}
-      <div className="border-t border-zinc-800" />
-
-      {/* Qualification profiles section */}
-      <QualificationProfilesPanel
-        clientId={client.id}
-        orgId={ctx.orgId}
-      />
-
-      {/* Divider */}
-      <div className="border-t border-zinc-800" />
-
-      {/* Sales team section */}
-      <SalesTeamPanel clientId={client.id} initialReps={salesRepsData} />
-
-      {/* Divider */}
-      <div className="border-t border-zinc-800" />
-
-      {/* WhatsApp confirmation config */}
-      <WhatsAppConfigPanel clientId={client.id} initial={waConfig} />
-
-      {/* Divider */}
-      <div className="border-t border-zinc-800" />
-
-      {/* Message templates */}
-      <MessageTemplatesPanel clientId={client.id} initialTemplates={templates} />
+      <div>{tabContent}</div>
     </div>
   )
 }

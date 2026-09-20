@@ -7,7 +7,9 @@ import {
   getLeadsForKanban,
   getCampaignOptionsForFunnel,
 } from "@/domains/funnels/repository"
-import type { LeadStage, FunnelStageConfig } from "@/lib/db/schema"
+import { getCampaignWithClientById } from "@/domains/campaigns/repository"
+import { listSalesReps } from "@/domains/team/repository"
+import type { LeadStage, FunnelStageConfig, SalesRep } from "@/lib/db/schema"
 import { FunnelsView } from "./_components/FunnelsView"
 
 export default async function FunnelsPage({
@@ -50,6 +52,21 @@ export default async function FunnelsPage({
       })
     : []
 
+  // Load client data for LeadDrawer when a campaign filter is active
+  let kanbanClientId: string | undefined
+  let kanbanWhatsappNumbers: string[] = []
+  let kanbanSalesReps: SalesRep[] = []
+
+  if (sp.campaignId) {
+    const campaign = await getCampaignWithClientById(sp.campaignId, org.id)
+    if (campaign?.clientId) {
+      kanbanClientId = campaign.clientId
+      const client = campaign.client as { whatsappNumbers?: string[] } | null
+      kanbanWhatsappNumbers = client?.whatsappNumbers ?? []
+      kanbanSalesReps = await listSalesReps(org.id, campaign.clientId)
+    }
+  }
+
   return (
     <FunnelsView
       funnels={allFunnels}
@@ -61,6 +78,9 @@ export default async function FunnelsPage({
         temperature: sp.temperature ?? "",
         assignedTo: sp.assignedTo ?? "",
       }}
+      salesReps={kanbanSalesReps}
+      whatsappNumbers={kanbanWhatsappNumbers}
+      clientId={kanbanClientId}
     />
   )
 }

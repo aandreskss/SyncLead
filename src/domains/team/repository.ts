@@ -13,6 +13,14 @@ export async function listSalesReps(orgId: string, clientId: string) {
     .orderBy(salesReps.displayName)
 }
 
+export async function listSalesRepsByOrg(orgId: string) {
+  return db
+    .select()
+    .from(salesReps)
+    .where(eq(salesReps.orgId, orgId))
+    .orderBy(salesReps.displayName)
+}
+
 export async function getSalesRep(id: string, orgId: string) {
   const rows = await db
     .select()

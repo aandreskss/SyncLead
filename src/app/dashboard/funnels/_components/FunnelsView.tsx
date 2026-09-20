@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2, GitMerge } from "lucide-react"
 import { deleteFunnelAction } from "@/domains/funnels/actions"
 import { FunnelDialog } from "./FunnelDialog"
 import { KanbanBoard } from "./KanbanBoard"
-import type { Funnel, Lead } from "@/lib/db/schema"
+import type { Funnel, Lead, SalesRep } from "@/lib/db/schema"
 
 interface Props {
   funnels: Funnel[]
@@ -14,6 +14,9 @@ interface Props {
   leads: Lead[]
   campaignOptions: { id: string; name: string }[]
   filters: { campaignId: string; temperature: string; assignedTo: string }
+  salesReps?: SalesRep[]
+  whatsappNumbers?: string[]
+  clientId?: string
 }
 
 const TEMPS = [
@@ -32,6 +35,9 @@ export function FunnelsView({
   leads,
   campaignOptions,
   filters,
+  salesReps,
+  whatsappNumbers,
+  clientId,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -250,7 +256,13 @@ export function FunnelsView({
 
       {/* Kanban */}
       {selectedFunnel ? (
-        <KanbanBoard funnel={selectedFunnel} initialLeads={leads} />
+        <KanbanBoard
+          funnel={selectedFunnel}
+          initialLeads={leads}
+          salesReps={salesReps}
+          whatsappNumbers={whatsappNumbers}
+          clientId={clientId}
+        />
       ) : (
         <div className="text-center py-12 text-zinc-600 text-sm">
           Selecciona un embudo para ver el kanban.

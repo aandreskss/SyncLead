@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
-import { leads, leadStageHistory } from "@/lib/db/schema"
+import { leads, leadStageHistory, campaigns } from "@/lib/db/schema"
 import type { Lead, LeadStageHistory, Temperature, LeadStage } from "@/lib/db/schema"
-import { and, eq, ilike, or } from "drizzle-orm"
+import { and, eq, ilike, inArray, or } from "drizzle-orm"
 
 export interface ConversionData {
   conversionAmount: string
@@ -89,6 +89,40 @@ export async function getLeadsByCampaign(
       searchCond,
     ),
     orderBy: (l, { desc }) => [desc(l.createdAt)],
+  })
+}
+
+export async function getLeadsByClient(
+  clientId: string,
+  orgId: string,
+  filters: LeadFilters = {}
+): Promise<Lead[]> {
+  const clientCampaigns = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.clientId, clientId), eq(campaigns.orgId, orgId)))
+
+  if (clientCampaigns.length === 0) return []
+  const campaignIds = clientCampaigns.map((c) => c.id)
+
+  const searchCond = filters.search
+    ? or(
+        ilike(leads.name, `%${filters.search}%`),
+        ilike(leads.email, `%${filters.search}%`),
+        ilike(leads.phone, `%${filters.search}%`)
+      )
+    : undefined
+
+  return db.query.leads.findMany({
+    where: and(
+      eq(leads.orgId, orgId),
+      inArray(leads.campaignId, campaignIds),
+      filters.temperature ? eq(leads.temperature, filters.temperature) : undefined,
+      filters.stage ? eq(leads.stage, filters.stage) : undefined,
+      searchCond,
+    ),
+    orderBy: (l, { desc }) => [desc(l.createdAt)],
+    limit: 500,
   })
 }
 

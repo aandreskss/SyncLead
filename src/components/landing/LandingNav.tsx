@@ -7,10 +7,10 @@ import { Logo } from "./Logo"
 
 const LINKS = [
   { label: "Producto", href: "/#producto" },
-  { label: "Funciones", href: "/features" },
+  { label: "Cómo funciona", href: "/#como-funciona" },
+  { label: "Funciones", href: "/#funciones" },
+  { label: "Seguridad", href: "/#seguridad" },
   { label: "Precios", href: "/#precios" },
-  { label: "Preguntas", href: "/#faq" },
-  { label: "Blog", href: "/blog" },
 ]
 
 export function LandingNav() {
@@ -67,7 +67,7 @@ export function LandingNav() {
             href="/register"
             className="sg-press inline-flex min-h-10 items-center rounded-lg bg-sg-accent px-4 text-sm font-semibold text-sg-on-accent transition-shadow hover:shadow-sg-glow"
           >
-            Empezar gratis
+            Comenzar ahora
           </Link>
           <button
             ref={btnRef}

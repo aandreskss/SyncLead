@@ -8,7 +8,7 @@ function Footer() {
     {
       title: "Producto",
       links: [
-        { label: "Cómo funciona", href: "/#producto" },
+        { label: "Cómo funciona", href: "/#como-funciona" },
         { label: "Funciones", href: "/features" },
         { label: "Precios", href: "/#precios" },
         { label: "Preguntas frecuentes", href: "/#faq" },
