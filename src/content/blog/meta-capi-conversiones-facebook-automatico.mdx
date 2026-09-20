@@ -1,0 +1,90 @@
+---
+title: "Meta CAPI: Por qué debes notificar tus conversiones a Facebook automáticamente"
+description: "Después de iOS 14, el píxel de Meta dejó de ver muchas de las conversiones reales. Meta Conversions API (CAPI) recupera esa visibilidad desde el servidor. Así funciona y por qué importa."
+date: "2026-09-10"
+og_image: "/blog/meta-capi-conversiones.jpg"
+---
+
+## El problema que cambió la publicidad en Meta: iOS 14
+
+En 2021, Apple introdujo la política App Tracking Transparency (ATT), que obliga a todas las apps — incluyendo Facebook — a pedir permiso explícito al usuario antes de rastrearlo.
+
+El resultado fue devastador para los anunciantes: **más del 60% de los usuarios de iPhone optaron por no ser rastreados**. Esto significa que el Píxel de Meta, que se ejecuta en el navegador del usuario, dejó de ver una enorme cantidad de conversiones.
+
+El problema no es que las ventas desaparecieran — es que Meta dejó de saberlo. Cuando el algoritmo no ve tus conversiones, no puede optimizar tus campañas para encontrar más clientes similares a los que sí compraron.
+
+## Qué es Meta Conversions API (CAPI)
+
+Meta Conversions API es una solución server-side que complementa al Píxel. En lugar de enviar eventos de conversión desde el navegador del usuario (donde las restricciones de privacidad de Apple aplican), CAPI envía los eventos directamente desde tu servidor a Meta.
+
+La ventaja clave: **el servidor no depende de cookies ni del permiso del usuario en el dispositivo**. La información llega directamente a Meta sin pasar por el navegador.
+
+### Tipos de eventos que puedes enviar con CAPI
+
+- `Lead` — cuando alguien completa tu formulario
+- `Purchase` — cuando cierras una venta
+- `InitiateCheckout` — cuando alguien inicia el proceso de pago
+- `CompleteRegistration` — cuando alguien se registra en tu plataforma
+
+Para la mayoría de los negocios que usan Meta Lead Ads, el evento más importante es **Purchase**: cuando registras una venta, Meta aprende exactamente qué perfil de usuario convirtió y puede buscar más perfiles similares.
+
+## Cómo funciona CAPI en la práctica
+
+El flujo técnico es el siguiente:
+
+1. Un usuario hace clic en tu anuncio de Meta → Meta registra el `fbclid` (click ID)
+2. El usuario completa el formulario de lead → tu sistema captura el lead con el `fbc` (Facebook click cookie)
+3. Tu equipo de ventas gestiona el lead y cierra la venta
+4. **Tu sistema envía un evento `Purchase` a CAPI** con el monto, la moneda, y los datos del usuario hasheados
+5. Meta cruza el evento con sus datos propios y lo atribuye correctamente a la campaña
+
+### Datos que se incluyen en un evento Purchase
+
+Para maximizar la tasa de match (porcentaje de eventos que Meta puede atribuir a un usuario real), debes incluir:
+
+- **Email** hasheado con SHA-256
+- **Teléfono** hasheado con SHA-256
+- **Nombre** hasheado con SHA-256
+- **Ciudad** del usuario
+- **IP** y **User Agent** del cliente (cuando estén disponibles)
+- **fbc** y **fbp** — los parámetros de tracking de Meta
+
+El hashing SHA-256 garantiza que Meta pueda cruzar estos datos con los suyos sin que tú envíes información sensible en texto claro.
+
+## Por qué CAPI mejora tus campañas
+
+### 1. Más conversiones visibles = mejor optimización
+
+Si antes Meta veía 100 conversiones y ahora ve 60 (por las restricciones de iOS), el algoritmo cree que tus anuncios funcionan peor de lo que realmente funcionan. Con CAPI, puedes recuperar esa visibilidad y que Meta tenga los datos completos.
+
+### 2. Menor costo por resultado
+
+Cuando el algoritmo tiene datos más precisos sobre quién convierte, optimiza mejor la distribución de tu presupuesto. Muchos anunciantes que implementan CAPI reportan reducciones del 15-30% en su costo por adquisición.
+
+### 3. Mejor calidad de audiencias de retargeting
+
+Las audiencias de "compradores recientes" y "clientes similares" se vuelven más precisas cuando CAPI alimenta el sistema con las conversiones reales.
+
+## El problema de implementación
+
+La parte complicada de CAPI es que **requiere código en el servidor**. No es un pixel que pegas en el HTML. Tienes que:
+
+1. Llamar a la API de Meta Graph con el access token correcto
+2. Hashear los datos personales correctamente antes de enviarlos
+3. Manejar el `fbc` y `fbp` de cada usuario
+4. Asegurarte de que el evento se envía exactamente cuando la conversión ocurre
+
+Para un desarrollador esto es un trabajo de 2-3 días. Para la mayoría de las empresas que manejan sus propias campañas, es una barrera técnica que simplemente no cruzan.
+
+## CAPI integrado en tu flujo de ventas
+
+La solución ideal es que CAPI se dispare automáticamente cuando tu equipo registra una venta — sin código adicional, sin pasos manuales.
+
+SyncLead integra Meta Conversions API directamente en el flujo de registro de ventas. Cuando un vendedor marca un lead como "Ganado" e ingresa el monto de la venta, el sistema:
+
+1. Hashea los datos del cliente con SHA-256
+2. Construye el evento `Purchase` con todos los parámetros necesarios
+3. Lo envía a Meta CAPI usando el access token cifrado de tu pixel
+4. Registra el resultado en el historial del lead
+
+Todo esto ocurre en segundos, sin que el vendedor tenga que hacer nada adicional.
