@@ -279,7 +279,7 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
         </div>
       ) : (
         <div className="border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm min-w-[1000px]">
+          <table className="w-full text-sm min-w-[1300px]">
             <thead>
               <tr className="border-b border-zinc-800 bg-zinc-900/50">
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Nombre</th>
@@ -288,6 +288,9 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Temp.</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Etapa</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Venta</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-400">Conjunto</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-400">Anuncio</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-400">Asignado</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Actividad</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Fecha</th>
               </tr>
@@ -303,13 +306,6 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                     <span className="font-medium text-zinc-100">{lead.name}</span>
                     {lead.city && (
                       <span className="block text-xs text-zinc-500 mt-0.5">{lead.city}</span>
-                    )}
-                    {(lead.metaAdsetName || lead.metaAdName) && (
-                      <span className="block text-xs text-zinc-600 mt-0.5 truncate max-w-[180px]" title={[lead.metaAdsetName, lead.metaAdName].filter(Boolean).join(" · ")}>
-                        {lead.metaAdsetName && <span className="text-indigo-500/70">{lead.metaAdsetName}</span>}
-                        {lead.metaAdsetName && lead.metaAdName && <span className="text-zinc-700"> · </span>}
-                        {lead.metaAdName && <span>{lead.metaAdName}</span>}
-                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-zinc-400 font-mono text-xs">
@@ -346,6 +342,21 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                     ) : (
                       <span className="text-zinc-600 text-xs">—</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-xs max-w-[160px] truncate">
+                    {lead.metaAdsetName
+                      ? <span className="text-indigo-400/80">{lead.metaAdsetName}</span>
+                      : <span className="text-zinc-600">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-xs max-w-[160px] truncate">
+                    {lead.metaAdName
+                      ? <span className="text-zinc-300">{lead.metaAdName}</span>
+                      : <span className="text-zinc-600">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-xs max-w-[120px] truncate">
+                    {lead.assignedTo
+                      ? <span className="text-zinc-300">{lead.assignedTo}</span>
+                      : <span className="text-zinc-600">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <ActivityBadges activity={lead.activity} />

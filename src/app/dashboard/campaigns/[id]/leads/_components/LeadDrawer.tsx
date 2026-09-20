@@ -626,21 +626,29 @@ function AssignmentPanel({
   const [selectedRepId, setSelectedRepId] = useState<string>(
     currentAssignment?.salesRepId ?? ""
   )
-  const [reason, setReason] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isPending, start] = useTransition()
 
-  function handleAssign() {
+  function handleRepChange(newRepId: string) {
+    const prev = selectedRepId
+    setSelectedRepId(newRepId)
     setError(null)
     start(async () => {
-      const result = await assignLeadAction({
-        leadId,
-        salesRepId: selectedRepId || null,
-        reason: reason || undefined,
-      })
-      if (result && "error" in result) { setError(result.error ?? null); return }
-      setReason("")
-      onRefresh()
+      try {
+        const result = await assignLeadAction({
+          leadId,
+          salesRepId: newRepId || null,
+        })
+        if (result && "error" in result) {
+          setError(result.error ?? "Error al asignar")
+          setSelectedRepId(prev)
+          return
+        }
+        onRefresh()
+      } catch {
+        setError("Error inesperado al asignar")
+        setSelectedRepId(prev)
+      }
     })
   }
 
@@ -648,48 +656,41 @@ function AssignmentPanel({
   const activeReps = salesReps.filter((r) => r.active)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
+      {/* Current assignee badge */}
       {current ? (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800/50 border border-zinc-700/50">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
           <UserCheck className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-          <p className="text-sm text-zinc-200">{current.displayName}</p>
+          <p className="text-sm text-emerald-300 font-medium">{current.displayName}</p>
           {current.whatsappNumber && (
             <span className="text-xs text-zinc-500 font-mono ml-auto">{current.whatsappNumber}</span>
           )}
         </div>
       ) : (
-        <p className="text-xs text-zinc-600">Sin asignar</p>
+        <p className="text-xs text-zinc-500 italic">Sin asignar</p>
       )}
 
       {activeReps.length > 0 && (
-        <div className="space-y-2">
+        <div className="relative">
           <select
             value={selectedRepId}
-            onChange={(e) => setSelectedRepId(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-500"
+            onChange={(e) => handleRepChange(e.target.value)}
+            disabled={isPending}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-60 appearance-none pr-8"
           >
-            <option value="">Sin asignar</option>
+            <option value="">— Sin asignar —</option>
             {activeReps.map((r) => (
               <option key={r.id} value={r.id}>{r.displayName}</option>
             ))}
           </select>
-          <input
-            placeholder="Motivo (opcional)"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-          />
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          <button
-            onClick={handleAssign}
-            disabled={isPending}
-            className="w-full px-3 py-2 text-sm font-medium bg-zinc-700 hover:bg-zinc-600 text-zinc-100 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1.5" /> : null}
-            {selectedRepId ? "Asignar" : "Quitar asignación"}
-          </button>
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+            {isPending
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
+              : <span className="text-zinc-500 text-xs">▾</span>}
+          </div>
         </div>
       )}
+      {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{error}</p>}
     </div>
   )
 }
