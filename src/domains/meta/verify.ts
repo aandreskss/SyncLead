@@ -43,6 +43,9 @@ export async function verifyMetaConnection(
     // 2. Optionally verify pixel read access; not required for CAPI send access.
     // Codes 100/200 = no pixel read permission (normal for System User tokens scoped only
     // for CAPI) — not a blocking error. Only block on token-level errors (190/102).
+    // Do NOT check err.error?.type === "OAuthException" here: Meta uses OAuthException
+    // for permission errors (code 200) which are expected for CAPI-only tokens.
+    // If step 1 (/me) passed, the token is valid — pixel errors are non-blocking.
     const pixelRes = await fetch(
       `${META_GRAPH_BASE}/${apiVersion}/${pixelId}?fields=id&access_token=${accessToken}`,
       { cache: "no-store" }
@@ -51,8 +54,8 @@ export async function verifyMetaConnection(
       const err = await pixelRes.json().catch(() => ({})) as { error?: { code?: number; type?: string } }
       const code = err.error?.code
       if (code === 190) return { ok: false, reason: "expired" }
-      if (code === 102 || err.error?.type === "OAuthException") return { ok: false, reason: "invalid_token" }
-      // Ignore 100/200 — pixel read is not required for CAPI
+      if (code === 102) return { ok: false, reason: "invalid_token" }
+      // Ignore 100/200/OAuthException and all other errors — pixel read is not required for CAPI
     }
 
     return { ok: true, scopes: [], expiresAt: null }
