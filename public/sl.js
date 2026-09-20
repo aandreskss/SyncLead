@@ -28,7 +28,7 @@
     return;
   }
 
-  // ── Almacena UTMs y fbclid del URL actual en localStorage ─────────────────
+  // ── Almacena UTMs, fbclid y parámetros de Meta Ads del URL en localStorage ─
   function _store() {
     try {
       var p = new URLSearchParams(location.search);
@@ -36,6 +36,14 @@
         var v = p.get(k);
         if (v) localStorage.setItem('_sl_' + k, v);
       });
+      // Parámetros de Meta Ads: agregar en el anuncio como
+      // adset_name={{adset.name}}&ad_name={{ad.name}}&campaign_name={{campaign.name}}
+      var adsetName = p.get('adset_name');
+      if (adsetName) localStorage.setItem('_sl_meta_adset_name', adsetName);
+      var adName = p.get('ad_name');
+      if (adName) localStorage.setItem('_sl_meta_ad_name', adName);
+      var campaignName = p.get('campaign_name');
+      if (campaignName) localStorage.setItem('_sl_meta_campaign_name', campaignName);
       var fbclid = p.get('fbclid');
       if (fbclid) {
         localStorage.setItem('_sl_fbc', 'fb.1.' + Date.now() + '.' + fbclid);
@@ -51,6 +59,12 @@
         var v = localStorage.getItem('_sl_' + k);
         if (v) d[k] = v;
       });
+      var adsetName = localStorage.getItem('_sl_meta_adset_name');
+      if (adsetName) d.meta_adset_name = adsetName;
+      var adName = localStorage.getItem('_sl_meta_ad_name');
+      if (adName) d.meta_ad_name = adName;
+      var campaignName = localStorage.getItem('_sl_meta_campaign_name');
+      if (campaignName) d.meta_campaign_name = campaignName;
       // Lee _fbp de cookie (puesto por el Pixel de Meta)
       var m = document.cookie.match(/_fbp=([^;]+)/);
       if (m) d.fbp = m[1];
