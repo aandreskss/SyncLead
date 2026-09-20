@@ -28,6 +28,14 @@ export async function createOrgAction(formData: FormData) {
   if (!name || name.length < 2) return { error: "El nombre debe tener al menos 2 caracteres." }
   if (name.length > 60) return { error: "El nombre es demasiado largo." }
 
+  // Check org_members first — covers members invited by an owner (not just owners themselves)
+  const memberRow = await db
+    .select({ orgId: orgMembers.orgId })
+    .from(orgMembers)
+    .where(eq(orgMembers.userId, session.user.id))
+    .limit(1)
+  if (memberRow.length > 0) return { orgId: memberRow[0]!.orgId }
+
   const existing = await getOrganizationByOwnerId(session.user.id)
   if (existing) {
     await ensureOwnerMembership(existing.id, session.user.id)

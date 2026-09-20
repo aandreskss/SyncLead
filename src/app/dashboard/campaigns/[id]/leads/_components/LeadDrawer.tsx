@@ -612,84 +612,123 @@ function WhatsAppPanel({
 
 // ─── Assignment panel ─────────────────────────────────────────────────────────
 
+function buildWaText(lead: { name?: string | null; phone?: string | null; email?: string | null; metaCampaignName?: string | null }) {
+  const lines = ["Hola, te fue asignado un nuevo lead:"]
+  if (lead.name) lines.push(`📋 Nombre: ${lead.name}`)
+  if (lead.phone) lines.push(`📱 Teléfono: ${lead.phone}`)
+  if (lead.email) lines.push(`📧 Email: ${lead.email}`)
+  if (lead.metaCampaignName) lines.push(`📣 Campaña: ${lead.metaCampaignName}`)
+  return lines.join("\n")
+}
+
 function AssignmentPanel({
   leadId,
   currentAssignment,
   salesReps,
   onRefresh,
+  lead,
 }: {
   leadId: string
   currentAssignment: Awaited<ReturnType<typeof getLeadAssignmentAction>>
   salesReps: SalesRep[]
   onRefresh: () => void
+  lead: { name?: string | null; phone?: string | null; email?: string | null; metaCampaignName?: string | null }
 }) {
-  const [selectedRepId, setSelectedRepId] = useState<string>(
-    currentAssignment?.salesRepId ?? ""
-  )
+  const savedRepId = currentAssignment?.salesRepId ?? ""
+  const [selectedRepId, setSelectedRepId] = useState<string>(savedRepId)
   const [error, setError] = useState<string | null>(null)
   const [isPending, start] = useTransition()
 
-  function handleRepChange(newRepId: string) {
-    const prev = selectedRepId
-    setSelectedRepId(newRepId)
+  // Sync dropdown when parent refreshes currentAssignment
+  useEffect(() => {
+    setSelectedRepId(currentAssignment?.salesRepId ?? "")
+  }, [currentAssignment?.salesRepId])
+
+  function handleAssign() {
     setError(null)
     start(async () => {
       try {
-        const result = await assignLeadAction({
-          leadId,
-          salesRepId: newRepId || null,
-        })
+        const result = await assignLeadAction({ leadId, salesRepId: selectedRepId || null })
         if (result && "error" in result) {
           setError(result.error ?? "Error al asignar")
-          setSelectedRepId(prev)
           return
         }
         onRefresh()
       } catch {
         setError("Error inesperado al asignar")
-        setSelectedRepId(prev)
       }
     })
   }
 
-  const current = currentAssignment?.salesRep
   const activeReps = salesReps.filter((r) => r.active)
 
+  // Resolve current rep: prefer DB join result, fall back to salesReps list
+  const currentRepId = currentAssignment?.salesRepId
+  const assignedRep = currentAssignment?.salesRep
+    ?? (currentRepId ? (salesReps.find((r) => r.id === currentRepId) ?? null) : null)
+
+  const hasChanged = selectedRepId !== savedRepId
+
+  const waText = buildWaText(lead)
+  const waNumber = assignedRep?.whatsappNumber?.replace(/\D/g, "")
+  const waHref = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}` : null
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {/* Current assignee badge */}
-      {current ? (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-          <UserCheck className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-          <p className="text-sm text-emerald-300 font-medium">{current.displayName}</p>
-          {current.whatsappNumber && (
-            <span className="text-xs text-zinc-500 font-mono ml-auto">{current.whatsappNumber}</span>
+      {assignedRep ? (
+        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 space-y-2">
+          <div className="flex items-center gap-2">
+            <UserCheck className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+            <p className="text-sm text-emerald-300 font-medium flex-1">{assignedRep.displayName}</p>
+          </div>
+          {waHref && (
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 transition-colors w-full"
+            >
+              <MessageCircle className="h-3 w-3" />
+              Notificar por WhatsApp
+            </a>
           )}
         </div>
       ) : (
         <p className="text-xs text-zinc-500 italic">Sin asignar</p>
       )}
 
+      {/* Selector + Asignar button */}
       {activeReps.length > 0 && (
-        <div className="relative">
-          <select
-            value={selectedRepId}
-            onChange={(e) => handleRepChange(e.target.value)}
-            disabled={isPending}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-60 appearance-none pr-8"
-          >
-            <option value="">— Sin asignar —</option>
-            {activeReps.map((r) => (
-              <option key={r.id} value={r.id}>{r.displayName}</option>
-            ))}
-          </select>
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-            {isPending
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
-              : <span className="text-zinc-500 text-xs">▾</span>}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <select
+              value={selectedRepId}
+              onChange={(e) => { setSelectedRepId(e.target.value); setError(null) }}
+              disabled={isPending}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-60 appearance-none pr-8"
+            >
+              <option value="">— Sin asignar —</option>
+              {activeReps.map((r) => (
+                <option key={r.id} value={r.id}>{r.displayName}</option>
+              ))}
+            </select>
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+              {isPending
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
+                : <span className="text-zinc-500 text-xs">▾</span>}
+            </div>
           </div>
+          <button
+            onClick={handleAssign}
+            disabled={isPending || !hasChanged}
+            className="px-3 py-2 text-xs font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Asignar"}
+          </button>
         </div>
       )}
+
       {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{error}</p>}
     </div>
   )
@@ -902,6 +941,12 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
                 currentAssignment={currentAssignment}
                 salesReps={salesReps}
                 onRefresh={() => refreshWa(leadId)}
+                lead={{
+                  name: current.name,
+                  phone: current.phone,
+                  email: current.email,
+                  metaCampaignName: current.metaCampaignName,
+                }}
               />
             )}
           </section>
