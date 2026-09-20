@@ -6,12 +6,13 @@ import { Plus, Pencil, Trash2, GitMerge } from "lucide-react"
 import { deleteFunnelAction } from "@/domains/funnels/actions"
 import { FunnelDialog } from "./FunnelDialog"
 import { KanbanBoard } from "./KanbanBoard"
-import type { Funnel, Lead, SalesRep } from "@/lib/db/schema"
+import type { Funnel, SalesRep } from "@/lib/db/schema"
+import type { LeadWithActivity } from "@/domains/leads/repository"
 
 interface Props {
   funnels: Funnel[]
   selectedFunnel: Funnel | null
-  leads: Lead[]
+  leads: LeadWithActivity[]
   campaignOptions: { id: string; name: string }[]
   filters: { campaignId: string; temperature: string; assignedTo: string }
   salesReps?: SalesRep[]
@@ -26,7 +27,7 @@ const TEMPS = [
   { value: "cold", label: "Frío" },
 ]
 
-const UNIQUE_ASSIGNEES = (leads: Lead[]) =>
+const UNIQUE_ASSIGNEES = (leads: LeadWithActivity[]) =>
   [...new Set(leads.map((l) => l.assignedTo).filter(Boolean) as string[])]
 
 export function FunnelsView({
