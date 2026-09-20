@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { salesReps, leadAssignments, leadActivities } from "@/lib/db/schema"
+import { leads, salesReps, leadAssignments, leadActivities } from "@/lib/db/schema"
 import { eq, and, isNull, desc } from "drizzle-orm"
 import type { CreateSalesRepInput, UpdateSalesRepInput, AssignmentWithRep } from "./types"
 
@@ -110,8 +110,9 @@ export async function assignLeadToRep(
   note?: string,
 ) {
   // Validate that rep belongs to org and is active (if provided)
+  let rep: Awaited<ReturnType<typeof getSalesRep>> | null = null
   if (salesRepId) {
-    const rep = await getSalesRep(salesRepId, orgId)
+    rep = await getSalesRep(salesRepId, orgId)
     if (!rep) throw new Error("Vendedor no encontrado")
     if (!rep.active) throw new Error("El vendedor está inactivo")
   }
@@ -141,6 +142,13 @@ export async function assignLeadToRep(
       isCurrent: true,
     })
     .returning()
+
+  // Sync deprecated leads.assigned_to for table display
+  await db
+    .update(leads)
+    .set({ assignedTo: rep ? rep.displayName : null, updatedAt: new Date() })
+    .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
+    .catch(() => undefined)
 
   // Record activity
   await db.insert(leadActivities).values({
@@ -174,6 +182,12 @@ export async function unassignLead(
         eq(leadAssignments.isCurrent, true),
       )
     )
+
+  await db
+    .update(leads)
+    .set({ assignedTo: null, updatedAt: new Date() })
+    .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
+    .catch(() => undefined)
 
   await db.insert(leadActivities).values({
     leadId,
