@@ -1,6 +1,7 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { getOrganizationByOwnerId } from "@/domains/organizations/repository"
+import { requireOrganizationMembership } from "@/lib/auth/server"
+import { AuthError, ForbiddenError } from "@/lib/auth/errors"
+import { getOrganizationById } from "@/domains/organizations/repository"
 import { getCampaignWithClientById } from "@/domains/campaigns/repository"
 import { getLeadsByCampaignWithActivity } from "@/domains/leads/repository"
 import { listSalesReps } from "@/domains/team/repository"
@@ -15,16 +16,21 @@ export default async function LeadsPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ search?: string; temperature?: string; stage?: string; assignment?: string; repId?: string; activity?: string }>
 }) {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
+  let ctx: Awaited<ReturnType<typeof requireOrganizationMembership>>
+  try {
+    ctx = await requireOrganizationMembership()
+  } catch (e) {
+    if (e instanceof AuthError || e instanceof ForbiddenError) redirect("/login")
+    throw e
+  }
 
-  const org = await getOrganizationByOwnerId(session.user.id)
-  if (!org) redirect("/onboarding")
+  const org = await getOrganizationById(ctx.orgId)
+  if (!org) redirect("/login")
 
   const { id } = await params
   const sp = await searchParams
 
-  const campaign = await getCampaignWithClientById(id, org.id)
+  const campaign = await getCampaignWithClientById(id, ctx.orgId)
   if (!campaign) redirect("/dashboard/campaigns")
 
   const filters: LeadFilters = {
@@ -35,9 +41,9 @@ export default async function LeadsPage({
   }
 
   const [leads, salesReps] = await Promise.all([
-    getLeadsByCampaignWithActivity(id, org.id, filters),
+    getLeadsByCampaignWithActivity(id, ctx.orgId, filters),
     campaign.clientId
-      ? listSalesReps(org.id, campaign.clientId)
+      ? listSalesReps(ctx.orgId, campaign.clientId)
       : Promise.resolve([]),
   ])
 
@@ -48,7 +54,7 @@ export default async function LeadsPage({
       whatsappNumbers={campaign.client?.whatsappNumbers ?? []}
       orgName={org.name}
       salesReps={salesReps}
-      currentUserId={session.user.id}
+      currentUserId={ctx.userId}
     />
   )
 }

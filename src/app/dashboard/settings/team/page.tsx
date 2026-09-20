@@ -12,7 +12,7 @@ export default async function TeamPage() {
     ctx = await requireOrganizationMembership()
   } catch (e) {
     if (e instanceof AuthError) redirect("/login")
-    if (e instanceof ForbiddenError) redirect("/onboarding")
+    if (e instanceof ForbiddenError) redirect("/login")
     throw e
   }
 
