@@ -114,109 +114,113 @@ export async function registerSaleAction(
   }
   const input = parsed.data
 
-  // Load lead (org-scoped)
-  const lead = await db.query.leads.findFirst({
-    where: and(eq(leads.id, leadId), eq(leads.orgId, ctx.orgId)),
-  })
-  if (!lead) return { success: false, error: "Lead no encontrado" }
+  try {
+    // Load lead (org-scoped)
+    const lead = await db.query.leads.findFirst({
+      where: and(eq(leads.id, leadId), eq(leads.orgId, ctx.orgId)),
+    })
+    if (!lead) return { success: false, error: "Lead no encontrado" }
 
-  const campaign = await db.query.campaigns.findFirst({
-    where: and(eq(campaigns.id, lead.campaignId), eq(campaigns.orgId, ctx.orgId)),
-  })
-
-  // 1. Insert conversion (idempotency anchor on orgId + orderId)
-  const { conversion, created } = await createConversionIdempotent({
-    orgId: ctx.orgId,
-    leadId,
-    campaignId: campaign?.id ?? null,
-    orderId: input.orderId,
-    amount: input.amount.toFixed(2),
-    currency: input.currency.toUpperCase(),
-    convertedAt: input.convertedAt,
-    actorId: ctx.userId,
-    notes: input.notes ?? null,
-  })
-
-  if (!created) {
-    // Idempotent repeat — return the existing conversion info
-    return { success: true, duplicate: true, conversionId: conversion.id }
-  }
-
-  // 2. Build Purchase payload + create meta_event if connection exists
-  let metaEventId: string | undefined
-  let capiScheduled = false
-
-  const metaConn = campaign
-    ? await getActiveMetaConnectionByClientId(campaign.clientId, ctx.orgId)
-    : undefined
-
-  if (metaConn?.pixelId) {
-    const event = buildPurchasePayload({
-      conversionId: conversion.id,
-      lead: {
-        email: lead.email,
-        phone: lead.phone,
-        name: lead.name,
-        city: lead.city,
-        fbc: lead.fbc,
-        fbp: lead.fbp,
-        ip: lead.ip,
-        userAgent: lead.userAgent,
-        landingUrl: lead.landingUrl,
-      },
-      amount: input.amount.toFixed(2),
-      currency: input.currency.toUpperCase(),
-      orderId: input.orderId,
-      convertedAt: input.convertedAt,
+    const campaign = await db.query.campaigns.findFirst({
+      where: and(eq(campaigns.id, lead.campaignId), eq(campaigns.orgId, ctx.orgId)),
     })
 
-    const { metaEvent } = await createMetaEventIdempotent({
+    // 1. Insert conversion (idempotency anchor on orgId + orderId)
+    const { conversion, created } = await createConversionIdempotent({
       orgId: ctx.orgId,
       leadId,
-      conversionId: conversion.id,
-      pixelId: metaConn.pixelId,
-      event,
+      campaignId: campaign?.id ?? null,
+      orderId: input.orderId,
+      amount: input.amount.toFixed(2),
+      currency: input.currency.toUpperCase(),
+      convertedAt: input.convertedAt,
+      actorId: ctx.userId,
+      notes: input.notes ?? null,
     })
-    metaEventId = metaEvent.id
-    capiScheduled = true
+
+    if (!created) {
+      return { success: true, duplicate: true, conversionId: conversion.id }
+    }
+
+    // 2. Build Purchase payload + create meta_event if connection exists
+    let metaEventId: string | undefined
+    let capiScheduled = false
+
+    const metaConn = campaign
+      ? await getActiveMetaConnectionByClientId(campaign.clientId, ctx.orgId)
+      : undefined
+
+    if (metaConn?.pixelId) {
+      const event = buildPurchasePayload({
+        conversionId: conversion.id,
+        lead: {
+          email: lead.email,
+          phone: lead.phone,
+          name: lead.name ?? "",
+          city: lead.city,
+          fbc: lead.fbc,
+          fbp: lead.fbp,
+          ip: lead.ip,
+          userAgent: lead.userAgent,
+          landingUrl: lead.landingUrl,
+        },
+        amount: input.amount.toFixed(2),
+        currency: input.currency.toUpperCase(),
+        orderId: input.orderId,
+        convertedAt: input.convertedAt,
+      })
+
+      const { metaEvent } = await createMetaEventIdempotent({
+        orgId: ctx.orgId,
+        leadId,
+        conversionId: conversion.id,
+        pixelId: metaConn.pixelId,
+        event,
+      })
+      metaEventId = metaEvent.id
+      capiScheduled = true
+    }
+
+    // 3. Sync deprecated lead fields (non-fatal — for backward-compat UI)
+    syncLeadConvertedFields(
+      leadId, ctx.orgId,
+      input.amount.toFixed(2), input.currency.toUpperCase(),
+      input.convertedAt, ctx.userId
+    ).catch(() => undefined)
+
+    // 4. Activity log (non-fatal)
+    db.insert(leadActivities).values({
+      leadId,
+      orgId: ctx.orgId,
+      actorId: ctx.userId,
+      actorType: "user",
+      activityType: "converted",
+      metadata: { conversionId: conversion.id, orderId: input.orderId, capiScheduled },
+    }).catch(() => undefined)
+
+    // 5. Audit log (non-fatal)
+    db.insert(auditLogs).values({
+      orgId: ctx.orgId,
+      actorId: ctx.userId,
+      actorType: "user",
+      action: "conversion.created",
+      resourceType: "conversion",
+      resourceId: conversion.id,
+      metadata: { leadId, orderId: input.orderId, amount: input.amount.toFixed(2), currency: input.currency },
+    }).catch(() => undefined)
+
+    // 6. Immediate best-effort CAPI send (non-blocking to sale success)
+    let capiStatus: string | undefined
+    if (metaEventId) {
+      const sendResult = await sendMetaEventDirect(metaEventId, ctx.orgId).catch(() => null)
+      capiStatus = sendResult?.status
+    }
+
+    return { success: true, conversionId: conversion.id, capiScheduled, capiStatus }
+  } catch (err) {
+    console.error("[registerSaleAction] unexpected error:", err instanceof Error ? err.message : err)
+    return { success: false, error: "Error al registrar la venta. Revisa los logs del servidor." }
   }
-
-  // 3. Sync deprecated lead fields (non-fatal — for backward-compat UI)
-  syncLeadConvertedFields(
-    leadId, ctx.orgId,
-    input.amount.toFixed(2), input.currency.toUpperCase(),
-    input.convertedAt, ctx.userId
-  ).catch(() => undefined)
-
-  // 4. Activity log (non-fatal)
-  db.insert(leadActivities).values({
-    leadId,
-    orgId: ctx.orgId,
-    actorId: ctx.userId,
-    actorType: "user",
-    activityType: "converted",
-    metadata: { conversionId: conversion.id, orderId: input.orderId, capiScheduled },
-  }).catch(() => undefined)
-
-  // 5. Audit log (non-fatal)
-  db.insert(auditLogs).values({
-    orgId: ctx.orgId,
-    actorId: ctx.userId,
-    actorType: "user",
-    action: "conversion.created",
-    resourceType: "conversion",
-    resourceId: conversion.id,
-    metadata: { leadId, orderId: input.orderId, amount: input.amount.toFixed(2), currency: input.currency },
-  }).catch(() => undefined)
-
-  // 6. Immediate best-effort CAPI send (non-blocking to sale success)
-  let capiStatus: string | undefined
-  if (metaEventId) {
-    const sendResult = await sendMetaEventDirect(metaEventId, ctx.orgId).catch(() => null)
-    capiStatus = sendResult?.status
-  }
-
-  return { success: true, conversionId: conversion.id, capiScheduled, capiStatus }
 }
 
 // ─── retryCAPIAction ──────────────────────────────────────────────────────────
