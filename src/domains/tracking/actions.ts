@@ -27,6 +27,8 @@ import {
   getIssuesByDefinition,
   computeDiagStatus,
   createObservation,
+  getRecentObservationsWithMeta,
+  type ObservationWithMeta,
 } from "./repository"
 import {
   CreateTrackingSiteSchema,
@@ -596,6 +598,50 @@ export async function scanTrackingSiteAction(
   }).catch(() => undefined)
 
   return { data: scanResult }
+}
+
+// ─── Live Feed ───────────────────────────────────────────────────────────────
+
+export type LiveEvent = {
+  id: string
+  source: ObservationWithMeta["source"]
+  eventName: string
+  definitionDisplayName: string | null
+  pageUrl: string | null
+  environment: string
+  allParamsOk: boolean
+  missingParams: string[]
+  observedAt: Date
+}
+
+export async function getLiveEventsAction(
+  clientId: string,
+  limit = 50
+): Promise<{ error?: string; data?: LiveEvent[] }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch { return { error: "No autorizado" } }
+
+  const rows = await getRecentObservationsWithMeta(ctx.orgId, clientId, limit)
+
+  const events: LiveEvent[] = rows.map((obs) => {
+    const validation = (obs.validationResult ?? {}) as Record<string, string>
+    const missing = Object.entries(validation)
+      .filter(([, v]) => v !== "present")
+      .map(([k]) => k)
+    return {
+      id: obs.id,
+      source: obs.source,
+      eventName: obs.eventName,
+      definitionDisplayName: obs.definitionDisplayName,
+      pageUrl: obs.pageUrl,
+      environment: obs.environment ?? "production",
+      allParamsOk: missing.length === 0,
+      missingParams: missing,
+      observedAt: obs.observedAt,
+    }
+  })
+
+  return { data: events }
 }
 
 // ─── Simulate ────────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import type { MetaConnectionPublic } from "@/domains/meta/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConversionList } from "./ConversionList"
+import { LiveEventFeed } from "./LiveEventFeed"
 import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, XCircle, ExternalLink } from "lucide-react"
 import { createTrackingSiteAction, applyBusinessTemplateAction } from "@/domains/tracking/actions"
 
@@ -604,6 +605,8 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
       )}
 
       {issues.length > 0 && <IssuesList issues={issues} />}
+
+      <LiveEventFeed clientId={clientId} />
     </div>
   )
 }
