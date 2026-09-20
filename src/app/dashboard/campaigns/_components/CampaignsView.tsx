@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CampaignDialog } from "./CampaignDialog"
 import { ApiKeyModal } from "./ApiKeyModal"
+import { MultiScriptModal } from "./MultiScriptModal"
 import { deleteCampaignAction, toggleCampaignActiveAction } from "@/domains/campaigns/actions"
 import type { Campaign, Client } from "@/lib/db/schema"
 import type { CampaignWithClient } from "@/domains/campaigns/repository"
 import Link from "next/link"
-import { Plus, Pencil, Trash2, Key, Megaphone, Users } from "lucide-react"
+import { Plus, Pencil, Trash2, Key, Megaphone, Users, Code2 } from "lucide-react"
 
 interface Props {
   campaigns: CampaignWithClient[]
@@ -28,9 +29,12 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editCampaign, setEditCampaign] = useState<Campaign | null>(null)
   const [apiKeyModal, setApiKeyModal] = useState<CampaignWithClient | null>(null)
+  const [multiScriptOpen, setMultiScriptOpen] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletePending, startDeleteTransition] = useTransition()
   const [togglePending, startToggleTransition] = useTransition()
+
+  const appUrl = typeof window !== "undefined" ? window.location.origin : ""
 
   function openCreate() {
     setEditCampaign(null)
@@ -65,13 +69,24 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
           <h1 className="text-xl font-semibold text-zinc-100">Campañas</h1>
           <p className="text-sm text-zinc-400 mt-0.5">{orgName}</p>
         </div>
-        <Button
-          onClick={openCreate}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Nueva campaña
-        </Button>
+        <div className="flex items-center gap-2">
+          {campaigns.length > 0 && (
+            <button
+              onClick={() => setMultiScriptOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 text-sm border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 rounded-lg transition-colors"
+            >
+              <Code2 className="h-4 w-4" />
+              Script multi-campaña
+            </button>
+          )}
+          <Button
+            onClick={openCreate}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nueva campaña
+          </Button>
+        </div>
       </div>
 
       {/* Empty state */}
@@ -212,6 +227,13 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
           apiKey={apiKeyModal.apiKey}
         />
       )}
+
+      <MultiScriptModal
+        open={multiScriptOpen}
+        onOpenChange={setMultiScriptOpen}
+        campaigns={campaigns}
+        appUrl={appUrl}
+      />
     </div>
   )
 }

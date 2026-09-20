@@ -11,7 +11,7 @@ import { db } from "@/lib/db"
 import { metaConnections } from "@/lib/db/schema"
 import { and, eq, isNotNull } from "drizzle-orm"
 import { getCampaignsByClientWithCounts } from "@/domains/campaigns/repository"
-import { getLeadsByClient } from "@/domains/leads/repository"
+import { getLeadsByClientWithActivity } from "@/domains/leads/repository"
 import {
   getTrackingSitesAction,
   getTrackingOverviewAction,
@@ -88,7 +88,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     const convertedFilter =
       sp.converted === "yes" ? true : sp.converted === "no" ? false : undefined
     const [leadsData, salesRepsData] = await Promise.all([
-      getLeadsByClient(id, ctx.orgId, {
+      getLeadsByClientWithActivity(id, ctx.orgId, {
         search: sp.search,
         temperature: (sp.temperature as Temperature) || undefined,
         stage: (sp.stage as LeadStage) || undefined,

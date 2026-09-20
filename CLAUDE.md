@@ -20,6 +20,10 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 10. Evita `any`, errores silenciados y respuestas que filtren detalles internos. Mantén separación entre código server-only y cliente.
 11. Antes de terminar ejecuta los comandos disponibles de formato, lint, typecheck, pruebas y build. Si alguno falla por una causa previa, demuéstralo y no lo ocultes.
 12. Entrega al final: archivos modificados, migraciones generadas, pruebas ejecutadas, resultados, variables nuevas, pasos manuales y riesgos pendientes. No hagas commit ni deploy salvo que se te pida expresamente.
+13. **Checklist pre-push obligatorio para cambios de schema**: Antes de hacer push a producción, verificar siempre:
+    - (a) Toda tabla nueva en `schema.ts` tiene su migración SQL generada (`npx drizzle-kit generate`) y aplicada en Neon (`npx drizzle-kit push`).
+    - (b) Todo `many(X)` en un bloque `relations()` tiene su bloque `relations(X, ...)` inverso declarado en el mismo schema. La ausencia del inverso no da error de TypeScript — falla silenciosamente en runtime causando React error #441 en producción (ver commit `49063ee`).
+    - (c) Ejecutar `npx drizzle-kit push --dry-run` (o `studio`) para confirmar que no hay diferencias pendientes entre el schema Drizzle y la DB de Neon.
 
 ## Ruta local
 `C:\Users\Andre\OneDrive\Documentos\Claude\Projects\SyncLead`
@@ -65,6 +69,7 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`withJobRun(jobName, fn)`** — wrapper obligatorio para todos los crons. Registra cada ejecución en `cron_runs`. Si el insert inicial falla, el job igual corre (non-fatal). `correlationId` = UUID, nunca PII.
 - **`isOverBudget(-1)`** para tests de "siempre excedido" — evita flakiness en entornos rápidos.
 - **`drizzle-kit push` para sincronización de schema**: `npx drizzle-kit migrate` puede reportar éxito sin crear todas las tablas cuando `__drizzle_migrations` no existe o está desincronizado. Usar `npx drizzle-kit push` para comparar el schema Drizzle actual contra la DB y aplicar diferencias directamente. Verificar tablas tras migrar: 48 tablas en Neon después de sync completo.
+- **Drizzle relaciones: siempre declarar ambos lados**: Al añadir `many(X)` en un `relations()`, SIEMPRE añadir el `relations()` inverso para la tabla X. Si falta el lado inverso, Drizzle lanza un error en runtime al ejecutar CUALQUIER query relacional que toque ese schema — no solo las que usan la relación faltante — causando React error #441 (server component crash) en producción. El fix es añadir el bloque `relations(X, ({ one }) => ({ ... }))` correspondiente. Ver commit `49063ee`: `leadStageHistoryRelations` faltaba porque `leadsRelations` tenía `stageHistory: many(leadStageHistory)` sin su inverso.
 - **`drizzle.config.ts` requiere dotenv**: `drizzle-kit` no carga `.env.local` automáticamente. Añadir `import { config } from "dotenv"; config({ path: ".env.local" })` al inicio del archivo; sin esto los comandos drizzle-kit leen `DATABASE_URL` como `undefined`.
 - **`createOrgAction` DEBE llamar `ensureOwnerMembership()`**: `provisionOrganization()` crea la org pero no inserta en `org_members`. `requireOrganizationMembership()` solo consulta `org_members`, por lo que sin este insert todos los usuarios nuevos son redirigidos al onboarding en un bucle infinito. Ver `src/app/onboarding/actions.ts`.
 - **`authorize` en `auth.ts` DEBE tener try/catch**: Si la DB no está disponible y `authorize` lanza una excepción, Auth.js muestra "There was a problem with the server configuration" en lugar de un error manejable. Envolver todo el cuerpo de `authorize` en try/catch y devolver `null` ante cualquier error de DB.
@@ -72,6 +77,14 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`registerAction` usa dos bloques try/catch separados**: El bloque DB (crear usuario) y el bloque `signIn` deben estar separados. `signIn()` de Auth.js lanza un error especial con `digest.startsWith("NEXT_REDIRECT")` que DEBE ser re-lanzado — usar el helper `isRedirectError()` para detectarlo antes de capturarlo.
 - **`import_rows.dedupe_key` requiere `.notNull().unique()`**: `onConflictDoNothing({ target: importRows.dedupeKey })` necesita un índice único en Postgres o rechaza el INSERT con "no unique constraint matching the ON CONFLICT specification". La columna debe tener `.notNull().unique()` en el schema Drizzle y el constraint aplicado en DB via `drizzle-kit push`.
 - **Design system del dashboard usa clases `sg-*`**: El dashboard usa CSS custom properties definidas en `globals.css` (sg-app, bg-sg-bg, sg-border, sg-accent, sg-s1/s2/s3, sg-ink, sg-muted, sg-subtle, sg-radius). Nuevos componentes del dashboard deben usar estas clases, no `zinc-*` directamente. El componente `DashboardNav` en `src/components/app/DashboardNav.tsx` es el nav principal del dashboard.
+- **`startTransition(async () => {...})` requiere try/catch explícito**: React 19 silencia excepciones lanzadas dentro de transitions asíncronas. Sin try/catch, errores de server actions desaparecen sin mostrar nada al usuario. Siempre envolver el body async en try/catch y manejar el error con `setError(...)`.
+- **Server actions complejas deben retornar `{ success, error? }` y NO lanzar**: Envolver el body principal en try/catch y devolver `{ success: false, error: "..." }` en lugar de propagar la excepción. Lanzar desde una server action causa que el cliente reciba un error genérico no manejable. Ver `registerSaleAction` y `updateLeadInfoAction`.
+- **`loadAll` en LeadDrawer usa `Promise.allSettled`**: Si una de las 5 acciones paralelas falla (p.ej. `fetchLeadDetailAction` por error de relación Drizzle), las demás deben igualmente completarse. Con `Promise.all`, un fallo cancela todo y `allConversions` queda vacío. Usar siempre `Promise.allSettled` en cargas de drawer/panel con múltiples acciones independientes.
+- **Queries de leads en server actions deben especificar `columns: {}`**: `db.query.leads.findFirst()` sin filtro de columnas genera SELECT de todas las columnas — si el schema Drizzle tiene columnas que no existen aún en Neon, la query falla. En acciones que solo necesitan campos específicos, usar `columns: { id: true, campaignId: true, ... }` para aislar el impacto del schema drift.
+- **`leadStageHistoryRelations` es obligatoria en schema.ts**: `leadsRelations` tiene `stageHistory: many(leadStageHistory)`. Drizzle requiere que exista `leadStageHistoryRelations` con `lead: one(leads, ...)` en la otra punta, o lanza "There is not enough information to infer relation 'leads.stageHistory'" en tiempo de ejecución.
+- **`meta_connections.send_lead_events` / `send_contact_events`**: Booleanos (default false) que controlan si se disparan auto-eventos Lead (al ingestar) y Contact (al cambiar stage a "contacted"). Agregados como columnas en Neon via SQL directo (`ALTER TABLE meta_connections ADD COLUMN IF NOT EXISTS ...`) porque `drizzle-kit push` bloqueó por prompt TTY interactivo en el ambiente CI/no-TTY.
+- **`LeadWithActivity` agrega TODAS las ventas confirmadas**: `saleCount` = total de conversiones confirmadas; `saleTotalAmount` = suma si moneda uniforme, `null` si mixta; `saleCurrency` = moneda si uniforme. Reemplazó los campos anteriores `saleAmount / saleStatus / saleConvertedAt` (que solo reflejaban la primera conversión). El filtro `has_sale` usa `saleCount > 0`.
+- **`drizzle-kit push` puede bloquearse por prompts TTY**: cuando la CLI detecta cambios que podrían ser destructivos (ej. añadir UNIQUE constraint a tabla con datos), pide confirmación interactiva. En entornos no-TTY usar SQL directo via `neon()` client. Para agregar columnas simples con DEFAULT, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` siempre es seguro.
 
 ## Arquitectura multi-tenant
 Aislamiento a nivel de aplicación (no RLS). **Todas las tablas tienen `org_id`.**
@@ -158,6 +171,7 @@ src/
       ingest/
         form/route.ts                   ← Modo A: token público, CORS, Turnstile, honeypot
         server/route.ts                 ← Modo B: Authorization Bearer, hash lookup
+      behavior/route.ts                 ← POST: eventos de comportamiento (checkout/cart/form/info); auth: Bearer pub_xxx; CORS wildcard; escribe en lead_behavior_events; idempotente con externalId
       leads/ingest/route.ts             ← @deprecated: legacy X-Campaign-Key adapter
       auth/[...nextauth]/route.ts       ← Auth.js handler
       webhook/whatsapp/[clientId]/route.ts ← webhook proveedor WA (verificación de firma)
@@ -173,8 +187,8 @@ src/
     campaigns/      repository.ts, actions.ts, types.ts
     leads/
       normalize.ts  ← normalizePhone, calculateTemperature, normalizeCity
-      repository.ts ← getLeadsByCampaign, getLeadDetail, updateLeadTemperature/Stage/Notes/assign
-      actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign)
+      repository.ts ← getLeadsByCampaign, getLeadsByCampaignWithActivity (3 queries: leads+conversions+behavior), getLeadDetail, updateLeadTemperature/Stage/Notes/assign; LeadWithActivity: saleCount/saleTotalAmount/saleCurrency/activity
+      actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }
     analytics/
       types.ts      ← Metric = number | null, DashboardKPIs, PerformanceRow
       repository.ts ← getKPIMetrics() (converted_at), getPerformanceTable(), getLeadsByDay(), getLeadsByCampaignChart()
@@ -183,7 +197,7 @@ src/
       schema.ts     ← RegisterSaleSchema (Zod v4): amount>0, currency 3-char uppercase, orderId
       payload.ts    ← buildPurchasePayload(): PII hash SHA-256, event_id = purchase_{conversionId}
       repository.ts ← createConversionIdempotent(), createMetaEventIdempotent(), cancelConversion(), etc.
-      actions.ts    ← registerSaleAction(), fetchConversionStatusAction(), retryCAPIAction(), cancelConversionAction()
+      actions.ts    ← registerSaleAction() (body en try/catch → retorna error en lugar de lanzar; queries de leads/campaigns con columns selectivos), fetchConversionStatusAction(), getAllConversionsByLeadAction(), retryCAPIAction(), cancelConversionAction()
     qualification/
       types.ts, normalize.ts, engine.ts, repository.ts, actions.ts  ← motor v1 Savaya
       profile-types.ts, field-registry.ts, condition-evaluator.ts, score-engine.ts  ← motor v2 genérico
@@ -305,8 +319,9 @@ src/proxy.ts  ← protege /dashboard/*, applySecurityHeaders() (CSP+nonce, X-Fra
 - Delete con confirmación inline: estado `confirmDeleteId` en el componente, sin AlertDialog separado
 - `client?.id ?? "new"` como `key` en ClientDialog (y lo mismo en CampaignDialog) para forzar re-mount
 - Filtros de leads via URL searchParams: LeadsView usa `useRouter().push()` + `useSearchParams()`
-- LeadDrawer: `fetchLeadDetailAction(lead.id)` al abrir; `router.refresh()` solo en onClose
+- LeadDrawer: `loadAll()` usa `Promise.allSettled` (5 acciones independientes) al abrir; `router.refresh()` solo en onClose
 - Mutations del drawer: `useTransition` + optimistic local state; `router.refresh()` solo en onClose
+- `ConversionPanel` siempre muestra botón "Registrar venta" + historial integrado de todas las conversiones (no bloqueado por conversión existente)
 - Temperature cycle: cold → warm → hot → cold con un click en el badge
 - Assign WhatsApp: abre `https://wa.me/{num}?text=...` + llama `assignLeadAction`; segundo click deselecciona
 
@@ -519,3 +534,14 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] `TrackingDashboard.tsx` — `HealthSummary` muestra "Configurado" (amber) cuando site tiene `expectedPixelId` sin observaciones aún
   - [x] Modal "Agregar sitio" — incluye campo Pixel ID opcional
   - [x] Botón "Aplicar plantilla" — conectado con `ApplyTemplateModal` (lead_gen / ecommerce / bookings)
+- [x] Visibilidad de actividad y ventas en leads (Prompt 29)
+  - [x] `src/app/api/behavior/route.ts` — `POST /api/behavior`: ingesta de eventos de comportamiento (begin_checkout, checkout_abandoned, add_to_cart, remove_from_cart, form_submitted, info_requested, view_product, payment_failed); auth Bearer pub_xxx via `lookupCredential()`; CORS wildcard; idempotente con `externalId`; escribe en `lead_behavior_events`
+  - [x] `src/domains/leads/repository.ts` — `getLeadsByCampaignWithActivity()`: 3 queries batch (leads → conversions confirmed IN leadIds → behavior_events IN leadIds), merge en memoria; `LeadWithActivity` tipo nuevo con `saleCount/saleTotalAmount/saleCurrency/activity`
+  - [x] `src/app/dashboard/campaigns/[id]/leads/_components/LeadsView.tsx` — nueva columna "Venta" con suma total de ventas; nueva columna "Actividad" con `ActivityBadges` (checkout/carrito/form/info); filtro por actividad via URL
+  - [x] `src/app/dashboard/performance/page.tsx` — selector de cliente wired; `DateRangeSelector` ya tenía soporte, solo faltaba pasar `clients` y `currentClientId`
+  - [x] `src/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer.tsx` — `loadAll` migrado a `Promise.allSettled`; `ConversionPanel` rediseñado (siempre muestra registro + historial integrado de todas las ventas con CAPI status inline); `EditInfoPanel.handleSave` con try/catch explícito
+  - [x] `src/domains/leads/actions.ts` — `updateLeadInfoAction` retorna `Promise<{ success: boolean; error?: string }>` consistentemente
+  - [x] `src/domains/conversions/actions.ts` — `registerSaleAction` body en try/catch; queries de lead/campaign con `columns` selectivos
+  - [x] `src/lib/db/schema.ts` — `leadStageHistoryRelations` agregada (resuelve "not enough information to infer relation 'leads.stageHistory'")
+  - [x] Neon DB — `ALTER TABLE meta_connections ADD COLUMN send_lead_events / send_contact_events` aplicado via SQL directo (drizzle-kit push bloqueó por TTY interactivo)
+- [x] Fix crítico: `leadStageHistoryRelations` — `leadsRelations` declaraba `stageHistory: many(leadStageHistory)` sin el bloque inverso; Drizzle fallaba en runtime causando React error #441 en toda la página de detalle de cliente; fix en commit `49063ee`
