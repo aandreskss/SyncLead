@@ -53,32 +53,49 @@ export function ApiKeyModal({ open, onOpenChange, campaignId, campaignName, apiK
     })
   }
 
-  const snippet = `// En el submit handler de tu landing page:
-const res = await fetch("${appUrl}/api/leads/ingest", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-Campaign-Key": "${currentKey}"
-  },
-  body: JSON.stringify({
-    event_id: crypto.randomUUID(), // idempotencia
-    name: "Nombre Apellido",
-    email: "email@ejemplo.com",
-    phone: "04141234567",
-    city: "Caracas",
-    negocio: false,
-    // Opcionales (Meta tracking):
-    fbc: getCookie("_fbc"),
-    fbp: getCookie("_fbp"),
-    utm_source: urlParams.get("utm_source"),
-    utm_medium: urlParams.get("utm_medium"),
-    utm_campaign: urlParams.get("utm_campaign"),
-    utm_content: urlParams.get("utm_content"),
-    platform: "facebook",
-    device: "mobile",
-  })
-})
-const { leadId } = await res.json()`
+  const snippet = `<!-- ── PASO 1: Pega en el <head> de tu web (WordPress, Shopify, cualquier plataforma) ── -->
+<script>
+  window.SyncLeadKey  = "${currentKey}";
+  window.SyncLeadHost = "${appUrl}";
+</script>
+<script src="${appUrl}/sl.js" defer></script>
+
+<!-- ── PASO 2: Llama a SyncLead.capture() cuando el lead se registre ── -->
+<!-- Ejemplo: formulario HTML -->
+<script>
+document.getElementById("mi-formulario").addEventListener("submit", function(e) {
+  e.preventDefault();
+  SyncLead.capture({
+    name:    document.getElementById("nombre").value,   // requerido
+    email:   document.getElementById("email").value,   // requerido (o phone)
+    phone:   document.getElementById("telefono").value, // requerido (o email)
+    city:    document.getElementById("ciudad").value,   // opcional
+    negocio: false,                                     // opcional
+    // Los UTMs y fbclid se capturan y adjuntan automáticamente
+  }).then(function(r) {
+    if (r.success) console.log("Lead registrado:", r.leadId);
+  });
+});
+</script>
+
+<!-- ── Shopify: en theme.liquid antes de </body> ── -->
+<!--
+<script>
+  // En la página de checkout cuando el cliente ingresa su email:
+  SyncLead.capture({
+    name:  customer.name,
+    email: customer.email,
+    phone: customer.phone,
+  });
+</script>
+-->
+
+<!-- ── WordPress: vía WPCode o functions.php ── -->
+<!--
+  Agrega el Paso 1 en: Ajustes → WPCode → Header Scripts
+  Llama a SyncLead.capture() desde tu plugin de formularios
+  (Contact Form 7, WPForms, Gravity Forms, etc.)
+-->`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,7 +103,7 @@ const { leadId } = await res.json()`
         <DialogHeader>
           <DialogTitle>API Key — {campaignName}</DialogTitle>
           <DialogDescription>
-            Usa esta clave en el header <code className="text-indigo-400 bg-indigo-400/10 px-1 rounded">X-Campaign-Key</code> para enviar leads a esta campaña.
+            Script universal para WordPress, Shopify, Next.js o cualquier web. Copia el snippet de instalación y llama a <code className="text-indigo-400 bg-indigo-400/10 px-1 rounded">SyncLead.capture()</code> donde capturas el lead.
           </DialogDescription>
         </DialogHeader>
 

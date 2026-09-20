@@ -16,6 +16,16 @@ import { normalizePhone, calculateTemperature, normalizeCity } from "@/domains/l
 import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-Campaign-Key",
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS })
+}
+
 let ratelimit: Ratelimit | null = null
 if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
   const redis = new Redis({
@@ -55,14 +65,14 @@ type IngestPayload = z.infer<typeof IngestPayloadSchema>
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("x-campaign-key")
   if (!apiKey) {
-    return NextResponse.json({ error: "Missing X-Campaign-Key header" }, { status: 401 })
+    return NextResponse.json({ error: "Missing X-Campaign-Key header" }, { status: 401, headers: CORS })
   }
 
   if (ratelimit) {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "127.0.0.1"
     const { success } = await ratelimit.limit(ip)
     if (!success) {
-      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+      return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: CORS })
     }
   }
 
@@ -71,17 +81,17 @@ export async function POST(req: NextRequest) {
     where: eq(campaigns.apiKey, apiKey),
   })
   if (!campaign) {
-    return NextResponse.json({ error: "Invalid API key" }, { status: 401 })
+    return NextResponse.json({ error: "Invalid API key" }, { status: 401, headers: CORS })
   }
   if (!campaign.active) {
-    return NextResponse.json({ error: "Campaign is inactive" }, { status: 403 })
+    return NextResponse.json({ error: "Campaign is inactive" }, { status: 403, headers: CORS })
   }
 
   let rawBody: unknown
   try {
     rawBody = await req.json()
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: CORS })
   }
 
   const parsed = IngestPayloadSchema.safeParse(rawBody)
@@ -89,7 +99,7 @@ export async function POST(req: NextRequest) {
     const firstError = parsed.error.issues[0]
     return NextResponse.json(
       { error: firstError?.message ?? "Invalid payload" },
-      { status: 400 }
+      { status: 400, headers: CORS }
     )
   }
 
@@ -101,7 +111,7 @@ export async function POST(req: NextRequest) {
       where: and(eq(webhookEvents.campaignId, campaign.id), eq(webhookEvents.eventId, eventId)),
     })
     if (existing) {
-      return NextResponse.json({ success: true, duplicate: true }, { status: 200 })
+      return NextResponse.json({ success: true, duplicate: true }, { status: 200, headers: CORS })
     }
   }
 
@@ -157,7 +167,7 @@ export async function POST(req: NextRequest) {
 
     await db.update(webhookEvents).set({ processed: true }).where(eq(webhookEvents.id, event.id))
 
-    return NextResponse.json({ success: true, leadId: lead.id }, { status: 201 })
+    return NextResponse.json({ success: true, leadId: lead.id }, { status: 201, headers: CORS })
   } catch (err) {
     await db
       .update(webhookEvents)
@@ -165,6 +175,6 @@ export async function POST(req: NextRequest) {
       .where(eq(webhookEvents.id, event.id))
 
     console.error("[ingest/legacy] lead insert failed:", err instanceof Error ? err.name : "Error")
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: CORS })
   }
 }

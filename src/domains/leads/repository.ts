@@ -263,6 +263,60 @@ export async function getLeadsByClient(
   })
 }
 
+export async function getLeadsByClientWithActivity(
+  clientId: string,
+  orgId: string,
+  filters: LeadFilters = {}
+): Promise<LeadWithActivity[]> {
+  const leadRows = await getLeadsByClient(clientId, orgId, filters)
+  if (leadRows.length === 0) return []
+
+  const leadIds = leadRows.map((l) => l.id)
+
+  const convRows = await db
+    .select({
+      leadId: conversions.leadId,
+      amount: conversions.amount,
+      currency: conversions.currency,
+    })
+    .from(conversions)
+    .where(
+      and(
+        eq(conversions.orgId, orgId),
+        inArray(conversions.leadId, leadIds),
+        eq(conversions.status, "confirmed")
+      )
+    )
+
+  const convsByLead = new Map<string, typeof convRows>()
+  for (const c of convRows) {
+    if (!convsByLead.has(c.leadId)) convsByLead.set(c.leadId, [])
+    convsByLead.get(c.leadId)!.push(c)
+  }
+
+  const saleSummary = new Map<string, { count: number; totalAmount: string | null; currency: string | null }>()
+  for (const [lid, convs] of convsByLead) {
+    const currencies = new Set(convs.map((c) => c.currency))
+    if (currencies.size === 1) {
+      const total = convs.reduce((acc, c) => acc + parseFloat(c.amount), 0)
+      saleSummary.set(lid, { count: convs.length, totalAmount: total.toFixed(2), currency: convs[0].currency })
+    } else {
+      saleSummary.set(lid, { count: convs.length, totalAmount: null, currency: null })
+    }
+  }
+
+  return leadRows.map((lead) => {
+    const sale = saleSummary.get(lead.id) ?? { count: 0, totalAmount: null, currency: null }
+    return {
+      ...lead,
+      saleCount: sale.count,
+      saleTotalAmount: sale.totalAmount,
+      saleCurrency: sale.currency,
+      activity: emptyActivity(),
+    }
+  })
+}
+
 export async function getLeadDetail(
   leadId: string,
   orgId: string

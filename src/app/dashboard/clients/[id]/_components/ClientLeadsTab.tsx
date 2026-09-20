@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useTransition, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search, Users } from "lucide-react"
+import { Search, Users, BadgeDollarSign } from "lucide-react"
 import { LeadDrawer } from "@/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer"
-import type { Lead, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
+import type { Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
+import type { LeadWithActivity } from "@/domains/leads/repository"
 
 interface Props {
   clientId: string
-  leads: Lead[]
+  leads: LeadWithActivity[]
   totalLeads: number
   campaigns: { id: string; name: string }[]
   salesReps: SalesRep[]
@@ -89,6 +90,14 @@ function formatDate(date: Date | string) {
   }).format(new Date(date))
 }
 
+function formatMoney(amount: string, currency: string) {
+  return new Intl.NumberFormat("es", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(parseFloat(amount))
+}
+
 export function ClientLeadsTab({
   clientId,
   leads,
@@ -104,11 +113,11 @@ export function ClientLeadsTab({
   const mutated = useRef(false)
 
   const [searchInput, setSearchInput] = useState(filters.search)
-  const [drawerLead, setDrawerLead] = useState<Lead | null>(null)
+  const [drawerLead, setDrawerLead] = useState<LeadWithActivity | null>(null)
 
   // KPI stats — computed from local leads array (already filtered by server)
   const hotCount = leads.filter((l) => l.temperature === "hot").length
-  const convertedCount = leads.filter((l) => l.converted).length
+  const convertedCount = leads.filter((l) => l.saleCount > 0).length
   const contactedCount = leads.filter((l) => l.stage !== "new").length
 
   // Campaign name lookup
@@ -273,7 +282,7 @@ export function ClientLeadsTab({
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
-                      {lead.converted && (
+                      {lead.saleCount > 0 && (
                         <span className="text-emerald-400 text-xs" title="Comprador">$</span>
                       )}
                       <span className="font-medium text-zinc-100">{lead.name}</span>
@@ -299,10 +308,15 @@ export function ClientLeadsTab({
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {lead.converted ? (
+                    {lead.saleCount > 0 ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                        $ {parseFloat(lead.conversionAmount ?? "0").toFixed(2)}
-                        {lead.conversionCurrency ? ` ${lead.conversionCurrency}` : ""}
+                        <BadgeDollarSign className="h-3 w-3" />
+                        {lead.saleTotalAmount
+                          ? formatMoney(lead.saleTotalAmount, lead.saleCurrency ?? "USD")
+                          : `${lead.saleCount} ${lead.saleCount === 1 ? "venta" : "ventas"}`}
+                        {lead.saleCount > 1 && lead.saleTotalAmount && (
+                          <span className="opacity-60">·{lead.saleCount}</span>
+                        )}
                       </span>
                     ) : (
                       <span className="text-zinc-600 text-xs">—</span>
