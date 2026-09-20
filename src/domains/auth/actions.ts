@@ -27,6 +27,18 @@ async function checkRateLimit(): Promise<boolean> {
   return success
 }
 
+// signIn() de Auth.js v5 lanza un error especial para activar el redirect.
+// Debe ser re-lanzado o el navegador no redirige.
+function isRedirectError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  )
+}
+
 export async function loginAction(
   _prevState: { error: string } | undefined,
   formData: FormData
@@ -42,13 +54,15 @@ export async function loginAction(
   try {
     await signIn("credentials", { email, password, redirectTo: "/dashboard" })
   } catch (error) {
+    if (isRedirectError(error)) throw error
     if (error instanceof AuthError) {
       if (error.type === "CredentialsSignin") {
         return { error: "Email o contraseña incorrectos." }
       }
       return { error: "Error al iniciar sesión. Intenta de nuevo." }
     }
-    throw error
+    console.error("[loginAction]", error instanceof Error ? error.message : String(error))
+    return { error: "Error de servidor. Intenta de nuevo." }
   }
 }
 
@@ -67,24 +81,32 @@ export async function registerAction(
   if (password.length < 8) return { error: "La contraseña debe tener al menos 8 caracteres." }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Email inválido." }
 
-  const existing = await db.query.users.findFirst({ where: eq(users.email, email) })
-  if (existing) return { error: "Ya existe una cuenta con ese email." }
+  try {
+    const existing = await db.query.users.findFirst({ where: eq(users.email, email) })
+    if (existing) return { error: "Ya existe una cuenta con ese email." }
 
-  const hashedPassword = await hash(password, 12)
+    const hashedPassword = await hash(password, 12)
 
-  await db.insert(users).values({
-    id: crypto.randomUUID(),
-    name,
-    email,
-    password: hashedPassword,
-  })
+    await db.insert(users).values({
+      id: crypto.randomUUID(),
+      name,
+      email,
+      password: hashedPassword,
+    })
+  } catch (error) {
+    console.error("[registerAction:db]", error instanceof Error ? error.message : String(error))
+    return { error: "Error al crear la cuenta. Verifica tu conexión e intenta de nuevo." }
+  }
 
+  // Separado del bloque anterior: signIn lanza NEXT_REDIRECT que debe propagarse
   try {
     await signIn("credentials", { email, password, redirectTo: "/onboarding" })
   } catch (error) {
+    if (isRedirectError(error)) throw error
     if (error instanceof AuthError) {
-      return { error: "Cuenta creada, pero falló el inicio de sesión automático. Inicia sesión manualmente." }
+      return { error: "Cuenta creada. Inicia sesión manualmente." }
     }
-    throw error
+    console.error("[registerAction:signIn]", error instanceof Error ? error.message : String(error))
+    return { error: "Cuenta creada, pero falló el inicio de sesión automático. Inicia sesión." }
   }
 }
