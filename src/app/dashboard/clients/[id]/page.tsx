@@ -15,6 +15,7 @@ import {
   getTrackingOverviewAction,
   getOpenIssuesAction,
 } from "@/domains/tracking/actions"
+import { getMetaConnectionsAction } from "@/domains/meta/actions"
 import { MetaConnectionPanel } from "./_components/MetaConnectionPanel"
 import { MetaInsightsPanel } from "./_components/MetaInsightsPanel"
 import { QualificationProfilesPanel } from "./_components/QualificationProfilesPanel"
@@ -163,10 +164,11 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     )
   } else {
     // diagnostico
-    const [sitesResult, definitionsResult, issuesResult] = await Promise.all([
+    const [sitesResult, definitionsResult, issuesResult, metaConns] = await Promise.all([
       getTrackingSitesAction(id),
       getTrackingOverviewAction(id),
       getOpenIssuesAction(id),
+      getMetaConnectionsAction(id),
     ])
     tabContent = (
       <TrackingDashboard
@@ -174,6 +176,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         sites={sitesResult.data ?? []}
         definitions={definitionsResult.data ?? []}
         issues={issuesResult.data ?? []}
+        metaConnections={metaConns}
       />
     )
   }

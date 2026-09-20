@@ -6,10 +6,11 @@ import type {
   ConversionWithStatus,
   ConversionIssuePublic,
 } from "@/domains/tracking/types"
+import type { MetaConnectionPublic } from "@/domains/meta/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConversionList } from "./ConversionList"
-import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, ChevronRight } from "lucide-react"
+import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, XCircle, ExternalLink } from "lucide-react"
 import { createTrackingSiteAction, applyBusinessTemplateAction } from "@/domains/tracking/actions"
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
   sites: TrackingSitePublic[]
   definitions: ConversionWithStatus[]
   issues: ConversionIssuePublic[]
+  metaConnections: MetaConnectionPublic[]
 }
 
 
@@ -24,11 +26,14 @@ function HealthSummary({
   sites,
   definitions,
   issues,
+  metaConnections,
 }: {
   sites: TrackingSitePublic[]
   definitions: ConversionWithStatus[]
   issues: ConversionIssuePublic[]
+  metaConnections: MetaConnectionPublic[]
 }) {
+  // Pixel: observed = pixel fired and detected; configured = pixel_id set but no observations yet
   const hasPixelDetected = definitions.some(
     (d) =>
       d.diagStatus === "observed_browser" ||
@@ -36,15 +41,17 @@ function HealthSummary({
       d.diagStatus === "accepted_by_meta"
   )
   const hasPixelConfigured = sites.some((s) => s.expectedPixelId)
-  const hasCapi = definitions.some(
+
+  // CAPI connection: derived from meta_connections (source of truth) + live observations
+  const activeConn = metaConnections.find((c) => c.status === "active")
+  const errorConn = !activeConn && metaConnections.find((c) => c.status === "error")
+  const hasCapiObserved = definitions.some(
     (d) =>
       d.diagStatus === "observed_server" ||
       d.diagStatus === "observed_both" ||
       d.diagStatus === "accepted_by_meta"
   )
-  const hasCAPIConfigured = definitions.some(
-    (d) => d.provider === "meta_capi" || d.provider === "both"
-  )
+
   const criticalCount = issues.filter(
     (i) => i.severity === "critical" && i.status === "open"
   ).length
@@ -57,59 +64,134 @@ function HealthSummary({
     ? "configurado"
     : "sin_pixel"
 
+  // CAPI status: active connection > error connection > no connection
+  const capiStatus = activeConn
+    ? hasCapiObserved ? "activo_con_señal" : "conectado"
+    : errorConn
+    ? "error"
+    : "sin_conexion"
+
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-        <p className="text-xs text-zinc-500 mb-1">Pixel base</p>
-        <div className="flex items-center gap-2">
-          {pixelStatus === "detectado" ? (
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          ) : pixelStatus === "configurado" ? (
-            <CircleDot className="h-4 w-4 text-amber-500" />
-          ) : (
-            <CircleDot className="h-4 w-4 text-zinc-500" />
-          )}
-          <span className="text-sm font-medium text-zinc-200">
-            {pixelStatus === "detectado"
-              ? "Detectado"
-              : pixelStatus === "configurado"
-              ? "Configurado"
-              : pixelStatus === "sin_pixel"
-              ? "Sin Pixel ID"
-              : "Sin sitio"}
+    <div className="space-y-3">
+      {/* Conexión Meta — fuente de verdad */}
+      {metaConnections.length > 0 && (
+        <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3">
+          <p className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wide">Conexión Meta configurada</p>
+          <div className="flex flex-wrap gap-3">
+            {metaConnections.map((conn) => (
+              <div key={conn.id} className="flex items-center gap-2">
+                {conn.status === "active" ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                ) : conn.status === "error" ? (
+                  <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                ) : (
+                  <CircleDot className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+                )}
+                <span className="text-sm text-zinc-200">
+                  {conn.pixelId ? (
+                    <>
+                      Pixel <span className="font-mono text-zinc-400">{conn.pixelId}</span>
+                    </>
+                  ) : (
+                    "Sin Pixel ID"
+                  )}
+                </span>
+                <Badge
+                  className={
+                    conn.status === "active"
+                      ? "bg-green-900 text-green-300 border-green-800 text-xs"
+                      : conn.status === "error"
+                      ? "bg-red-900 text-red-300 border-red-800 text-xs"
+                      : "bg-zinc-800 text-zinc-400 border-zinc-700 text-xs"
+                  }
+                >
+                  {conn.status === "active" ? "Activo" : conn.status === "error" ? "Error" : conn.status}
+                </Badge>
+                {conn.lastError && (
+                  <span className="text-xs text-red-400 truncate max-w-[200px]">{conn.lastError}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Métricas de diagnóstico */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+          <p className="text-xs text-zinc-500 mb-1">Pixel base</p>
+          <div className="flex items-center gap-2">
+            {pixelStatus === "detectado" ? (
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            ) : pixelStatus === "configurado" ? (
+              <CircleDot className="h-4 w-4 text-amber-500" />
+            ) : (
+              <CircleDot className="h-4 w-4 text-zinc-500" />
+            )}
+            <span className="text-sm font-medium text-zinc-200">
+              {pixelStatus === "detectado"
+                ? "Detectado"
+                : pixelStatus === "configurado"
+                ? "Configurado"
+                : pixelStatus === "sin_pixel"
+                ? "Sin Pixel ID"
+                : "Sin sitio"}
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+          <p className="text-xs text-zinc-500 mb-1">CAPI</p>
+          <div className="flex items-center gap-2">
+            {capiStatus === "activo_con_señal" || capiStatus === "conectado" ? (
+              <CheckCircle2 className={`h-4 w-4 ${capiStatus === "activo_con_señal" ? "text-green-500" : "text-emerald-600"}`} />
+            ) : capiStatus === "error" ? (
+              <XCircle className="h-4 w-4 text-red-400" />
+            ) : (
+              <CircleDot className="h-4 w-4 text-zinc-500" />
+            )}
+            <span className="text-sm font-medium text-zinc-200">
+              {capiStatus === "activo_con_señal"
+                ? "Enviando"
+                : capiStatus === "conectado"
+                ? "Conectado"
+                : capiStatus === "error"
+                ? "Error"
+                : "Sin conexión"}
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+          <p className="text-xs text-zinc-500 mb-1">Eventos configurados</p>
+          <span className="text-2xl font-bold text-zinc-100">{definitions.length}</span>
+        </div>
+
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+          <p className="text-xs text-zinc-500 mb-1">Problemas críticos</p>
+          <span
+            className={`text-2xl font-bold ${criticalCount > 0 ? "text-red-400" : "text-zinc-100"}`}
+          >
+            {criticalCount}
           </span>
         </div>
       </div>
 
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-        <p className="text-xs text-zinc-500 mb-1">CAPI</p>
-        <div className="flex items-center gap-2">
-          {hasCapi ? (
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          ) : hasCAPIConfigured ? (
-            <CircleDot className="h-4 w-4 text-amber-500" />
-          ) : (
-            <CircleDot className="h-4 w-4 text-zinc-500" />
-          )}
-          <span className="text-sm font-medium text-zinc-200">
-            {hasCapi ? "Activo" : hasCAPIConfigured ? "Configurado" : "Inactivo"}
-          </span>
+      {/* Aviso si no hay conexión Meta */}
+      {metaConnections.length === 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-800/50 bg-amber-900/10 px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+          <p className="text-sm text-amber-300">
+            Este cliente no tiene una conexión Meta (Pixel + token CAPI) configurada.{" "}
+            <a
+              href="../?tab=configuracion"
+              className="underline hover:text-amber-200 inline-flex items-center gap-1"
+            >
+              Ir a Configuración <ExternalLink className="h-3 w-3" />
+            </a>
+          </p>
         </div>
-      </div>
-
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-        <p className="text-xs text-zinc-500 mb-1">Eventos configurados</p>
-        <span className="text-2xl font-bold text-zinc-100">{definitions.length}</span>
-      </div>
-
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-        <p className="text-xs text-zinc-500 mb-1">Problemas críticos</p>
-        <span
-          className={`text-2xl font-bold ${criticalCount > 0 ? "text-red-400" : "text-zinc-100"}`}
-        >
-          {criticalCount}
-        </span>
-      </div>
+      )}
     </div>
   )
 }
@@ -434,7 +516,7 @@ function ApplyTemplateModal({
   )
 }
 
-export function TrackingDashboard({ clientId, sites: initialSites, definitions, issues }: Props) {
+export function TrackingDashboard({ clientId, sites: initialSites, definitions, issues, metaConnections }: Props) {
   const [sites, setSites] = useState<TrackingSitePublic[]>(initialSites)
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(
     initialSites[0]?.id ?? null
@@ -502,17 +584,16 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
         </div>
       </div>
 
+      <HealthSummary sites={sites} definitions={filteredDefinitions} issues={issues} metaConnections={metaConnections} />
+
       {sites.length === 0 ? (
         <EmptySites />
       ) : (
-        <>
-          <SiteSelector
-            sites={sites}
-            selectedId={selectedSiteId}
-            onSelect={setSelectedSiteId}
-          />
-          <HealthSummary sites={sites} definitions={filteredDefinitions} issues={issues} />
-        </>
+        <SiteSelector
+          sites={sites}
+          selectedId={selectedSiteId}
+          onSelect={setSelectedSiteId}
+        />
       )}
 
       {filteredDefinitions.length > 0 && (
