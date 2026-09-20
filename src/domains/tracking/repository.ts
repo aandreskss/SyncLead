@@ -517,7 +517,8 @@ export async function computeDiagStatus(
   const source = lastObservation.source
   const expectedSource = def.expectedSource
 
-  if (source === "browser_pixel") {
+  // diagnostic_collector intercepts browser fbq calls — treat as browser_pixel
+  if (source === "browser_pixel" || source === "diagnostic_collector") {
     if (expectedSource === "browser" || expectedSource === "both") {
       return "observed_browser"
     }
