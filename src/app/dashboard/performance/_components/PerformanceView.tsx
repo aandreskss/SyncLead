@@ -16,7 +16,7 @@ type SortDir = "asc" | "desc"
 function buildPrevMap(prevRows: PerformanceRow[]): Record<string, PerformanceRow> {
   const map: Record<string, PerformanceRow> = {}
   for (const r of prevRows) {
-    map[`${r.campaignId}||${r.utmContent}`] = r
+    map[`${r.campaignId}||${r.metaAdsetName}||${r.utmContent}`] = r
   }
   return map
 }
@@ -56,11 +56,12 @@ function fmtMetric(m: Metric, suffix = ""): string {
 }
 
 async function exportCSV(rows: PerformanceRow[], prevMap: Record<string, PerformanceRow>) {
-  const header = "Campaña,ID Campaña,Anuncio,Leads,Ventas,Conversión %,Ingresos"
+  const header = "Campaña,ID Campaña,Conjunto de anuncios,Anuncio,Leads,Ventas,Conversión %,Ingresos"
   const lines = rows.map((r) => {
     return [
       `"${sanitizeCsv(r.campaignName)}"`,
       `"${r.campaignId}"`,
+      `"${sanitizeCsv(r.metaAdsetName)}"`,
       `"${sanitizeCsv(r.utmContent)}"`,
       r.totalLeads,
       r.totalSales,
@@ -81,6 +82,7 @@ async function exportCSV(rows: PerformanceRow[], prevMap: Record<string, Perform
 
 const COLS: { key: SortKey; label: string; align?: string }[] = [
   { key: "campaignName", label: "Campaña" },
+  { key: "metaAdsetName", label: "Conjunto" },
   { key: "utmContent", label: "Anuncio" },
   { key: "totalLeads", label: "Leads", align: "right" },
   { key: "totalSales", label: "Ventas", align: "right" },
@@ -159,11 +161,16 @@ export function PerformanceView({ rows, prevRows }: Props) {
           </thead>
           <tbody className="divide-y divide-zinc-800">
             {sorted.map((row, i) => {
-              const prev = prevMap[`${row.campaignId}||${row.utmContent}`]
+              const prev = prevMap[`${row.campaignId}||${row.metaAdsetName}||${row.utmContent}`]
               return (
                 <tr key={i} className="hover:bg-zinc-800/30 transition-colors">
                   <td className="px-4 py-3 text-zinc-200 font-medium">{row.campaignName}</td>
-                  <td className="px-4 py-3 text-zinc-400 max-w-[200px] truncate">{row.utmContent}</td>
+                  <td className="px-4 py-3 text-zinc-400 max-w-[160px] truncate" title={row.metaAdsetName}>
+                    {row.metaAdsetName === "(sin conjunto)"
+                      ? <span className="text-zinc-600">—</span>
+                      : <span className="text-indigo-400/80">{row.metaAdsetName}</span>}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-400 max-w-[180px] truncate">{row.utmContent}</td>
                   <td className="px-4 py-3 text-right text-zinc-200 font-mono">
                     {row.totalLeads}
                     <DeltaCell curr={row.totalLeads} prev={prev?.totalLeads ?? 0} />

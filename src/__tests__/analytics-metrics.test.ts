@@ -145,6 +145,7 @@ describe("PerformanceRow metrics", () => {
     return {
       campaignId: "camp-1",
       campaignName: "Test Campaign",
+      metaAdsetName: "(sin conjunto)",
       utmContent: "ad_001",
       totalLeads,
       totalSales,
@@ -262,6 +263,7 @@ describe("Fixture: exact numbers match", () => {
     const row: PerformanceRow = {
       campaignId: "uuid-camp",
       campaignName: "Black Friday",
+      metaAdsetName: "BF Adset",
       utmContent: "ad_bf_001",
       totalLeads: 45,
       totalSales: 9,
