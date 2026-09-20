@@ -16,7 +16,8 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { updateLeadStageAction } from "@/domains/leads/actions"
 import { LeadDrawer } from "@/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer"
-import type { Lead, Funnel, FunnelStageConfig, LeadStage, SalesRep } from "@/lib/db/schema"
+import type { Funnel, FunnelStageConfig, LeadStage, SalesRep } from "@/lib/db/schema"
+import type { LeadWithActivity } from "@/domains/leads/repository"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -41,9 +42,9 @@ function KanbanCard({
   isDragOverlay = false,
   onCardClick,
 }: {
-  lead: Lead
+  lead: LeadWithActivity
   isDragOverlay?: boolean
-  onCardClick?: (lead: Lead) => void
+  onCardClick?: (lead: LeadWithActivity) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: lead.id })
 
@@ -76,9 +77,11 @@ function KanbanCard({
         </span>
         <span className="text-xs text-zinc-700">{formatDate(lead.createdAt)}</span>
       </div>
-      {lead.converted && (
+      {lead.saleCount > 0 && (
         <p className="text-xs text-emerald-400 mt-1.5 font-medium">
-          $ {parseFloat(lead.conversionAmount ?? "0").toFixed(2)}
+          {lead.saleTotalAmount
+            ? `$ ${parseFloat(lead.saleTotalAmount).toFixed(2)}${lead.saleCount > 1 ? ` ·${lead.saleCount}` : ""}`
+            : `${lead.saleCount} ${lead.saleCount === 1 ? "venta" : "ventas"}`}
         </p>
       )}
     </div>
@@ -93,14 +96,16 @@ function KanbanColumn({
   onCardClick,
 }: {
   stage: FunnelStageConfig
-  leads: Lead[]
-  onCardClick: (lead: Lead) => void
+  leads: LeadWithActivity[]
+  onCardClick: (lead: LeadWithActivity) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.stageKey })
 
-  const totalAmount = leads
-    .filter((l) => l.converted)
-    .reduce((sum, l) => sum + parseFloat(l.conversionAmount ?? "0"), 0)
+  const salesLeads = leads.filter((l) => l.saleCount > 0 && l.saleTotalAmount !== null)
+  const currencies = new Set(salesLeads.map((l) => l.saleCurrency).filter(Boolean))
+  const totalAmount = currencies.size === 1
+    ? salesLeads.reduce((sum, l) => sum + parseFloat(l.saleTotalAmount ?? "0"), 0)
+    : 0
 
   return (
     <div
@@ -142,7 +147,7 @@ function KanbanColumn({
 
 interface Props {
   funnel: Funnel
-  initialLeads: Lead[]
+  initialLeads: LeadWithActivity[]
   salesReps?: SalesRep[]
   whatsappNumbers?: string[]
   clientId?: string
@@ -151,9 +156,9 @@ interface Props {
 export function KanbanBoard({ funnel, initialLeads, salesReps = [], whatsappNumbers = [], clientId }: Props) {
   const router = useRouter()
   const mutated = useRef(false)
-  const [leads, setLeads] = useState<Lead[]>(initialLeads)
-  const [activeCard, setActiveCard] = useState<Lead | null>(null)
-  const [drawerLead, setDrawerLead] = useState<Lead | null>(null)
+  const [leads, setLeads] = useState<LeadWithActivity[]>(initialLeads)
+  const [activeCard, setActiveCard] = useState<LeadWithActivity | null>(null)
+  const [drawerLead, setDrawerLead] = useState<LeadWithActivity | null>(null)
   const [, startTransition] = useTransition()
 
   useEffect(() => setLeads(initialLeads), [initialLeads])
@@ -194,7 +199,7 @@ export function KanbanBoard({ funnel, initialLeads, salesReps = [], whatsappNumb
     })
   }
 
-  function handleCardClick(lead: Lead) {
+  function handleCardClick(lead: LeadWithActivity) {
     setDrawerLead(lead)
   }
 
