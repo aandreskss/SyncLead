@@ -31,12 +31,13 @@ export async function requireUser(): Promise<{ userId: string }> {
  */
 export async function requireOrganizationMembership(): Promise<AuthContext> {
   const { userId } = await requireUser()
-  const member = await db.query.orgMembers.findFirst({
-    where: eq(orgMembers.userId, userId),
-    columns: { orgId: true, role: true },
-  })
-  if (!member) throw new ForbiddenError("Sin membresía en la organización")
-  return { userId, orgId: member.orgId, role: member.role as MemberRole }
+  const rows = await db
+    .select({ orgId: orgMembers.orgId, role: orgMembers.role })
+    .from(orgMembers)
+    .where(eq(orgMembers.userId, userId))
+    .limit(1)
+  if (!rows[0]) throw new ForbiddenError("Sin membresía en la organización")
+  return { userId, orgId: rows[0].orgId, role: rows[0].role as MemberRole }
 }
 
 /**
