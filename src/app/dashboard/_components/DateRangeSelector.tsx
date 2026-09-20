@@ -11,14 +11,28 @@ const PRESETS = [
   { value: "custom", label: "Personalizado" },
 ]
 
+interface Client {
+  id: string
+  name: string
+}
+
 interface Props {
   currentPreset: string
   customFrom?: string
   customTo?: string
   basePath?: string
+  clients?: Client[]
+  currentClientId?: string
 }
 
-export function DateRangeSelector({ currentPreset, customFrom, customTo, basePath = "/dashboard" }: Props) {
+export function DateRangeSelector({
+  currentPreset,
+  customFrom,
+  customTo,
+  basePath = "/dashboard",
+  clients,
+  currentClientId,
+}: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [showCustom, setShowCustom] = useState(currentPreset === "custom")
@@ -31,20 +45,48 @@ export function DateRangeSelector({ currentPreset, customFrom, customTo, basePat
       return
     }
     setShowCustom(false)
+    const clientParam = currentClientId ? `&clientId=${currentClientId}` : ""
     startTransition(() => {
-      router.push(`${basePath}?range=${preset}`)
+      router.push(`${basePath}?range=${preset}${clientParam}`)
     })
   }
 
   function applyCustom() {
     if (!from || !to || from > to) return
+    const clientParam = currentClientId ? `&clientId=${currentClientId}` : ""
     startTransition(() => {
-      router.push(`${basePath}?range=custom&from=${from}&to=${to}`)
+      router.push(`${basePath}?range=custom&from=${from}&to=${to}${clientParam}`)
+    })
+  }
+
+  function applyClient(id: string) {
+    const dateParam =
+      currentPreset === "custom" && customFrom && customTo
+        ? `range=custom&from=${customFrom}&to=${customTo}`
+        : `range=${currentPreset}`
+    const clientParam = id ? `&clientId=${id}` : ""
+    startTransition(() => {
+      router.push(`${basePath}?${dateParam}${clientParam}`)
     })
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {clients && clients.length > 0 && (
+        <select
+          value={currentClientId ?? ""}
+          onChange={(e) => applyClient(e.target.value)}
+          className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500"
+        >
+          <option value="">Todos los clientes</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
+
       <CalendarDays className="h-4 w-4 text-zinc-500 shrink-0" />
       <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
         {PRESETS.map((p) => (

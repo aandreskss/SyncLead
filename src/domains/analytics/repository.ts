@@ -1,9 +1,21 @@
 import { db } from "@/lib/db"
 import { leads, campaigns, conversions } from "@/lib/db/schema"
-import { and, eq, gte, lte, count, desc, sql } from "drizzle-orm"
+import { and, eq, gte, lte, count, desc, sql, inArray } from "drizzle-orm"
 import type { DashboardKPIs, Metric, PerformanceRow } from "./types"
 
 export type { DashboardKPIs, Metric, PerformanceRow }
+
+// ─── Helper: resolve campaign IDs for client filter ───────────────────────────
+// Returns null = no filter (all clients); [] = client has no campaigns (early return)
+
+async function resolveCampaignIds(orgId: string, clientId?: string): Promise<string[] | null> {
+  if (!clientId) return null
+  const rows = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.orgId, orgId), eq(campaigns.clientId, clientId)))
+  return rows.map((r) => r.id)
+}
 
 // ─── KPI metrics ──────────────────────────────────────────────────────────────
 // Leads use leads.created_at; sales/revenue use conversions.converted_at.
@@ -12,12 +24,25 @@ export async function getKPIMetrics(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<DashboardKPIs> {
+  const campaignIds = await resolveCampaignIds(orgId, clientId)
+  if (campaignIds !== null && campaignIds.length === 0) {
+    return { totalLeads: 0, totalSales: 0, conversionRate: null, totalRevenue: null, avgTicket: null }
+  }
+
   const [[leadRow], [salesRow]] = await Promise.all([
     db
       .select({ totalLeads: count(leads.id) })
       .from(leads)
-      .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to))),
+      .where(
+        and(
+          eq(leads.orgId, orgId),
+          gte(leads.createdAt, from),
+          lte(leads.createdAt, to),
+          campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
+        ),
+      ),
 
     db
       .select({
@@ -25,12 +50,14 @@ export async function getKPIMetrics(
         totalRevenue: sql<string>`coalesce(sum(${conversions.amount}::numeric), 0)::text`,
       })
       .from(conversions)
+      .innerJoin(leads, eq(conversions.leadId, leads.id))
       .where(
         and(
           eq(conversions.orgId, orgId),
           gte(conversions.convertedAt, from),
           lte(conversions.convertedAt, to),
           eq(conversions.status, "confirmed"),
+          campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
         ),
       ),
   ])
@@ -52,6 +79,7 @@ export async function getPerformanceTable(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<PerformanceRow[]> {
   const rows = await db
     .select({
@@ -73,7 +101,14 @@ export async function getPerformanceTable(
         eq(conversions.status, "confirmed"),
       ),
     )
-    .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to)))
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+        clientId ? eq(campaigns.clientId, clientId) : undefined,
+      ),
+    )
     .groupBy(
       campaigns.id,
       campaigns.name,
@@ -109,7 +144,11 @@ export async function getLeadsByDay(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<LeadsByDayRow[]> {
+  const campaignIds = await resolveCampaignIds(orgId, clientId)
+  if (campaignIds !== null && campaignIds.length === 0) return []
+
   const [leadRows, convRows] = await Promise.all([
     db
       .select({
@@ -117,7 +156,14 @@ export async function getLeadsByDay(
         total: sql<number>`cast(count(${leads.id}) as int)`,
       })
       .from(leads)
-      .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to)))
+      .where(
+        and(
+          eq(leads.orgId, orgId),
+          gte(leads.createdAt, from),
+          lte(leads.createdAt, to),
+          campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
+        ),
+      )
       .groupBy(sql`date_trunc('day', ${leads.createdAt})`)
       .orderBy(sql`date_trunc('day', ${leads.createdAt}) asc`),
 
@@ -127,12 +173,14 @@ export async function getLeadsByDay(
         converted: sql<number>`cast(count(${conversions.id}) as int)`,
       })
       .from(conversions)
+      .innerJoin(leads, eq(conversions.leadId, leads.id))
       .where(
         and(
           eq(conversions.orgId, orgId),
           gte(conversions.convertedAt, from),
           lte(conversions.convertedAt, to),
           eq(conversions.status, "confirmed"),
+          campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
         ),
       )
       .groupBy(sql`date_trunc('day', ${conversions.convertedAt})`),
@@ -163,6 +211,7 @@ export async function getLeadsByCampaignChart(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<LeadsByCampaignRow[]> {
   const rows = await db
     .select({
@@ -181,7 +230,14 @@ export async function getLeadsByCampaignChart(
         eq(conversions.status, "confirmed"),
       ),
     )
-    .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to)))
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+        clientId ? eq(campaigns.clientId, clientId) : undefined,
+      ),
+    )
     .groupBy(campaigns.name)
     .orderBy(desc(sql`count(distinct ${leads.id})`))
 
@@ -203,14 +259,25 @@ export async function getLeadsByUtmContent(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<LeadsByUtmRow[]> {
+  const campaignIds = await resolveCampaignIds(orgId, clientId)
+  if (campaignIds !== null && campaignIds.length === 0) return []
+
   const rows = await db
     .select({
       utmContent: sql<string>`coalesce(nullif(${leads.utmContent}, ''), '(sin anuncio)')`,
       total: sql<number>`cast(count(${leads.id}) as int)`,
     })
     .from(leads)
-    .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to)))
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+        campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
+      ),
+    )
     .groupBy(sql`coalesce(nullif(${leads.utmContent}, ''), '(sin anuncio)')`)
     .orderBy(desc(sql`count(${leads.id})`))
     .limit(10)
@@ -229,14 +296,25 @@ export async function getLeadsByPlatform(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<LeadsByPlatformRow[]> {
+  const campaignIds = await resolveCampaignIds(orgId, clientId)
+  if (campaignIds !== null && campaignIds.length === 0) return []
+
   const rows = await db
     .select({
       platform: sql<string>`coalesce(nullif(${leads.platform}, ''), 'Directo')`,
       total: sql<number>`cast(count(${leads.id}) as int)`,
     })
     .from(leads)
-    .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to)))
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+        campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
+      ),
+    )
     .groupBy(sql`coalesce(nullif(${leads.platform}, ''), 'Directo')`)
     .orderBy(desc(sql`count(${leads.id})`))
 
@@ -254,14 +332,25 @@ export async function getLeadsByDevice(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<LeadsByDeviceRow[]> {
+  const campaignIds = await resolveCampaignIds(orgId, clientId)
+  if (campaignIds !== null && campaignIds.length === 0) return []
+
   const rows = await db
     .select({
       device: sql<string>`coalesce(nullif(${leads.device}, ''), 'Desconocido')`,
       total: sql<number>`cast(count(${leads.id}) as int)`,
     })
     .from(leads)
-    .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to)))
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+        campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
+      ),
+    )
     .groupBy(sql`coalesce(nullif(${leads.device}, ''), 'Desconocido')`)
     .orderBy(desc(sql`count(${leads.id})`))
 
@@ -279,14 +368,25 @@ export async function getTopCities(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<TopCityRow[]> {
+  const campaignIds = await resolveCampaignIds(orgId, clientId)
+  if (campaignIds !== null && campaignIds.length === 0) return []
+
   const rows = await db
     .select({
       city: sql<string>`coalesce(nullif(${leads.city}, ''), 'Desconocida')`,
       total: sql<number>`cast(count(${leads.id}) as int)`,
     })
     .from(leads)
-    .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to)))
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+        campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
+      ),
+    )
     .groupBy(sql`coalesce(nullif(${leads.city}, ''), 'Desconocida')`)
     .orderBy(desc(sql`count(${leads.id})`))
     .limit(10)
@@ -307,7 +407,11 @@ export async function getLeadsByTemperatureDay(
   orgId: string,
   from: Date,
   to: Date,
+  clientId?: string,
 ): Promise<TempByDayRow[]> {
+  const campaignIds = await resolveCampaignIds(orgId, clientId)
+  if (campaignIds !== null && campaignIds.length === 0) return []
+
   const rows = await db
     .select({
       day: sql<string>`to_char(date_trunc('day', ${leads.createdAt}), 'YYYY-MM-DD')`,
@@ -315,7 +419,14 @@ export async function getLeadsByTemperatureDay(
       total: sql<number>`cast(count(${leads.id}) as int)`,
     })
     .from(leads)
-    .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, from), lte(leads.createdAt, to)))
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+        campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
+      ),
+    )
     .groupBy(sql`date_trunc('day', ${leads.createdAt})`, leads.temperature)
     .orderBy(sql`date_trunc('day', ${leads.createdAt}) asc`)
 
