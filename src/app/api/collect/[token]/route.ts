@@ -4,6 +4,10 @@ import { createHash } from "crypto"
 import { db } from "@/lib/db"
 import { conversionTestSessions, conversionObservations } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
+import {
+  getTrackingSiteByCollectToken,
+  getDefinitionByEventNameForSite,
+} from "@/domains/tracking/repository"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -102,9 +106,56 @@ export async function POST(
   })
 
   if (!session) {
+    // ── Fallback: permanent site-level collect token ──────────────────────────
+    // The token is stored as plain text on tracking_sites.collect_token.
+    // Events sent here are real browser pixel events, not test sessions.
+    const site = await getTrackingSiteByCollectToken(token)
+
+    if (!site || !site.diagnosticsEnabled) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers: CORS_HEADERS }
+      )
+    }
+
+    const origin = request.headers.get("origin")
+    const allowedOrigins = site.allowedOrigins ?? []
+    if (!isOriginAllowed(origin, allowedOrigins)) {
+      return NextResponse.json(
+        { error: "Origin not allowed" },
+        { status: 403, headers: CORS_HEADERS }
+      )
+    }
+
+    const sanitizedUrl = sanitizePageUrl(pageUrl)
+    const eventIdHash = eventId ? hashEventId(eventId) : null
+
+    // Try to match the event name against a conversion definition for this site
+    const definition = await getDefinitionByEventNameForSite(site.id, site.orgId, eventName)
+    const requiredParams: string[] = definition?.requiredParameters ?? []
+    const validationResult: Record<string, unknown> = {}
+    for (const param of requiredParams) {
+      validationResult[param] = parameters[param] === true ? "present" : "missing"
+    }
+
+    await db.insert(conversionObservations).values({
+      orgId: site.orgId,
+      clientId: site.clientId,
+      trackingSiteId: site.id,
+      conversionDefinitionId: definition?.id ?? null,
+      testSessionId: null,
+      source: "browser_pixel",
+      eventName,
+      eventIdHash,
+      pageUrl: sanitizedUrl,
+      environment: environment as "production" | "staging" | "development",
+      parametersPresent: parameters,
+      validationResult,
+    })
+
     return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: CORS_HEADERS }
+      { received: true },
+      { status: 200, headers: CORS_HEADERS }
     )
   }
 

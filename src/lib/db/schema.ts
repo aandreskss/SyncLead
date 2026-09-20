@@ -217,6 +217,9 @@ export const metaConnections = pgTable(
     leadAdsEnabled: boolean("lead_ads_enabled").notNull().default(false),
     // Public key for the capture script (public_form credential, safe to embed in JS)
     captureScriptKey: text("capture_script_key"),
+    // Auto-event toggles (Prompt 28)
+    sendLeadEvents: boolean("send_lead_events").notNull().default(false),
+    sendContactEvents: boolean("send_contact_events").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1706,6 +1709,9 @@ export const trackingSites = pgTable(
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     verificationMethod: text("verification_method"),
     diagnosticsEnabled: boolean("diagnostics_enabled").notNull().default(true),
+    // Permanent site-level collect token — safe to embed in browser JS (never hashed).
+    // Events fired on the real website use this token; test sessions use their own expiring token.
+    collectToken: text("collect_token").unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

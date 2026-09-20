@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react"
 import type { ConversionDefinitionPublic, ConversionObservationPublic } from "@/domains/tracking/types"
-import { startTestSessionAction, pollTestSessionAction } from "@/domains/tracking/actions"
+import {
+  startTestSessionAction,
+  pollTestSessionAction,
+  getOrCreateSiteCollectTokenAction,
+} from "@/domains/tracking/actions"
 import { Button } from "@/components/ui/button"
 import { X, Copy, CheckCircle2, Loader2, AlertCircle, ExternalLink } from "lucide-react"
 
@@ -14,6 +18,8 @@ type Props = {
   definition: ConversionDefinitionPublic
   clientId: string
   onClose: () => void
+  /** Optional — when provided, fetches a permanent site token for the script */
+  siteId?: string | null
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -46,9 +52,13 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function buildDiagnosticScript(token: string): string {
+function buildDiagnosticScript(token: string, permanent = false): string {
   const collector = `${APP_URL}/api/collect/${token}`
+  const tokenNote = permanent
+    ? "// Token permanente — no expira. Instalar una vez; siempre reporta al Live Event Feed."
+    : "// Token de sesión de prueba (válido 30 min) — solo para esta sesión de diagnóstico."
   return `// Script de diagnóstico SyncLead — colocar antes del cierre </body>
+${tokenNote}
 // Intercepta fbq('track') automáticamente. Solo reporta cuando la conversión real ocurre.
 (function() {
   var collector = "${collector}";
@@ -178,7 +188,7 @@ function ObservationResult({ observations }: { observations: ConversionObservati
   )
 }
 
-export function TestWizard({ definition, clientId, onClose }: Props) {
+export function TestWizard({ definition, clientId, onClose, siteId }: Props) {
   const [step, setStep] = useState<WizardStep>("select_url")
   const [targetUrl, setTargetUrl] = useState("")
   const [urlError, setUrlError] = useState("")
@@ -186,9 +196,20 @@ export function TestWizard({ definition, clientId, onClose }: Props) {
   const [error, setError] = useState("")
   const [sessionId, setSessionId] = useState("")
   const [publicToken, setPublicToken] = useState("")
+  // Permanent site token — fetched once on mount when siteId is provided
+  const [siteToken, setSiteToken] = useState<string | null>(null)
   const [observations, setObservations] = useState<ConversionObservationPublic[]>([])
   const [sessionStatus, setSessionStatus] = useState<string>("")
   const [pollCount, setPollCount] = useState(0)
+
+  // Fetch the permanent site collect token on mount so the script step can
+  // show the non-expiring token instead of (or in addition to) the session token.
+  useEffect(() => {
+    if (!siteId) return
+    getOrCreateSiteCollectTokenAction(siteId).then((r) => {
+      if (r.token) setSiteToken(r.token)
+    })
+  }, [siteId])
 
   const MAX_POLLS = 60
 
@@ -266,7 +287,12 @@ export function TestWizard({ definition, clientId, onClose }: Props) {
     }
   }
 
-  const diagnosticScript = publicToken ? buildDiagnosticScript(publicToken) : ""
+  // Prefer the permanent site token when available — it never expires.
+  // Fall back to the session token while no permanent token exists yet.
+  const scriptToken = siteToken ?? publicToken
+  const diagnosticScript = scriptToken
+    ? buildDiagnosticScript(scriptToken, !!siteToken)
+    : ""
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -362,10 +388,14 @@ export function TestWizard({ definition, clientId, onClose }: Props) {
             <div className="space-y-4">
               <div className="rounded border border-zinc-700 bg-zinc-800 p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-zinc-400">Token de sesión (válido 30 min)</span>
-                  <CopyButton text={publicToken} />
+                  <span className="text-xs font-medium text-zinc-400">
+                    {siteToken
+                      ? "Token permanente del sitio — no expira"
+                      : "Token de sesión (válido 30 min)"}
+                  </span>
+                  <CopyButton text={siteToken ?? publicToken} />
                 </div>
-                <code className="break-all text-xs text-zinc-300">{publicToken}</code>
+                <code className="break-all text-xs text-zinc-300">{siteToken ?? publicToken}</code>
               </div>
 
               <div>

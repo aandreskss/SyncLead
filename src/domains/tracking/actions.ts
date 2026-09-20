@@ -28,6 +28,7 @@ import {
   computeDiagStatus,
   createObservation,
   getRecentObservationsWithMeta,
+  setTrackingSiteCollectToken,
   type ObservationWithMeta,
 } from "./repository"
 import {
@@ -598,6 +599,34 @@ export async function scanTrackingSiteAction(
   }).catch(() => undefined)
 
   return { data: scanResult }
+}
+
+// ─── Permanent site collect token ────────────────────────────────────────────
+
+/**
+ * Returns the permanent collect token for a tracking site, generating and
+ * persisting one if it does not yet exist. The token is safe to embed in
+ * browser JS (it is not hashed). It does NOT expire.
+ */
+export async function getOrCreateSiteCollectTokenAction(
+  siteId: string
+): Promise<{ error?: string; token?: string }> {
+  const { requireOrganizationMembership } = await import("@/lib/auth/server")
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+
+  // Verify the site belongs to this org
+  const site = await getTrackingSiteById(siteId, ctx.orgId)
+  if (!site) return { error: "Sitio no encontrado" }
+
+  // Return the existing token if already set
+  if (site.collectToken) return { token: site.collectToken }
+
+  // Generate a new permanent token — 48 hex chars (24 random bytes)
+  const token = randomBytes(24).toString("hex")
+  await setTrackingSiteCollectToken(siteId, ctx.orgId, token)
+
+  return { token }
 }
 
 // ─── Live Feed ───────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import {
   clients,
   leads,
   campaigns,
+  conversions,
 } from "@/lib/db/schema"
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm"
 
@@ -347,6 +348,78 @@ export async function getCapiQueueStatsByClient(
     stats.total += r.count
   }
   return stats
+}
+
+// ─── CAPI Event Log per client ────────────────────────────────────────────────
+
+export type ClientMetaEventRow = {
+  id: string
+  eventName: string
+  eventId: string
+  pixelId: string
+  status: string
+  attemptCount: number
+  lastError: string | null
+  lastResponse: string | null
+  leadId: string | null
+  leadName: string | null
+  conversionAmount: string | null
+  conversionCurrency: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export async function getClientMetaEvents(
+  orgId: string,
+  clientId: string,
+  limit = 50
+): Promise<ClientMetaEventRow[]> {
+  const rows = await db
+    .select({
+      id: metaEvents.id,
+      eventName: metaEvents.eventName,
+      eventId: metaEvents.eventId,
+      pixelId: metaEvents.pixelId,
+      status: metaEvents.status,
+      attemptCount: metaEvents.attemptCount,
+      lastError: metaEvents.lastError,
+      lastResponse: metaEvents.lastResponse,
+      leadId: metaEvents.leadId,
+      leadName: leads.name,
+      conversionAmount: conversions.amount,
+      conversionCurrency: conversions.currency,
+      createdAt: metaEvents.createdAt,
+      updatedAt: metaEvents.updatedAt,
+    })
+    .from(metaEvents)
+    .leftJoin(leads, eq(metaEvents.leadId, leads.id))
+    .leftJoin(campaigns, eq(leads.campaignId, campaigns.id))
+    .leftJoin(conversions, eq(metaEvents.conversionId, conversions.id))
+    .where(
+      and(
+        eq(metaEvents.orgId, orgId),
+        eq(campaigns.clientId, clientId)
+      )
+    )
+    .orderBy(desc(metaEvents.createdAt))
+    .limit(limit)
+
+  return rows.map((r) => ({
+    id: r.id,
+    eventName: r.eventName,
+    eventId: r.eventId,
+    pixelId: r.pixelId,
+    status: r.status,
+    attemptCount: r.attemptCount,
+    lastError: r.lastError,
+    lastResponse: r.lastResponse,
+    leadId: r.leadId,
+    leadName: r.leadName ?? null,
+    conversionAmount: r.conversionAmount ?? null,
+    conversionCurrency: r.conversionCurrency ?? null,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }))
 }
 
 // ─── Composite snapshot ───────────────────────────────────────────────────────
