@@ -3,12 +3,13 @@
 import { useState, useEffect, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Search, Users } from "lucide-react"
+import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign } from "lucide-react"
 import { LeadDrawer } from "./LeadDrawer"
-import type { Lead, Campaign, Client, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
+import type { Campaign, Client, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
+import type { LeadWithActivity } from "@/domains/leads/repository"
 
 interface Props {
-  leads: Lead[]
+  leads: LeadWithActivity[]
   campaign: Campaign & { client: Client | null }
   whatsappNumbers: string[]
   orgName: string
@@ -31,6 +32,15 @@ const STAGES: { value: LeadStage | ""; label: string }[] = [
   { value: "quoted", label: "Cotizado" },
   { value: "won", label: "Ganado" },
   { value: "lost", label: "Perdido" },
+]
+
+const ACTIVITIES: { value: string; label: string }[] = [
+  { value: "", label: "Actividad" },
+  { value: "has_sale", label: "Con venta" },
+  { value: "checkout", label: "Inició checkout" },
+  { value: "cart_abandoned", label: "Abandonó carrito" },
+  { value: "form_submitted", label: "Llenó formulario" },
+  { value: "info_requested", label: "Solicitó info" },
 ]
 
 function tempBadge(t: string) {
@@ -75,6 +85,40 @@ function formatDate(date: Date | string) {
   }).format(new Date(date))
 }
 
+function formatMoney(amount: string, currency: string) {
+  return new Intl.NumberFormat("es", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(parseFloat(amount))
+}
+
+function ActivityBadges({ activity }: { activity: LeadWithActivity["activity"] }) {
+  const badges = [
+    { active: activity.hasCheckout, Icon: ShoppingCart, label: "Checkout", color: "text-indigo-400", bg: "bg-indigo-500/15" },
+    { active: activity.hasAbandonedCart, Icon: X, label: "Abandonó carrito", color: "text-orange-400", bg: "bg-orange-500/15" },
+    { active: activity.hasAddToCart, Icon: Plus, label: "Agregó al carrito", color: "text-cyan-400", bg: "bg-cyan-500/15" },
+    { active: activity.hasFormSubmit, Icon: FileText, label: "Formulario", color: "text-emerald-400", bg: "bg-emerald-500/15" },
+    { active: activity.hasInfoRequest, Icon: Info, label: "Info", color: "text-purple-400", bg: "bg-purple-500/15" },
+  ].filter((b) => b.active)
+
+  if (badges.length === 0) return <span className="text-zinc-600 text-xs">—</span>
+
+  return (
+    <div className="flex gap-1 flex-wrap">
+      {badges.map(({ Icon, label, color, bg }) => (
+        <span
+          key={label}
+          title={label}
+          className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium ${bg} ${color}`}
+        >
+          <Icon className="h-3 w-3" />
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -85,9 +129,10 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
   const currentStage = searchParams.get("stage") ?? ""
   const currentAssignment = searchParams.get("assignment") ?? ""
   const currentRepId = searchParams.get("repId") ?? ""
+  const currentActivity = searchParams.get("activity") ?? ""
 
   const [searchInput, setSearchInput] = useState(currentSearch)
-  const [drawerLead, setDrawerLead] = useState<Lead | null>(null)
+  const [drawerLead, setDrawerLead] = useState<LeadWithActivity | null>(null)
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -110,6 +155,8 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput])
+
+  const hasFilters = !!(currentSearch || currentTemp || currentStage || currentAssignment || currentRepId || currentActivity)
 
   return (
     <div className="p-6 space-y-6">
@@ -168,6 +215,18 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
           ))}
         </select>
 
+        <select
+          value={currentActivity}
+          onChange={(e) => updateFilter("activity", e.target.value)}
+          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+        >
+          {ACTIVITIES.map((a) => (
+            <option key={a.value} value={a.value}>
+              {a.label}
+            </option>
+          ))}
+        </select>
+
         {/* Assignment filters */}
         <select
           value={currentAssignment}
@@ -192,12 +251,11 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
           </select>
         )}
 
-        {(currentSearch || currentTemp || currentStage || currentAssignment || currentRepId) && (
+        {hasFilters && (
           <button
             onClick={() => {
               setSearchInput("")
-              const params = new URLSearchParams()
-              router.push(`?${params.toString()}`)
+              router.push(`?`)
             }}
             className="px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
           >
@@ -214,14 +272,14 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
           </div>
           <p className="text-zinc-300 font-medium">Sin leads todavía</p>
           <p className="text-zinc-500 text-sm mt-1 max-w-xs">
-            {currentSearch || currentTemp || currentStage
+            {hasFilters
               ? "No hay leads que coincidan con los filtros."
               : "Los leads llegarán cuando configures tu landing page con la API key de esta campaña."}
           </p>
         </div>
       ) : (
         <div className="border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm min-w-[800px]">
+          <table className="w-full text-sm min-w-[1000px]">
             <thead>
               <tr className="border-b border-zinc-800 bg-zinc-900/50">
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Nombre</th>
@@ -229,8 +287,8 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Email</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Temp.</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Etapa</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Negocio</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Asignado</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-400">Venta</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-400">Actividad</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Fecha</th>
               </tr>
             </thead>
@@ -267,19 +325,18 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                       {stageLabel(lead.stage)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center">
-                    {lead.negocio ? (
-                      <span className="text-emerald-400 text-xs font-medium">Sí</span>
+                  <td className="px-4 py-3">
+                    {lead.saleAmount ? (
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-400">
+                        <BadgeDollarSign className="h-3 w-3" />
+                        {formatMoney(lead.saleAmount, lead.saleCurrency ?? "USD")}
+                      </span>
                     ) : (
                       <span className="text-zinc-600 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
-                    {lead.assignedTo ? (
-                      <span className="font-mono">{lead.assignedTo}</span>
-                    ) : (
-                      <span className="text-zinc-600">—</span>
-                    )}
+                  <td className="px-4 py-3">
+                    <ActivityBadges activity={lead.activity} />
                   </td>
                   <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
                     {formatDate(lead.createdAt)}
