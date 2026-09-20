@@ -75,10 +75,9 @@ export interface LeadActivitySummary {
 }
 
 export interface LeadWithActivity extends Lead {
-  saleAmount: string | null
-  saleCurrency: string | null
-  saleStatus: string | null
-  saleConvertedAt: Date | null
+  saleCount: number
+  saleTotalAmount: string | null  // sum if uniform currency, null if mixed or no sales
+  saleCurrency: string | null     // null if mixed or no sales
   activity: LeadActivitySummary
 }
 
@@ -167,10 +166,23 @@ export async function getLeadsByCampaignWithActivity(
       ),
   ])
 
-  // First confirmed conversion per lead (rows already DESC by convertedAt)
-  const convMap = new Map<string, typeof convRows[number]>()
+  // Group all confirmed conversions per lead
+  const convsByLead = new Map<string, typeof convRows>()
   for (const c of convRows) {
-    if (!convMap.has(c.leadId)) convMap.set(c.leadId, c)
+    if (!convsByLead.has(c.leadId)) convsByLead.set(c.leadId, [])
+    convsByLead.get(c.leadId)!.push(c)
+  }
+
+  // Compute per-lead sale summary (sum if uniform currency, else show count only)
+  const saleSummary = new Map<string, { count: number; totalAmount: string | null; currency: string | null }>()
+  for (const [lid, convs] of convsByLead) {
+    const currencies = new Set(convs.map((c) => c.currency))
+    if (currencies.size === 1) {
+      const total = convs.reduce((acc, c) => acc + parseFloat(c.amount), 0)
+      saleSummary.set(lid, { count: convs.length, totalAmount: total.toFixed(2), currency: convs[0].currency })
+    } else {
+      saleSummary.set(lid, { count: convs.length, totalAmount: null, currency: null })
+    }
   }
 
   const eventMap = new Map<string, LeadActivitySummary>()
@@ -189,18 +201,17 @@ export async function getLeadsByCampaignWithActivity(
   }
 
   let result: LeadWithActivity[] = leadRows.map((lead) => {
-    const conv = convMap.get(lead.id) ?? null
+    const sale = saleSummary.get(lead.id) ?? { count: 0, totalAmount: null, currency: null }
     return {
       ...lead,
-      saleAmount: conv?.amount ?? null,
-      saleCurrency: conv?.currency ?? null,
-      saleStatus: conv?.status ?? null,
-      saleConvertedAt: conv?.convertedAt ?? null,
+      saleCount: sale.count,
+      saleTotalAmount: sale.totalAmount,
+      saleCurrency: sale.currency,
       activity: eventMap.get(lead.id) ?? emptyActivity(),
     }
   })
 
-  if (filters.activity === "has_sale") result = result.filter((l) => l.saleAmount !== null)
+  if (filters.activity === "has_sale") result = result.filter((l) => l.saleCount > 0)
   else if (filters.activity === "checkout") result = result.filter((l) => l.activity.hasCheckout)
   else if (filters.activity === "cart_abandoned") result = result.filter((l) => l.activity.hasAbandonedCart)
   else if (filters.activity === "form_submitted") result = result.filter((l) => l.activity.hasFormSubmit)

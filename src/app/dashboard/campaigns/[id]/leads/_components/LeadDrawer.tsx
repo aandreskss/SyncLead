@@ -685,13 +685,18 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
   async function loadAll(leadId: string) {
     setLoading(true)
     try {
-      const [d, c, allC, assign, msgs] = await Promise.all([
+      const [dR, cR, allCR, assignR, msgsR] = await Promise.allSettled([
         fetchLeadDetailAction(leadId),
         fetchConversionStatusAction(leadId),
         getAllConversionsByLeadAction(leadId),
         getLeadAssignmentAction(leadId),
         getLeadWaMessagesAction(leadId),
       ])
+      const d = dR.status === "fulfilled" ? dR.value : null
+      const c = cR.status === "fulfilled" ? cR.value : null
+      const allC = allCR.status === "fulfilled" ? allCR.value : []
+      const assign = assignR.status === "fulfilled" ? assignR.value : null
+      const msgs = msgsR.status === "fulfilled" ? msgsR.value : []
       setDetail(d)
       setNotes(d?.notes ?? "")
       setNotesDirty(false)
