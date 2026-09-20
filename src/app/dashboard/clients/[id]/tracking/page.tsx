@@ -6,6 +6,7 @@ import {
   getTrackingOverviewAction,
   getOpenIssuesAction,
 } from "@/domains/tracking/actions"
+import { getMetaConnectionsAction } from "@/domains/meta/actions"
 import { TrackingDashboard } from "./_components/TrackingDashboard"
 
 interface Props {
@@ -27,10 +28,11 @@ export default async function TrackingPage({ params }: Props) {
     redirect("/login")
   }
 
-  const [sitesResult, definitionsResult, issuesResult] = await Promise.all([
+  const [sitesResult, definitionsResult, issuesResult, metaConnections] = await Promise.all([
     getTrackingSitesAction(id),
     getTrackingOverviewAction(id),
     getOpenIssuesAction(id),
+    getMetaConnectionsAction(id),
   ])
 
   const sites = sitesResult.data ?? []
@@ -45,6 +47,7 @@ export default async function TrackingPage({ params }: Props) {
           sites={sites}
           definitions={definitions}
           issues={issues}
+          metaConnections={metaConnections}
         />
       </div>
     </div>
