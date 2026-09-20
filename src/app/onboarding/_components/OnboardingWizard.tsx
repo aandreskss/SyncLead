@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -289,6 +290,16 @@ export function OnboardingWizard() {
 
         {step === 2 && <Step3 onFinish={() => router.push("/dashboard")} />}
       </div>
+
+      <p className="text-center text-xs text-zinc-400 mt-4">
+        ¿Ya tienes una cuenta activa?{" "}
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="underline hover:text-zinc-200 transition-colors"
+        >
+          Cerrar sesión
+        </button>
+      </p>
     </div>
   )
 }
