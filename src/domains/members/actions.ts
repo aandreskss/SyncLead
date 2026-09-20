@@ -2,6 +2,7 @@
 
 import { randomBytes } from "crypto"
 import { hash } from "bcryptjs"
+import { eq } from "drizzle-orm"
 import { requireRole, requireOrganizationMembership } from "@/lib/auth/server"
 import { db } from "@/lib/db"
 import { users } from "@/lib/db/schema"
@@ -107,6 +108,28 @@ export async function updateMemberRoleAction(
   if (!allowed.includes(role)) return { error: "Rol no permitido." }
 
   await setMemberRole(ctx.orgId, memberId, role)
+  return {}
+}
+
+export async function resetMemberPasswordAction(
+  memberId: string,
+  newPassword: string
+): Promise<{ error?: string }> {
+  const ctx = await requireRole(["owner", "admin"])
+
+  if (!newPassword || newPassword.length < 8) {
+    return { error: "La contraseña debe tener al menos 8 caracteres." }
+  }
+
+  const member = await getMemberById(ctx.orgId, memberId)
+  if (!member) return { error: "Miembro no encontrado." }
+  if (member.role === "owner") return { error: "No se puede cambiar la contraseña del owner." }
+  if (ctx.role === "admin" && member.role === "admin") {
+    return { error: "Los administradores no pueden cambiar la contraseña de otro administrador." }
+  }
+
+  const passwordHash = await hash(newPassword, 12)
+  await db.update(users).set({ password: passwordHash }).where(eq(users.id, member.userId))
   return {}
 }
 
