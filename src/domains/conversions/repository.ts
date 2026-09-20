@@ -53,6 +53,16 @@ export async function getConversionByLeadId(
   })
 }
 
+export async function getConversionsByLeadId(
+  leadId: string,
+  orgId: string
+): Promise<Conversion[]> {
+  return db.query.conversions.findMany({
+    where: and(eq(conversions.leadId, leadId), eq(conversions.orgId, orgId)),
+    orderBy: (c, { desc }) => [desc(c.convertedAt)],
+  })
+}
+
 export async function getConversionById(
   conversionId: string,
   orgId: string

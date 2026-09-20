@@ -12,13 +12,16 @@ import {
   updateLeadTemperatureAction,
   updateLeadStageAction,
   updateLeadNotesAction,
+  updateLeadInfoAction,
   fetchLeadDetailAction,
 } from "@/domains/leads/actions"
 import {
   registerSaleAction,
   retryCAPIAction,
   fetchConversionStatusAction,
+  getAllConversionsByLeadAction,
   type ConversionStatusPublic,
+  type ConversionSummary,
 } from "@/domains/conversions/actions"
 import {
   assignLeadAction,
@@ -37,7 +40,7 @@ import type { LeadWithHistory } from "@/domains/leads/repository"
 import {
   MessageCircle, ThermometerSun, Clock, DollarSign,
   CheckCircle2, AlertCircle, RefreshCw, Loader2, X,
-  Users, UserCheck, ExternalLink,
+  Users, UserCheck, ExternalLink, Pencil, Save,
 } from "lucide-react"
 
 const CURRENCIES = ["USD", "EUR", "VES", "COP", "MXN", "BRL", "ARS"]
@@ -259,6 +262,144 @@ function ConversionPanel({
     <button onClick={openForm} className="w-full px-3 py-2 text-sm font-medium border border-emerald-700/50 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors">
       + Registrar venta
     </button>
+  )
+}
+
+// ─── Edit lead info panel ─────────────────────────────────────────────────────
+
+function EditInfoPanel({
+  leadId,
+  initial,
+  onSaved,
+}: {
+  leadId: string
+  initial: { name: string | null; email: string | null; phone: string | null; city: string | null }
+  onSaved: (data: typeof initial) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(initial.name ?? "")
+  const [email, setEmail] = useState(initial.email ?? "")
+  const [phone, setPhone] = useState(initial.phone ?? "")
+  const [city, setCity] = useState(initial.city ?? "")
+  const [isPending, start] = useTransition()
+  const [error, setError] = useState("")
+
+  function handleEdit() {
+    setName(initial.name ?? "")
+    setEmail(initial.email ?? "")
+    setPhone(initial.phone ?? "")
+    setCity(initial.city ?? "")
+    setError("")
+    setEditing(true)
+  }
+
+  function handleSave() {
+    setError("")
+    start(async () => {
+      const r = await updateLeadInfoAction(leadId, {
+        name: name.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        city: city.trim() || null,
+      })
+      if (r.error) { setError(r.error); return }
+      onSaved({
+        name: name.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        city: city.trim() || null,
+      })
+      setEditing(false)
+    })
+  }
+
+  if (!editing) {
+    return (
+      <button
+        onClick={handleEdit}
+        className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+      >
+        <Pencil className="h-3 w-3" />
+        Editar información
+      </button>
+    )
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3">
+      <p className="text-xs font-medium text-zinc-400">Editar información del lead</p>
+      {[
+        { label: "Nombre", value: name, set: setName, placeholder: "Nombre completo" },
+        { label: "Email", value: email, set: setEmail, placeholder: "correo@ejemplo.com" },
+        { label: "Teléfono", value: phone, set: setPhone, placeholder: "+58 424..." },
+        { label: "Ciudad", value: city, set: setCity, placeholder: "Ciudad" },
+      ].map(({ label, value, set, placeholder }) => (
+        <div key={label} className="space-y-0.5">
+          <label className="text-xs text-zinc-500">{label}</label>
+          <input
+            value={value}
+            onChange={(e) => set(e.target.value)}
+            placeholder={placeholder}
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-2.5 py-1.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+          />
+        </div>
+      ))}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <div className="flex gap-2 pt-1">
+        <button
+          onClick={handleSave}
+          disabled={isPending}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors disabled:opacity-50"
+        >
+          {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+          Guardar
+        </button>
+        <button
+          onClick={() => setEditing(false)}
+          disabled={isPending}
+          className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-700 rounded-md transition-colors disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── All conversions panel ────────────────────────────────────────────────────
+
+const CONVERSION_STATUS_MAP: Record<string, { label: string; cls: string }> = {
+  confirmed: { label: "Confirmada", cls: "text-emerald-400" },
+  cancelled: { label: "Cancelada", cls: "text-zinc-500" },
+  refunded: { label: "Reembolsada", cls: "text-amber-400" },
+  pending: { label: "Pendiente", cls: "text-zinc-400" },
+}
+
+function AllConversionsPanel({ conversions }: { conversions: ConversionSummary[] }) {
+  if (conversions.length === 0) {
+    return <p className="text-xs text-zinc-600">Sin ventas registradas.</p>
+  }
+  return (
+    <div className="space-y-2">
+      {conversions.map((c) => {
+        const s = CONVERSION_STATUS_MAP[c.status] ?? { label: c.status, cls: "text-zinc-400" }
+        return (
+          <div key={c.conversionId} className="rounded-lg border border-zinc-700/60 bg-zinc-800/40 px-3 py-2.5 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-zinc-200">
+                {c.amount} {c.currency}
+              </span>
+              <span className={`text-xs ${s.cls}`}>{s.label}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-zinc-500">
+              <span>{new Date(c.convertedAt).toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" })}</span>
+              {c.orderId && <span className="font-mono truncate max-w-[120px]">{c.orderId.slice(0, 8)}…</span>}
+            </div>
+            {c.notes && <p className="text-xs text-zinc-500 italic">{c.notes}</p>}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
@@ -512,6 +653,7 @@ function AssignmentPanel({
 export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, clientId, salesReps = [] }: Props) {
   const [detail, setDetail] = useState<LeadWithHistory | null>(null)
   const [conversion, setConversion] = useState<ConversionStatusPublic | null>(null)
+  const [allConversions, setAllConversions] = useState<ConversionSummary[]>([])
   const [currentAssignment, setCurrentAssignment] = useState<Awaited<ReturnType<typeof getLeadAssignmentAction>>>(null)
   const [waMessages, setWaMessages] = useState<WaMessagePublic[]>([])
   const [loading, setLoading] = useState(false)
@@ -523,9 +665,10 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
   async function loadAll(leadId: string) {
     setLoading(true)
     try {
-      const [d, c, assign, msgs] = await Promise.all([
+      const [d, c, allC, assign, msgs] = await Promise.all([
         fetchLeadDetailAction(leadId),
         fetchConversionStatusAction(leadId),
+        getAllConversionsByLeadAction(leadId),
         getLeadAssignmentAction(leadId),
         getLeadWaMessagesAction(leadId),
       ])
@@ -533,6 +676,7 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
       setNotes(d?.notes ?? "")
       setNotesDirty(false)
       setConversion(c)
+      setAllConversions(allC)
       setCurrentAssignment(assign)
       setWaMessages(msgs)
     } finally {
@@ -553,6 +697,7 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
     if (open && lead) {
       setDetail(null)
       setConversion(null)
+      setAllConversions([])
       setCurrentAssignment(null)
       setWaMessages([])
       loadAll(lead.id)
@@ -608,6 +753,27 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
               <span className="text-zinc-500">Ingresó</span>
               <span className="text-zinc-400 text-xs">{formatDateTime(current.createdAt)}</span>
             </div>
+            {!loading && (
+              <EditInfoPanel
+                leadId={leadId}
+                initial={{
+                  name: current.name ?? null,
+                  email: current.email ?? null,
+                  phone: current.phone ?? null,
+                  city: current.city ?? null,
+                }}
+                onSaved={(data) => {
+                  setDetail((d) => d ? {
+                    ...d,
+                    name: data.name ?? d.name,
+                    email: data.email,
+                    phone: data.phone,
+                    city: data.city,
+                  } : null)
+                  onMutated?.()
+                }}
+              />
+            )}
           </section>
 
           <section className="space-y-3">
@@ -648,9 +814,23 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
             </h3>
             {loading
               ? <p className="text-xs text-zinc-600">Cargando…</p>
-              : <ConversionPanel leadId={leadId} conversion={conversion} onMutated={onMutated} onDone={() => { fetchConversionStatusAction(leadId).then(setConversion).catch(() => undefined) }} />
+              : <ConversionPanel leadId={leadId} conversion={conversion} onMutated={onMutated} onDone={() => {
+                  Promise.all([
+                    fetchConversionStatusAction(leadId),
+                    getAllConversionsByLeadAction(leadId),
+                  ]).then(([c, allC]) => { setConversion(c); setAllConversions(allC) }).catch(() => undefined)
+                }} />
             }
           </section>
+
+          {!loading && allConversions.length > 0 && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                <DollarSign className="h-3.5 w-3.5" />Historial de ventas ({allConversions.length})
+              </h3>
+              <AllConversionsPanel conversions={allConversions} />
+            </section>
+          )}
 
           {/* Assignment panel */}
           <section className="space-y-2">

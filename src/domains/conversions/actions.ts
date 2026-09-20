@@ -11,6 +11,7 @@ import {
   createConversionIdempotent,
   createMetaEventIdempotent,
   getConversionByLeadId,
+  getConversionsByLeadId,
   getConversionById,
   getMetaEventByConversionId,
   resetMetaEventForRetry,
@@ -280,4 +281,34 @@ export async function cancelConversionAction(
   }).catch(() => undefined)
 
   return { success: true }
+}
+
+// ─── getAllConversionsByLeadAction ────────────────────────────────────────────
+
+export type ConversionSummary = {
+  conversionId: string
+  orderId: string | null
+  amount: string
+  currency: string
+  convertedAt: Date
+  status: "confirmed" | "cancelled" | "refunded" | "pending"
+  notes: string | null
+}
+
+export async function getAllConversionsByLeadAction(
+  leadId: string
+): Promise<ConversionSummary[]> {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return [] }
+
+  const rows = await getConversionsByLeadId(leadId, ctx.orgId)
+  return rows.map((c) => ({
+    conversionId: c.id,
+    orderId: c.orderId,
+    amount: c.amount,
+    currency: c.currency,
+    convertedAt: c.convertedAt,
+    status: c.status,
+    notes: c.notes,
+  }))
 }

@@ -5,6 +5,7 @@ import {
   updateLeadTemperature,
   updateLeadStage,
   updateLeadNotes,
+  updateLeadInfo,
   assignLead,
   getLeadDetail,
 } from "./repository"
@@ -134,4 +135,14 @@ export async function fetchLeadDetailAction(leadId: string) {
   let ctx
   try { ctx = await requireOrganizationMembership() } catch { return null }
   return getLeadDetail(leadId, ctx.orgId)
+}
+
+export async function updateLeadInfoAction(
+  leadId: string,
+  data: { name?: string | null; email?: string | null; phone?: string | null; city?: string | null }
+) {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+  await updateLeadInfo(leadId, ctx.orgId, data)
+  return { success: true }
 }

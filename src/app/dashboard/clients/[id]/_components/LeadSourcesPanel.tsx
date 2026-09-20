@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { enableLeadAdsAction, disableLeadAdsAction } from "@/domains/meta/actions"
 import type { MetaConnectionPublic } from "@/domains/meta/actions"
-import { ChevronDown, ChevronUp, Copy, Check, Globe, Zap, Info } from "lucide-react"
+import { ChevronDown, ChevronUp, Copy, Check, Globe, Zap, Info, User, MapPin, ShoppingCart } from "lucide-react"
 
 interface Props {
   clientId: string
@@ -62,9 +62,11 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
   const metaPageId = conn?.metaPageId ?? null
   const captureScriptKey = conn?.captureScriptKey ?? null
 
+  const [capturePreset, setCapturePreset] = useState<"basic" | "location" | "ecommerce">("basic")
+
   const appUrl = typeof window !== "undefined" ? window.location.origin : ""
   const webhookUrl = `${appUrl}/api/webhook/meta/${clientId}`
-  const captureScriptSrc = `${appUrl}/api/capture/${clientId}`
+  const captureScriptSrc = `${appUrl}/api/capture/${clientId}?preset=${capturePreset}`
 
   function handleEnable() {
     setError(null)
@@ -200,6 +202,49 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
         </div>
 
         <div className="ml-11 space-y-4">
+          {/* Preset selector */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-400">Campos que captura el script</label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {([
+                {
+                  key: "basic" as const,
+                  icon: User,
+                  label: "Básico",
+                  fields: "Nombre · Email · Teléfono",
+                },
+                {
+                  key: "location" as const,
+                  icon: MapPin,
+                  label: "Con ubicación",
+                  fields: "Nombre · Email · Teléfono · Ciudad",
+                },
+                {
+                  key: "ecommerce" as const,
+                  icon: ShoppingCart,
+                  label: "E-commerce",
+                  fields: "Nombre · Email · Teléfono · Ciudad · Método de pago",
+                },
+              ] as const).map(({ key, icon: Icon, label, fields }) => (
+                <button
+                  key={key}
+                  onClick={() => setCapturePreset(key)}
+                  className={`flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                    capturePreset === key
+                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                      : "border-zinc-700 bg-zinc-800/30 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-800"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-semibold">
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </span>
+                  <span className="text-[10px] leading-relaxed opacity-80">{fields}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-xs font-medium text-zinc-400">Script de captura</label>
             <CodeBlock
