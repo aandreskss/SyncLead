@@ -1,3 +1,4 @@
+import type React from "react"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import type { DashboardKPIs, Metric } from "@/domains/analytics/types"
 
@@ -17,19 +18,19 @@ function DeltaBadge({ pct }: { pct: number | null }) {
   const abs = Math.abs(pct)
   if (abs < 0.5)
     return (
-      <span className="text-zinc-600 flex items-center gap-0.5 text-xs">
-        <Minus className="h-3 w-3" />0%
+      <span className="flex items-center gap-0.5 text-xs text-sg-subtle">
+        <Minus className="h-3 w-3" aria-hidden="true" />0%
       </span>
     )
   if (pct > 0)
     return (
-      <span className="text-emerald-400 flex items-center gap-0.5 text-xs">
-        <TrendingUp className="h-3 w-3" />+{abs.toFixed(0)}%
+      <span className="flex items-center gap-0.5 text-xs text-sg-green">
+        <TrendingUp className="h-3 w-3" aria-hidden="true" />+{abs.toFixed(0)}%
       </span>
     )
   return (
-    <span className="text-red-400 flex items-center gap-0.5 text-xs">
-      <TrendingDown className="h-3 w-3" />-{abs.toFixed(0)}%
+    <span className="flex items-center gap-0.5 text-xs text-sg-danger">
+      <TrendingDown className="h-3 w-3" aria-hidden="true" />-{abs.toFixed(0)}%
     </span>
   )
 }
@@ -76,14 +77,18 @@ export function KPICards({ current, prev }: Props) {
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card) => (
-        <div key={card.label} className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-          <p className="text-xs text-zinc-500 uppercase tracking-wide">{card.label}</p>
-          <p className="text-3xl font-bold text-zinc-100 mt-2 mb-1">{card.value}</p>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {cards.map((card, i) => (
+        <div
+          key={card.label}
+          style={{ "--i": i } as React.CSSProperties}
+          className="sg-rise rounded-2xl border border-sg-border bg-sg-s1 p-5 shadow-sg-raise"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider text-sg-muted">{card.label}</p>
+          <p className="sg-tabular mb-1 mt-2 font-mono text-3xl font-semibold tracking-tight text-sg-ink">{card.value}</p>
           <div className="flex items-center gap-2">
             <DeltaBadge pct={card.delta} />
-            <span className="text-xs text-zinc-600 truncate">{card.sub}</span>
+            <span className="truncate text-xs text-sg-subtle">{card.sub}</span>
           </div>
         </div>
       ))}

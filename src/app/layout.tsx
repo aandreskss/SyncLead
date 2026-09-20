@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Inter } from "next/font/google"
+import { Geist, Geist_Mono } from "next/font/google"
 import { SessionProvider } from "next-auth/react"
 import { auth } from "@/auth"
 import { headers } from "next/headers"
@@ -10,8 +10,8 @@ const geist = Geist({
   subsets: ["latin"],
 })
 
-const inter = Inter({
-  variable: "--font-inter",
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
   subsets: ["latin"],
 })
 
@@ -28,8 +28,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = hdrs.get("x-nonce") ?? ""
 
   return (
-    <html lang="es" className={`${geist.variable} ${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-[var(--font-inter)]">
+    <html lang="es" className={`${geist.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col font-sans">
         <SessionProvider session={session} basePath="/api/auth">
           {children}
         </SessionProvider>

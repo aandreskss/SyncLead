@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useSyncExternalStore } from "react"
 import {
   ComposedChart, Area, Line,
   BarChart, Bar,
@@ -19,30 +19,32 @@ import type {
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
+// Paleta Signal Glass (los valores se repiten aquí porque Recharts pinta SVG con hex):
+// cian = leads/atribución, menta = ventas/conversión, coral/ámbar/glacial = caliente/tibio/frío.
 const C = {
-  grid: "#27272a",
-  text: "#71717a",
-  indigo: "#818cf8",
-  emerald: "#34d399",
-  red: "#f87171",
-  amber: "#fbbf24",
-  blue: "#60a5fa",
-  purple: "#c084fc",
+  grid: "#2a3142",
+  text: "#8d97ad",
+  indigo: "#46cff5",
+  emerald: "#57e8b0",
+  red: "#ff7f6e",
+  amber: "#f7be55",
+  blue: "#86b6ff",
+  purple: "#b79cff",
 }
 
-const PIE_COLORS = [C.indigo, C.emerald, C.amber, C.red, C.blue, C.purple, "#fb923c", "#a3e635"]
+const PIE_COLORS = [C.indigo, C.emerald, C.amber, C.red, C.blue, C.purple, "#ffa46b", "#b8e86b"]
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 
 function Tip({ active, payload, label }: { active?: boolean; payload?: { color: string; name: string; value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-xl">
-      {label && <p className="text-zinc-400 mb-1">{label}</p>}
+    <div className="sg-glass rounded-xl border border-sg-border px-3 py-2 text-xs shadow-sg-float">
+      {label && <p className="mb-1 text-sg-muted">{label}</p>}
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }} className="flex gap-2">
           <span>{p.name}:</span>
-          <span className="font-semibold">{p.value}</span>
+          <span className="sg-tabular font-mono font-semibold">{p.value}</span>
         </p>
       ))}
     </div>
@@ -62,12 +64,13 @@ function truncate(str: string, n = 14) {
 
 // ─── Card wrapper ─────────────────────────────────────────────────────────────
 
-function Card({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
+function Card({ title, children, className = "", summary }: { title: string; children: React.ReactNode; className?: string; summary?: string }) {
   return (
-    <div className={`rounded-xl border border-zinc-800 bg-zinc-900 p-5 ${className}`}>
-      <p className="text-sm font-medium text-zinc-300 mb-4">{title}</p>
+    <section aria-label={title} className={`rounded-2xl border border-sg-border bg-sg-s1 p-5 shadow-sg-raise ${className}`}>
+      <h2 className="mb-4 text-sm font-semibold text-sg-muted">{title}</h2>
+      {summary && <p className="sr-only">{summary}</p>}
       {children}
-    </div>
+    </section>
   )
 }
 
@@ -83,11 +86,24 @@ interface Props {
   byTempDay: TempByDayRow[]
 }
 
+function subscribeNever() {
+  return () => {}
+}
+function subscribeReducedMotion(cb: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+  mq.addEventListener("change", cb)
+  return () => mq.removeEventListener("change", cb)
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, byCities, byTempDay }: Props) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const mounted = useSyncExternalStore(subscribeNever, () => true, () => false)
+  const reduceMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false,
+  )
 
   const skeletonH = (h: number) => (
     <div className={`h-[${h}px] bg-zinc-800/50 rounded animate-pulse`} style={{ height: h }} />
@@ -96,10 +112,10 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
   if (!mounted) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">{skeletonH(280)}</div>
+        <div className="rounded-2xl border border-sg-border bg-sg-s1 p-5">{skeletonH(280)}</div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">{skeletonH(240)}</div>
+            <div key={i} className="rounded-2xl border border-sg-border bg-sg-s1 p-5">{skeletonH(240)}</div>
           ))}
         </div>
       </div>
@@ -127,7 +143,7 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
   return (
     <div className="space-y-4">
       {/* ── Leads por día ─────────────────────────────────────────────────── */}
-      <Card title="Leads por día">
+      <Card title="Leads por día" summary={`Leads por día: ${byDay.reduce((a, r) => a + r.total, 0)} en total durante ${byDay.length} días.`}>
         {!hasData(byDay) ? <EmptyState /> : (
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={byDay}>
@@ -136,8 +152,8 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
               <YAxis tick={{ fill: C.text, fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
               <Tooltip content={<Tip />} />
               <Legend wrapperStyle={{ fontSize: 12, color: C.text }} />
-              <Area type="monotone" dataKey="total" name="Leads" stroke={C.indigo} fill={`${C.indigo}20`} strokeWidth={2} dot={false} />
-              <Line
+              <Area isAnimationActive={!reduceMotion} type="monotone" dataKey="total" name="Leads" stroke={C.indigo} fill={`${C.indigo}20`} strokeWidth={2} dot={false} />
+              <Line isAnimationActive={!reduceMotion}
                 type="monotone"
                 dataKey="converted"
                 name="Ventas"
@@ -165,8 +181,8 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
                 <YAxis tick={{ fill: C.text, fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
                 <Tooltip content={<Tip />} />
                 <Legend wrapperStyle={{ fontSize: 12, color: C.text }} />
-                <Bar dataKey="total" name="Leads" fill={C.indigo} radius={[3, 3, 0, 0]} maxBarSize={40} />
-                <Bar dataKey="converted" name="Ventas" fill={C.emerald} radius={[3, 3, 0, 0]} maxBarSize={40} />
+                <Bar isAnimationActive={!reduceMotion} dataKey="total" name="Leads" fill={C.indigo} radius={[3, 3, 0, 0]} maxBarSize={40} />
+                <Bar isAnimationActive={!reduceMotion} dataKey="converted" name="Ventas" fill={C.emerald} radius={[3, 3, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -181,9 +197,9 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
                 <YAxis tick={{ fill: C.text, fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
                 <Tooltip content={<Tip />} />
                 <Legend wrapperStyle={{ fontSize: 12, color: C.text }} />
-                <Bar dataKey="cold" name="Frío" stackId="temp" fill={C.blue} />
-                <Bar dataKey="warm" name="Tibio" stackId="temp" fill={C.amber} />
-                <Bar dataKey="hot" name="Caliente" stackId="temp" fill={C.red} radius={[3, 3, 0, 0]} />
+                <Bar isAnimationActive={!reduceMotion} dataKey="cold" name="Frío" stackId="temp" fill={C.blue} />
+                <Bar isAnimationActive={!reduceMotion} dataKey="warm" name="Tibio" stackId="temp" fill={C.amber} />
+                <Bar isAnimationActive={!reduceMotion} dataKey="hot" name="Caliente" stackId="temp" fill={C.red} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -196,7 +212,7 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
           {!hasData(byPlatform) ? <EmptyState /> : (
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie
+                <Pie isAnimationActive={!reduceMotion}
                   data={byPlatform}
                   dataKey="total"
                   nameKey="platform"
@@ -220,7 +236,7 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
           {!hasData(byDevice) ? <EmptyState /> : (
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie
+                <Pie isAnimationActive={!reduceMotion}
                   data={byDevice}
                   dataKey="total"
                   nameKey="device"
@@ -251,7 +267,7 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
                 <XAxis type="number" tick={{ fill: C.text, fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="utmContent" width={120} tick={{ fill: C.text, fontSize: 10 }} tickFormatter={(v) => truncate(v, 18)} axisLine={false} tickLine={false} />
                 <Tooltip content={<Tip />} />
-                <Bar dataKey="total" name="Leads" fill={C.indigo} radius={[0, 3, 3, 0]} maxBarSize={18} />
+                <Bar isAnimationActive={!reduceMotion} dataKey="total" name="Leads" fill={C.indigo} radius={[0, 3, 3, 0]} maxBarSize={18} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -265,7 +281,7 @@ export function ChartsClient({ byDay, byCampaign, byUtm, byPlatform, byDevice, b
                 <XAxis type="number" tick={{ fill: C.text, fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="city" width={90} tick={{ fill: C.text, fontSize: 10 }} tickFormatter={(v) => truncate(v, 14)} axisLine={false} tickLine={false} />
                 <Tooltip content={<Tip />} />
-                <Bar dataKey="total" name="Leads" fill={C.purple} radius={[0, 3, 3, 0]} maxBarSize={18} />
+                <Bar isAnimationActive={!reduceMotion} dataKey="total" name="Leads" fill={C.purple} radius={[0, 3, 3, 0]} maxBarSize={18} />
               </BarChart>
             </ResponsiveContainer>
           )}
