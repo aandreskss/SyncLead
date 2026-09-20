@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
+import { useState, useEffect, useTransition, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Search, Users } from "lucide-react"
 import { LeadDrawer } from "@/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer"
@@ -20,6 +20,7 @@ interface Props {
     campaignId: string
     repId: string
     assignment: string
+    converted: string
   }
 }
 
@@ -40,10 +41,16 @@ const STAGES: { value: LeadStage | ""; label: string }[] = [
   { value: "lost", label: "Perdido" },
 ]
 
+const CONVERSION_FILTERS = [
+  { value: "", label: "Venta" },
+  { value: "yes", label: "Con venta" },
+  { value: "no", label: "Sin venta" },
+]
+
 function tempBadge(t: string) {
-  if (t === "hot") return "bg-red-500/15 text-red-400"
-  if (t === "warm") return "bg-amber-500/15 text-amber-400"
-  return "bg-blue-500/15 text-blue-400"
+  if (t === "hot") return "bg-red-500/20 text-red-400 border border-red-500/30"
+  if (t === "warm") return "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+  return "bg-blue-500/20 text-blue-400 border border-blue-500/30"
 }
 
 function tempLabel(t: string) {
@@ -53,13 +60,13 @@ function tempLabel(t: string) {
 }
 
 function stageBadge(s: string) {
-  if (s === "new") return "bg-zinc-700/60 text-zinc-400"
-  if (s === "contacted") return "bg-blue-500/15 text-blue-400"
-  if (s === "interested") return "bg-indigo-500/15 text-indigo-400"
-  if (s === "quoted") return "bg-purple-500/15 text-purple-400"
-  if (s === "won") return "bg-emerald-500/15 text-emerald-400"
-  if (s === "lost") return "bg-red-500/15 text-red-400"
-  return "bg-zinc-700/60 text-zinc-400"
+  if (s === "new") return "bg-zinc-700/60 text-zinc-400 border border-zinc-600/40"
+  if (s === "contacted") return "bg-blue-500/15 text-blue-400 border border-blue-500/25"
+  if (s === "interested") return "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
+  if (s === "quoted") return "bg-purple-500/15 text-purple-400 border border-purple-500/25"
+  if (s === "won") return "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
+  if (s === "lost") return "bg-red-500/15 text-red-400 border border-red-500/25"
+  return "bg-zinc-700/60 text-zinc-400 border border-zinc-600/40"
 }
 
 function stageLabel(s: string) {
@@ -94,14 +101,15 @@ export function ClientLeadsTab({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [, startTransition] = useTransition()
+  const mutated = useRef(false)
 
   const [searchInput, setSearchInput] = useState(filters.search)
   const [drawerLead, setDrawerLead] = useState<Lead | null>(null)
 
-  // KPI stats
-  const assignedCount = leads.filter((l) => l.assignedTo).length
-  const unassignedCount = leads.filter((l) => !l.assignedTo).length
+  // KPI stats — computed from local leads array (already filtered by server)
+  const hotCount = leads.filter((l) => l.temperature === "hot").length
   const convertedCount = leads.filter((l) => l.converted).length
+  const contactedCount = leads.filter((l) => l.stage !== "new").length
 
   // Campaign name lookup
   const campaignMap = Object.fromEntries(campaigns.map((c) => [c.id, c.name]))
@@ -136,27 +144,27 @@ export function ClientLeadsTab({
   }, [searchInput])
 
   const hasActiveFilters =
-    filters.search || filters.temperature || filters.stage || filters.campaignId
+    filters.search || filters.temperature || filters.stage || filters.campaignId || filters.converted
 
   return (
     <div className="space-y-6">
-      {/* KPI row */}
+      {/* KPI row — Total, Calientes, Con venta, Contactados */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
           <p className="text-xs text-zinc-500 mb-1">Total</p>
           <p className="text-2xl font-bold text-zinc-100">{totalLeads}</p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Asignados</p>
-          <p className="text-2xl font-bold text-zinc-100">{assignedCount}</p>
+          <p className="text-xs text-zinc-500 mb-1">Calientes</p>
+          <p className="text-2xl font-bold text-red-400">{hotCount}</p>
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Sin asignar</p>
-          <p className="text-2xl font-bold text-zinc-100">{unassignedCount}</p>
-        </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Convertidos</p>
+          <p className="text-xs text-zinc-500 mb-1">Con venta</p>
           <p className="text-2xl font-bold text-emerald-400">{convertedCount}</p>
+        </div>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="text-xs text-zinc-500 mb-1">Contactados</p>
+          <p className="text-2xl font-bold text-blue-400">{contactedCount}</p>
         </div>
       </div>
 
@@ -190,6 +198,16 @@ export function ClientLeadsTab({
         >
           {STAGES.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+
+        <select
+          value={filters.converted}
+          onChange={(e) => updateFilter("converted", e.target.value)}
+          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+        >
+          {CONVERSION_FILTERS.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
           ))}
         </select>
 
@@ -231,7 +249,7 @@ export function ClientLeadsTab({
         </div>
       ) : (
         <div className="border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm min-w-[1000px]">
             <thead>
               <tr className="border-b border-zinc-800 bg-zinc-900/50">
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Nombre</th>
@@ -239,6 +257,7 @@ export function ClientLeadsTab({
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Email</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Temp.</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Etapa</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-400">Venta</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Negocio</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Campaña</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-400">Asignado</th>
@@ -253,7 +272,12 @@ export function ClientLeadsTab({
                   className="hover:bg-zinc-800/40 transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3">
-                    <span className="font-medium text-zinc-100">{lead.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      {lead.converted && (
+                        <span className="text-emerald-400 text-xs" title="Comprador">$</span>
+                      )}
+                      <span className="font-medium text-zinc-100">{lead.name}</span>
+                    </div>
                     {lead.city && (
                       <span className="block text-xs text-zinc-500 mt-0.5">{lead.city}</span>
                     )}
@@ -273,6 +297,16 @@ export function ClientLeadsTab({
                     <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${stageBadge(lead.stage)}`}>
                       {stageLabel(lead.stage)}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {lead.converted ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                        $ {parseFloat(lead.conversionAmount ?? "0").toFixed(2)}
+                        {lead.conversionCurrency ? ` ${lead.conversionCurrency}` : ""}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-600 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {lead.negocio ? (
@@ -306,8 +340,14 @@ export function ClientLeadsTab({
         open={!!drawerLead}
         onClose={() => {
           setDrawerLead(null)
-          router.refresh()
+          if (mutated.current) {
+            mutated.current = false
+            router.refresh()
+          } else {
+            router.refresh()
+          }
         }}
+        onMutated={() => { mutated.current = true }}
         whatsappNumbers={whatsappNumbers}
         clientId={clientId}
         salesReps={salesReps}

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
+import { useState, useEffect, useTransition, useRef } from "react"
+import { useRouter } from "next/navigation"
 import {
   DndContext,
   DragEndEvent,
@@ -148,6 +149,8 @@ interface Props {
 }
 
 export function KanbanBoard({ funnel, initialLeads, salesReps = [], whatsappNumbers = [], clientId }: Props) {
+  const router = useRouter()
+  const mutated = useRef(false)
   const [leads, setLeads] = useState<Lead[]>(initialLeads)
   const [activeCard, setActiveCard] = useState<Lead | null>(null)
   const [drawerLead, setDrawerLead] = useState<Lead | null>(null)
@@ -219,8 +222,12 @@ export function KanbanBoard({ funnel, initialLeads, salesReps = [], whatsappNumb
         open={!!drawerLead}
         onClose={() => {
           setDrawerLead(null)
-          // No router.refresh() here to avoid kanban reload
+          if (mutated.current) {
+            mutated.current = false
+            router.refresh()
+          }
         }}
+        onMutated={() => { mutated.current = true }}
         whatsappNumbers={whatsappNumbers}
         clientId={clientId}
         salesReps={salesReps}

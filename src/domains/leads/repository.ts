@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
 import { leads, leadStageHistory, campaigns } from "@/lib/db/schema"
 import type { Lead, LeadStageHistory, Temperature, LeadStage } from "@/lib/db/schema"
-import { and, eq, ilike, inArray, or } from "drizzle-orm"
+import { and, eq, ilike, inArray, isNull, not, or } from "drizzle-orm"
 
 export interface ConversionData {
   conversionAmount: string
@@ -61,6 +61,7 @@ export interface LeadFilters {
   stage?: LeadStage | ""
   platform?: string
   device?: string
+  converted?: boolean
 }
 
 export type LeadWithHistory = Lead & { stageHistory: LeadStageHistory[] }
@@ -113,12 +114,21 @@ export async function getLeadsByClient(
       )
     : undefined
 
+  // Build converted filter
+  let convertedCond: ReturnType<typeof eq> | ReturnType<typeof or> | undefined = undefined
+  if (filters.converted === true) {
+    convertedCond = eq(leads.converted, true)
+  } else if (filters.converted === false) {
+    convertedCond = or(eq(leads.converted, false), isNull(leads.converted)) as ReturnType<typeof or>
+  }
+
   return db.query.leads.findMany({
     where: and(
       eq(leads.orgId, orgId),
       inArray(leads.campaignId, campaignIds),
       filters.temperature ? eq(leads.temperature, filters.temperature) : undefined,
       filters.stage ? eq(leads.stage, filters.stage) : undefined,
+      convertedCond,
       searchCond,
     ),
     orderBy: (l, { desc }) => [desc(l.createdAt)],

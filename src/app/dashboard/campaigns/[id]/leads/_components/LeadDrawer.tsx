@@ -46,6 +46,7 @@ interface Props {
   lead: Lead | null
   open: boolean
   onClose: () => void
+  onMutated?: () => void
   whatsappNumbers: string[]
   clientId?: string
   salesReps?: SalesRep[]
@@ -104,10 +105,12 @@ function ConversionPanel({
   leadId,
   conversion,
   onDone,
+  onMutated,
 }: {
   leadId: string
   conversion: ConversionStatusPublic | null
   onDone: () => void
+  onMutated?: () => void
 }) {
   const [showForm, setShowForm] = useState(false)
   const [amount, setAmount] = useState("")
@@ -134,7 +137,7 @@ function ConversionPanel({
     setError("")
     startTransition(async () => {
       const r = await registerSaleAction(leadId, { amount: amountNum, currency, orderId, convertedAt: new Date(date) })
-      if (r.success) { setShowForm(false); onDone() }
+      if (r.success) { setShowForm(false); onMutated?.(); onDone() }
       else setError(r.error ?? "Error desconocido")
     })
   }
@@ -485,7 +488,7 @@ function AssignmentPanel({
 
 // ─── Main drawer ─────────────────────────────────────────────────────────────
 
-export function LeadDrawer({ lead, open, onClose, whatsappNumbers, clientId, salesReps = [] }: Props) {
+export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, clientId, salesReps = [] }: Props) {
   const [detail, setDetail] = useState<LeadWithHistory | null>(null)
   const [conversion, setConversion] = useState<ConversionStatusPublic | null>(null)
   const [currentAssignment, setCurrentAssignment] = useState<Awaited<ReturnType<typeof getLeadAssignmentAction>>>(null)
@@ -546,7 +549,10 @@ export function LeadDrawer({ lead, open, onClose, whatsappNumbers, clientId, sal
   function handleTemperature() {
     const next = TEMP_CYCLE[temperature]
     setDetail((d) => (d ? { ...d, temperature: next } : null))
-    startTransition(async () => { await updateLeadTemperatureAction(leadId, next) })
+    startTransition(async () => {
+      const result = await updateLeadTemperatureAction(leadId, next)
+      if (!result?.error) { onMutated?.() }
+    })
   }
   function handleStage(s: LeadStage) {
     if (s === stage) return
@@ -621,7 +627,7 @@ export function LeadDrawer({ lead, open, onClose, whatsappNumbers, clientId, sal
             </h3>
             {loading
               ? <p className="text-xs text-zinc-600">Cargando…</p>
-              : <ConversionPanel leadId={leadId} conversion={conversion} onDone={() => { fetchConversionStatusAction(leadId).then(setConversion).catch(() => undefined) }} />
+              : <ConversionPanel leadId={leadId} conversion={conversion} onMutated={onMutated} onDone={() => { fetchConversionStatusAction(leadId).then(setConversion).catch(() => undefined) }} />
             }
           </section>
 
