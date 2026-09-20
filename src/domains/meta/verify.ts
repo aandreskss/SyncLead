@@ -18,30 +18,31 @@ export async function verifyMetaConnection(
   const apiVersion = graphApiVersion ?? process.env.META_GRAPH_API_VERSION ?? "v19.0"
 
   try {
-    // 1. Validate token + retrieve granted scopes
-    const permRes = await fetch(
-      `${META_GRAPH_BASE}/${apiVersion}/me/permissions?access_token=${accessToken}`,
+    // 1. Validate that the token is active using GET /me
+    // /me/permissions only works for User Access Tokens — System User tokens (the most
+    // common type for CAPI, issued by Business Manager) return OAuthException on that
+    // endpoint even when valid. /me?fields=id works for all token types.
+    const meRes = await fetch(
+      `${META_GRAPH_BASE}/${apiVersion}/me?fields=id&access_token=${accessToken}`,
       { cache: "no-store" }
     )
-    if (!permRes.ok) {
-      const err = await permRes.json().catch(() => ({})) as { error?: { code?: number; type?: string } }
+    if (!meRes.ok) {
+      const err = await meRes.json().catch(() => ({})) as { error?: { code?: number; type?: string } }
       const code = err.error?.code
-      if (code === 190 || code === 102 || err.error?.type === "OAuthException") {
+      if (code === 190) return { ok: false, reason: "expired" }
+      if (
+        code === 102 ||
+        err.error?.type === "OAuthException" ||
+        code === 2500 // Invalid access token
+      ) {
         return { ok: false, reason: "invalid_token" }
       }
       return { ok: false, reason: "unknown" }
     }
-    const permData = await permRes.json() as {
-      data?: Array<{ permission: string; status: string }>
-    }
-    const scopes = (permData.data ?? [])
-      .filter((p) => p.status === "granted")
-      .map((p) => p.permission)
 
-    // 2. Verify this token can reach the pixel endpoint (CAPI send access, not read access)
-    // Use the /events endpoint with an empty dry-run to confirm the token works for CAPI.
-    // We avoid reading pixel metadata because that requires ads_read scope which CAPI tokens
-    // may not have — what matters is that the token can send events.
+    // 2. Optionally verify pixel read access; not required for CAPI send access.
+    // Codes 100/200 = no pixel read permission (normal for System User tokens scoped only
+    // for CAPI) — not a blocking error. Only block on token-level errors (190/102).
     const pixelRes = await fetch(
       `${META_GRAPH_BASE}/${apiVersion}/${pixelId}?fields=id&access_token=${accessToken}`,
       { cache: "no-store" }
@@ -49,14 +50,12 @@ export async function verifyMetaConnection(
     if (!pixelRes.ok) {
       const err = await pixelRes.json().catch(() => ({})) as { error?: { code?: number; type?: string } }
       const code = err.error?.code
-      // Only block if the token itself is invalid/expired
       if (code === 190) return { ok: false, reason: "expired" }
       if (code === 102 || err.error?.type === "OAuthException") return { ok: false, reason: "invalid_token" }
-      // Codes 100/200 often mean "no pixel read permission" but the token can still
-      // send CAPI events — treat as acceptable and proceed
+      // Ignore 100/200 — pixel read is not required for CAPI
     }
 
-    return { ok: true, scopes, expiresAt: null }
+    return { ok: true, scopes: [], expiresAt: null }
   } catch {
     return { ok: false, reason: "network_error" }
   }
