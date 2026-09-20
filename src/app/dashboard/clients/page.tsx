@@ -10,12 +10,12 @@ export default async function ClientsPage() {
   try {
     ctx = await requireOrganizationMembership()
   } catch (err) {
-    if (err instanceof ForbiddenError) redirect("/onboarding")
+    if (err instanceof ForbiddenError) redirect("/login")
     redirect("/login")
   }
 
   const org = await getOrganizationById(ctx.orgId)
-  if (!org) redirect("/onboarding")
+  if (!org) redirect("/login")
 
   const clients = await getClientsByOrgId(ctx.orgId)
 

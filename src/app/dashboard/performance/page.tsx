@@ -20,11 +20,11 @@ export default async function PerformancePage({
   try {
     ctx = await requireOrganizationMembership()
     const org = await getOrganizationById(ctx.orgId)
-    if (!org) redirect("/onboarding")
+    if (!org) redirect("/login")
     orgName = org.name
   } catch (e) {
     if (e instanceof AuthError) redirect("/login")
-    if (e instanceof ForbiddenError) redirect("/onboarding")
+    if (e instanceof ForbiddenError) redirect("/login")
     throw e
   }
 

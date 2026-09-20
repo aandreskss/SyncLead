@@ -1,6 +1,6 @@
-import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { getOrganizationByOwnerId } from "@/domains/organizations/repository"
+import { requireOrganizationMembership } from "@/lib/auth/server"
+import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import {
   getFunnelsByOrgId,
   getFunnelById,
@@ -22,22 +22,25 @@ export default async function FunnelsPage({
     assignedTo?: string
   }>
 }) {
-  const session = await auth()
-  if (!session?.user?.id) redirect("/login")
-
-  const org = await getOrganizationByOwnerId(session.user.id)
-  if (!org) redirect("/onboarding")
+  let ctx: Awaited<ReturnType<typeof requireOrganizationMembership>>
+  try {
+    ctx = await requireOrganizationMembership()
+  } catch (e) {
+    if (e instanceof AuthError || e instanceof ForbiddenError) redirect("/login")
+    throw e
+  }
+  const orgId = ctx.orgId
 
   const sp = await searchParams
 
   const [allFunnels, campaignOptions] = await Promise.all([
-    getFunnelsByOrgId(org.id),
-    getCampaignOptionsForFunnel(org.id),
+    getFunnelsByOrgId(orgId),
+    getCampaignOptionsForFunnel(orgId),
   ])
 
   const selectedFunnelId = sp.funnelId ?? allFunnels[0]?.id
   const selectedFunnel = selectedFunnelId
-    ? await getFunnelById(selectedFunnelId, org.id)
+    ? await getFunnelById(selectedFunnelId, orgId)
     : null
 
   const stageKeys: LeadStage[] = (selectedFunnel?.stages ?? []).map(
@@ -45,7 +48,7 @@ export default async function FunnelsPage({
   )
 
   const leads = selectedFunnel
-    ? await getLeadsForKanban(org.id, stageKeys, {
+    ? await getLeadsForKanban(orgId, stageKeys, {
         campaignId: sp.campaignId,
         temperature: sp.temperature,
         assignedTo: sp.assignedTo,
@@ -58,12 +61,12 @@ export default async function FunnelsPage({
   let kanbanSalesReps: SalesRep[] = []
 
   if (sp.campaignId) {
-    const campaign = await getCampaignWithClientById(sp.campaignId, org.id)
+    const campaign = await getCampaignWithClientById(sp.campaignId, orgId)
     if (campaign?.clientId) {
       kanbanClientId = campaign.clientId
       const client = campaign.client as { whatsappNumbers?: string[] } | null
       kanbanWhatsappNumbers = client?.whatsappNumbers ?? []
-      kanbanSalesReps = await listSalesReps(org.id, campaign.clientId)
+      kanbanSalesReps = await listSalesReps(orgId, campaign.clientId)
     }
   }
 

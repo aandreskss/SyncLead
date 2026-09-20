@@ -43,7 +43,7 @@ export default function RegisterPage() {
             type="button"
             variant="outline"
             className="w-full gap-2"
-            onClick={() => signIn("google", { callbackUrl: "/onboarding" })}
+            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
           >
             <GoogleIcon />
             Continuar con Google
