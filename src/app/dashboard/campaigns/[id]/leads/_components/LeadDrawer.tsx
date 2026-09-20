@@ -41,6 +41,7 @@ import {
   MessageCircle, ThermometerSun, Clock, DollarSign,
   CheckCircle2, AlertCircle, RefreshCw, Loader2, X,
   Users, UserCheck, ExternalLink, Pencil, Save,
+  Phone, Mail, MapPin, Copy, Check, Tag,
 } from "lucide-react"
 
 const CURRENCIES = ["USD", "EUR", "VES", "COP", "MXN", "BRL", "ARS"]
@@ -281,6 +282,27 @@ function ConversionPanel({
   )
 }
 
+// ─── Copy to clipboard button ─────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors"
+      title="Copiar"
+    >
+      {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+    </button>
+  )
+}
+
 // ─── Edit lead info panel ─────────────────────────────────────────────────────
 
 function EditInfoPanel({
@@ -337,26 +359,30 @@ function EditInfoPanel({
     return (
       <button
         onClick={handleEdit}
-        className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
       >
         <Pencil className="h-3 w-3" />
-        Editar información
+        Editar datos
       </button>
     )
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3">
-      <p className="text-xs font-medium text-zinc-400">Editar información del lead</p>
+    <div className="space-y-2 rounded-lg border border-indigo-500/30 bg-zinc-800/60 p-3">
+      <p className="text-xs font-medium text-indigo-300 flex items-center gap-1.5">
+        <Pencil className="h-3 w-3" />
+        Editar información del lead
+      </p>
       {[
-        { label: "Nombre", value: name, set: setName, placeholder: "Nombre completo" },
-        { label: "Email", value: email, set: setEmail, placeholder: "correo@ejemplo.com" },
-        { label: "Teléfono", value: phone, set: setPhone, placeholder: "+58 424..." },
-        { label: "Ciudad", value: city, set: setCity, placeholder: "Ciudad" },
-      ].map(({ label, value, set, placeholder }) => (
+        { label: "Nombre completo", value: name, set: setName, placeholder: "Nombre completo", type: "text" },
+        { label: "Email", value: email, set: setEmail, placeholder: "correo@ejemplo.com", type: "email" },
+        { label: "Teléfono", value: phone, set: setPhone, placeholder: "+58 424...", type: "tel" },
+        { label: "Ciudad", value: city, set: setCity, placeholder: "Ciudad", type: "text" },
+      ].map(({ label, value, set, placeholder, type }) => (
         <div key={label} className="space-y-0.5">
           <label className="text-xs text-zinc-500">{label}</label>
           <input
+            type={type}
             value={value}
             onChange={(e) => set(e.target.value)}
             placeholder={placeholder}
@@ -364,7 +390,7 @@ function EditInfoPanel({
           />
         </div>
       ))}
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{error}</p>}
       <div className="flex gap-2 pt-1">
         <button
           onClick={handleSave}
@@ -372,7 +398,7 @@ function EditInfoPanel({
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors disabled:opacity-50"
         >
           {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-          Guardar
+          {isPending ? "Guardando…" : "Guardar cambios"}
         </button>
         <button
           onClick={() => setEditing(false)}
@@ -766,48 +792,120 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
         </SheetHeader>
 
         <SheetBody>
-          <section className="space-y-2">
-            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Información</h3>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              {current.city && (<><span className="text-zinc-500">Ciudad</span><span className="text-zinc-300">{current.city}</span></>)}
+          {/* ── Información ─────────────────────────────────────── */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Información</h3>
+              {!loading && (
+                <EditInfoPanel
+                  leadId={leadId}
+                  initial={{
+                    name: current.name ?? null,
+                    email: current.email ?? null,
+                    phone: current.phone ?? null,
+                    city: current.city ?? null,
+                  }}
+                  onSaved={(data) => {
+                    setDetail((d) => d ? {
+                      ...d,
+                      name: data.name ?? d.name,
+                      email: data.email,
+                      phone: data.phone,
+                      city: data.city,
+                    } : null)
+                    onMutated?.()
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Contact card */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-800/30 divide-y divide-zinc-800">
+              {current.phone && (
+                <div className="flex items-center gap-2.5 px-3 py-2.5">
+                  <Phone className="h-3.5 w-3.5 text-zinc-500 flex-shrink-0" />
+                  <span className="text-sm text-zinc-200 font-mono flex-1">{current.phone}</span>
+                  <CopyButton text={current.phone} />
+                </div>
+              )}
+              {current.email && (
+                <div className="flex items-center gap-2.5 px-3 py-2.5">
+                  <Mail className="h-3.5 w-3.5 text-zinc-500 flex-shrink-0" />
+                  <span className="text-sm text-zinc-300 flex-1 truncate">{current.email}</span>
+                  <CopyButton text={current.email} />
+                </div>
+              )}
+              {current.city && (
+                <div className="flex items-center gap-2.5 px-3 py-2.5">
+                  <MapPin className="h-3.5 w-3.5 text-zinc-500 flex-shrink-0" />
+                  <span className="text-sm text-zinc-300">{current.city}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Key facts */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs px-0.5">
               <span className="text-zinc-500">Negocio</span>
-              <span className={current.negocio ? "text-emerald-400" : "text-zinc-600"}>{current.negocio ? "Sí" : "No"}</span>
+              <span className={current.negocio ? "text-emerald-400 font-medium" : "text-zinc-600"}>
+                {current.negocio ? "Sí" : "No"}
+              </span>
               {current.platform && (<><span className="text-zinc-500">Plataforma</span><span className="text-zinc-300 capitalize">{current.platform}</span></>)}
               {current.device && (<><span className="text-zinc-500">Dispositivo</span><span className="text-zinc-300 capitalize">{current.device}</span></>)}
-              {current.metaAdsetName && (<><span className="text-zinc-500">Conjunto de anuncios</span><span className="text-indigo-300 text-xs truncate" title={current.metaAdsetName}>{current.metaAdsetName}</span></>)}
-              {current.metaAdName && (<><span className="text-zinc-500">Anuncio</span><span className="text-indigo-300 text-xs truncate" title={current.metaAdName}>{current.metaAdName}</span></>)}
-              {current.metaCampaignName && (<><span className="text-zinc-500">Campaña Meta</span><span className="text-zinc-300 text-xs truncate" title={current.metaCampaignName}>{current.metaCampaignName}</span></>)}
-              {current.utmSource && (<><span className="text-zinc-500">UTM Source</span><span className="text-zinc-300 text-xs truncate">{current.utmSource}</span></>)}
-              {current.utmMedium && (<><span className="text-zinc-500">UTM Medium</span><span className="text-zinc-300 text-xs truncate">{current.utmMedium}</span></>)}
-              {current.utmCampaign && (<><span className="text-zinc-500">UTM Campaign</span><span className="text-zinc-300 text-xs truncate">{current.utmCampaign}</span></>)}
-              {current.utmContent && (<><span className="text-zinc-500">UTM Content</span><span className="text-zinc-300 text-xs truncate">{current.utmContent}</span></>)}
-              {current.landingUrl && (<><span className="text-zinc-500">Landing URL</span><a href={current.landingUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 text-xs truncate block max-w-[160px]" title={current.landingUrl}>{(() => { try { return new URL(current.landingUrl).pathname } catch { return current.landingUrl } })()}</a></>)}
               <span className="text-zinc-500">Ingresó</span>
-              <span className="text-zinc-400 text-xs">{formatDateTime(current.createdAt)}</span>
+              <span className="text-zinc-400">{formatDateTime(current.createdAt)}</span>
             </div>
-            {!loading && (
-              <EditInfoPanel
+
+            {/* Attribution */}
+            {(current.metaAdsetName || current.metaAdName || current.metaCampaignName || current.utmSource || current.utmCampaign || current.utmContent || current.landingUrl) && (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-800/20 p-3 space-y-1.5">
+                <p className="text-xs text-zinc-600 font-medium flex items-center gap-1.5">
+                  <Tag className="h-3 w-3" />
+                  Atribución
+                </p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  {current.metaCampaignName && (<><span className="text-zinc-500">Campaña</span><span className="text-zinc-300 truncate" title={current.metaCampaignName}>{current.metaCampaignName}</span></>)}
+                  {current.metaAdsetName && (<><span className="text-zinc-500">Conjunto</span><span className="text-indigo-300 truncate" title={current.metaAdsetName}>{current.metaAdsetName}</span></>)}
+                  {current.metaAdName && (<><span className="text-zinc-500">Anuncio</span><span className="text-indigo-300 truncate" title={current.metaAdName}>{current.metaAdName}</span></>)}
+                  {current.utmSource && (<><span className="text-zinc-500">UTM Source</span><span className="text-zinc-400 truncate">{current.utmSource}</span></>)}
+                  {current.utmMedium && (<><span className="text-zinc-500">UTM Medium</span><span className="text-zinc-400 truncate">{current.utmMedium}</span></>)}
+                  {current.utmCampaign && (<><span className="text-zinc-500">UTM Campaign</span><span className="text-zinc-400 truncate">{current.utmCampaign}</span></>)}
+                  {current.utmContent && (<><span className="text-zinc-500">UTM Content</span><span className="text-zinc-400 truncate">{current.utmContent}</span></>)}
+                  {current.landingUrl && (
+                    <>
+                      <span className="text-zinc-500">Landing</span>
+                      <a href={current.landingUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-indigo-400 hover:text-indigo-300 truncate block"
+                        title={current.landingUrl}
+                      >
+                        {(() => { try { return new URL(current.landingUrl).pathname } catch { return current.landingUrl } })()}
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* ── Asignación ──────────────────────────────────────── */}
+          <section className="space-y-2">
+            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />Asignado a
+            </h3>
+            {loading ? (
+              <p className="text-xs text-zinc-600">Cargando…</p>
+            ) : salesReps.length === 0 ? (
+              <p className="text-xs text-zinc-600">No hay vendedores configurados para este cliente.</p>
+            ) : (
+              <AssignmentPanel
                 leadId={leadId}
-                initial={{
-                  name: current.name ?? null,
-                  email: current.email ?? null,
-                  phone: current.phone ?? null,
-                  city: current.city ?? null,
-                }}
-                onSaved={(data) => {
-                  setDetail((d) => d ? {
-                    ...d,
-                    name: data.name ?? d.name,
-                    email: data.email,
-                    phone: data.phone,
-                    city: data.city,
-                  } : null)
-                  onMutated?.()
-                }}
+                currentAssignment={currentAssignment}
+                salesReps={salesReps}
+                onRefresh={() => refreshWa(leadId)}
               />
             )}
           </section>
 
+          {/* ── Temperatura y etapa ─────────────────────────────── */}
           <section className="space-y-3">
             <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
               <ThermometerSun className="h-3.5 w-3.5" />Temperatura y etapa
@@ -827,6 +925,7 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
             </div>
           </section>
 
+          {/* ── Notas ───────────────────────────────────────────── */}
           <section className="space-y-2">
             <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Notas</h3>
             <textarea value={notes} onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); setNotesSaved(false) }} placeholder="Agregar notas…" rows={4}
@@ -840,6 +939,7 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
             </div>
           </section>
 
+          {/* ── Venta ───────────────────────────────────────────── */}
           <section className="space-y-3">
             <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
               <DollarSign className="h-3.5 w-3.5" />Venta
@@ -855,24 +955,7 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
             }
           </section>
 
-          {/* Assignment panel */}
-          <section className="space-y-2">
-            <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" />Asignación
-            </h3>
-            {loading ? (
-              <p className="text-xs text-zinc-600">Cargando…</p>
-            ) : (
-              <AssignmentPanel
-                leadId={leadId}
-                currentAssignment={currentAssignment}
-                salesReps={salesReps}
-                onRefresh={() => refreshWa(leadId)}
-              />
-            )}
-          </section>
-
-          {/* WhatsApp panel */}
+          {/* ── WhatsApp ────────────────────────────────────────── */}
           <section className="space-y-2">
             <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
               <MessageCircle className="h-3.5 w-3.5" />WhatsApp
