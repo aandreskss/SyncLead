@@ -119,14 +119,21 @@ function buildDiagnosticScript(token: string): string {
 
   if (typeof window.fbq === "function") {
     window.fbq = wrapFbq(window.fbq);
+    // El pixel base code hace window._fbq = stubFn (misma ref que fbq).
+    // Después de wrappear fbq, _fbq sigue apuntando al stub original →
+    // fbevents.js ve dos objetos distintos y lanza "Multiple pixels" warning.
+    try { if (window._fbq !== window.fbq) window._fbq = window.fbq; } catch(e) {}
   } else {
     Object.defineProperty(window, "fbq", {
       configurable: true,
       set: function(val) {
+        var wrapped = typeof val === "function" ? wrapFbq(val) : val;
         Object.defineProperty(window, "fbq", {
           configurable: true, writable: true,
-          value: typeof val === "function" ? wrapFbq(val) : val
+          value: wrapped
         });
+        // Mantener _fbq en sync cuando el pixel base code cargue async
+        try { if (window._fbq !== window.fbq) window._fbq = window.fbq; } catch(e) {}
       }
     });
   }
