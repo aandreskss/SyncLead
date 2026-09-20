@@ -74,14 +74,33 @@ function buildDiagnosticScript(token: string): string {
   window.__synclead_collect = sendToDiagnostic;
 
   // Intercepta llamadas reales a fbq('track') / fbq('trackCustom')
+  // Usa getters/setters para delegar TODAS las propiedades al original en vivo.
+  // Esto evita que fbevents.js vea queue/version/callMethod como undefined
+  // y trate de reinicializar el pixel (causa "Multiple pixels" error).
   function wrapFbq(original) {
-    return function() {
+    if (original && original._synclead_wrapped) return original;
+    var wrapper = function() {
       var args = Array.prototype.slice.call(arguments);
       if (args[0] === "track" || args[0] === "trackCustom") {
         sendToDiagnostic(args[1], args[2] || {});
       }
       return original.apply(this, arguments);
     };
+    // Forward all property access to original so fbevents.js always sees a consistent stub
+    try {
+      var skip = { length: 1, name: 1, prototype: 1, caller: 1, arguments: 1 };
+      Object.getOwnPropertyNames(original).forEach(function(key) {
+        if (skip[key]) return;
+        Object.defineProperty(wrapper, key, {
+          get: function() { return original[key]; },
+          set: function(v) { original[key] = v; },
+          configurable: true,
+          enumerable: true
+        });
+      });
+    } catch(e) {}
+    wrapper._synclead_wrapped = true;
+    return wrapper;
   }
 
   if (typeof window.fbq === "function") {
