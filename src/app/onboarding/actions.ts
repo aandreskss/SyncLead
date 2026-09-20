@@ -5,9 +5,20 @@ import { redirect } from "next/navigation"
 import { provisionOrganization } from "@/domains/organizations/service"
 import { getOrganizationByOwnerId, markOnboardingComplete } from "@/domains/organizations/repository"
 import { db } from "@/lib/db"
-import { clients } from "@/lib/db/schema"
+import { clients, orgMembers } from "@/lib/db/schema"
 import { encryptToken } from "@/lib/crypto"
 import { randomBytes } from "crypto"
+import { eq, and } from "drizzle-orm"
+
+async function ensureOwnerMembership(orgId: string, userId: string) {
+  const existing = await db.query.orgMembers.findFirst({
+    where: and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)),
+    columns: { id: true },
+  })
+  if (!existing) {
+    await db.insert(orgMembers).values({ orgId, userId, role: "owner" })
+  }
+}
 
 export async function createOrgAction(formData: FormData) {
   const session = await auth()
@@ -18,9 +29,13 @@ export async function createOrgAction(formData: FormData) {
   if (name.length > 60) return { error: "El nombre es demasiado largo." }
 
   const existing = await getOrganizationByOwnerId(session.user.id)
-  if (existing) return { orgId: existing.id }
+  if (existing) {
+    await ensureOwnerMembership(existing.id, session.user.id)
+    return { orgId: existing.id }
+  }
 
   const org = await provisionOrganization(session.user.id, name)
+  await ensureOwnerMembership(org.id, session.user.id)
   return { orgId: org.id }
 }
 
