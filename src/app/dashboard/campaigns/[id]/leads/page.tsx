@@ -2,7 +2,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { getOrganizationByOwnerId } from "@/domains/organizations/repository"
 import { getCampaignWithClientById } from "@/domains/campaigns/repository"
-import { getLeadsByCampaign } from "@/domains/leads/repository"
+import { getLeadsByCampaignWithActivity } from "@/domains/leads/repository"
 import { listSalesReps } from "@/domains/team/repository"
 import type { LeadFilters } from "@/domains/leads/repository"
 import type { Temperature, LeadStage } from "@/lib/db/schema"
@@ -13,7 +13,7 @@ export default async function LeadsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ search?: string; temperature?: string; stage?: string; assignment?: string; repId?: string }>
+  searchParams: Promise<{ search?: string; temperature?: string; stage?: string; assignment?: string; repId?: string; activity?: string }>
 }) {
   const session = await auth()
   if (!session?.user?.id) redirect("/login")
@@ -31,10 +31,11 @@ export default async function LeadsPage({
     search: sp.search || undefined,
     temperature: (sp.temperature as Temperature) || undefined,
     stage: (sp.stage as LeadStage) || undefined,
+    activity: (sp.activity as LeadFilters["activity"]) || undefined,
   }
 
   const [leads, salesReps] = await Promise.all([
-    getLeadsByCampaign(id, org.id, filters),
+    getLeadsByCampaignWithActivity(id, org.id, filters),
     campaign.clientId
       ? listSalesReps(org.id, campaign.clientId)
       : Promise.resolve([]),

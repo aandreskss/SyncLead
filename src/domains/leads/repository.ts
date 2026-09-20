@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
-import { leads, leadStageHistory, campaigns } from "@/lib/db/schema"
+import { leads, leadStageHistory, campaigns, conversions, leadBehaviorEvents } from "@/lib/db/schema"
 import type { Lead, LeadStageHistory, Temperature, LeadStage } from "@/lib/db/schema"
-import { and, eq, ilike, inArray, isNull, not, or } from "drizzle-orm"
+import { and, desc, eq, ilike, inArray, isNotNull, isNull, or } from "drizzle-orm"
 
 export interface ConversionData {
   conversionAmount: string
@@ -62,6 +62,24 @@ export interface LeadFilters {
   platform?: string
   device?: string
   converted?: boolean
+  activity?: "has_sale" | "checkout" | "cart_abandoned" | "form_submitted" | "info_requested" | ""
+}
+
+export interface LeadActivitySummary {
+  hasCheckout: boolean
+  hasAbandonedCart: boolean
+  hasFormSubmit: boolean
+  hasInfoRequest: boolean
+  hasAddToCart: boolean
+  lastEventAt: Date | null
+}
+
+export interface LeadWithActivity extends Lead {
+  saleAmount: string | null
+  saleCurrency: string | null
+  saleStatus: string | null
+  saleConvertedAt: Date | null
+  activity: LeadActivitySummary
 }
 
 export type LeadWithHistory = Lead & { stageHistory: LeadStageHistory[] }
@@ -91,6 +109,104 @@ export async function getLeadsByCampaign(
     ),
     orderBy: (l, { desc }) => [desc(l.createdAt)],
   })
+}
+
+function emptyActivity(): LeadActivitySummary {
+  return {
+    hasCheckout: false,
+    hasAbandonedCart: false,
+    hasFormSubmit: false,
+    hasInfoRequest: false,
+    hasAddToCart: false,
+    lastEventAt: null,
+  }
+}
+
+export async function getLeadsByCampaignWithActivity(
+  campaignId: string,
+  orgId: string,
+  filters: LeadFilters = {}
+): Promise<LeadWithActivity[]> {
+  const leadRows = await getLeadsByCampaign(campaignId, orgId, filters)
+  if (leadRows.length === 0) return []
+
+  const leadIds = leadRows.map((l) => l.id)
+
+  const [convRows, eventRows] = await Promise.all([
+    db
+      .select({
+        leadId: conversions.leadId,
+        amount: conversions.amount,
+        currency: conversions.currency,
+        status: conversions.status,
+        convertedAt: conversions.convertedAt,
+      })
+      .from(conversions)
+      .where(
+        and(
+          eq(conversions.orgId, orgId),
+          inArray(conversions.leadId, leadIds),
+          eq(conversions.status, "confirmed")
+        )
+      )
+      .orderBy(desc(conversions.convertedAt)),
+
+    db
+      .select({
+        leadId: leadBehaviorEvents.leadId,
+        eventType: leadBehaviorEvents.eventType,
+        occurredAt: leadBehaviorEvents.occurredAt,
+      })
+      .from(leadBehaviorEvents)
+      .where(
+        and(
+          eq(leadBehaviorEvents.orgId, orgId),
+          isNotNull(leadBehaviorEvents.leadId),
+          inArray(leadBehaviorEvents.leadId, leadIds)
+        )
+      ),
+  ])
+
+  // First confirmed conversion per lead (rows already DESC by convertedAt)
+  const convMap = new Map<string, typeof convRows[number]>()
+  for (const c of convRows) {
+    if (!convMap.has(c.leadId)) convMap.set(c.leadId, c)
+  }
+
+  const eventMap = new Map<string, LeadActivitySummary>()
+  for (const e of eventRows) {
+    if (!e.leadId) continue
+    if (!eventMap.has(e.leadId)) eventMap.set(e.leadId, emptyActivity())
+    const a = eventMap.get(e.leadId)!
+    if (e.eventType === "begin_checkout") a.hasCheckout = true
+    if (e.eventType === "checkout_abandoned") a.hasAbandonedCart = true
+    if (e.eventType === "form_submitted") a.hasFormSubmit = true
+    if (e.eventType === "info_requested") a.hasInfoRequest = true
+    if (e.eventType === "add_to_cart") a.hasAddToCart = true
+    if (!a.lastEventAt || (e.occurredAt && e.occurredAt > a.lastEventAt)) {
+      a.lastEventAt = e.occurredAt
+    }
+  }
+
+  let result: LeadWithActivity[] = leadRows.map((lead) => {
+    const conv = convMap.get(lead.id) ?? null
+    return {
+      ...lead,
+      saleAmount: conv?.amount ?? null,
+      saleCurrency: conv?.currency ?? null,
+      saleStatus: conv?.status ?? null,
+      saleConvertedAt: conv?.convertedAt ?? null,
+      activity: eventMap.get(lead.id) ?? emptyActivity(),
+    }
+  })
+
+  if (filters.activity === "has_sale") result = result.filter((l) => l.saleAmount !== null)
+  else if (filters.activity === "checkout") result = result.filter((l) => l.activity.hasCheckout)
+  else if (filters.activity === "cart_abandoned") result = result.filter((l) => l.activity.hasAbandonedCart)
+  else if (filters.activity === "form_submitted") result = result.filter((l) => l.activity.hasFormSubmit)
+  else if (filters.activity === "info_requested") result = result.filter((l) => l.activity.hasInfoRequest)
+
+  return result
 }
 
 export async function getLeadsByClient(
