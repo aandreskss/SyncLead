@@ -326,10 +326,15 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {lead.saleAmount ? (
+                    {lead.saleCount > 0 ? (
                       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-400">
                         <BadgeDollarSign className="h-3 w-3" />
-                        {formatMoney(lead.saleAmount, lead.saleCurrency ?? "USD")}
+                        {lead.saleTotalAmount
+                          ? formatMoney(lead.saleTotalAmount, lead.saleCurrency ?? "USD")
+                          : `${lead.saleCount} ${lead.saleCount === 1 ? "venta" : "ventas"}`}
+                        {lead.saleCount > 1 && lead.saleTotalAmount && (
+                          <span className="opacity-60">·{lead.saleCount}</span>
+                        )}
                       </span>
                     ) : (
                       <span className="text-zinc-600 text-xs">—</span>
