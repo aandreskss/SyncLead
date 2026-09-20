@@ -40,7 +40,9 @@ function HealthSummary({
       d.diagStatus === "observed_both" ||
       d.diagStatus === "accepted_by_meta"
   )
-  const hasPixelConfigured = sites.some((s) => s.expectedPixelId)
+  const hasPixelConfigured =
+    sites.some((s) => s.expectedPixelId) ||
+    metaConnections.some((c) => c.status === "active" && c.pixelId)
 
   // CAPI connection: derived from meta_connections (source of truth) + live observations
   const activeConn = metaConnections.find((c) => c.status === "active")
@@ -56,9 +58,7 @@ function HealthSummary({
     (i) => i.severity === "critical" && i.status === "open"
   ).length
 
-  const pixelStatus = sites.length === 0
-    ? "sin_sitio"
-    : hasPixelDetected
+  const pixelStatus = hasPixelDetected
     ? "detectado"
     : hasPixelConfigured
     ? "configurado"
@@ -133,9 +133,7 @@ function HealthSummary({
                 ? "Detectado"
                 : pixelStatus === "configurado"
                 ? "Configurado"
-                : pixelStatus === "sin_pixel"
-                ? "Sin Pixel ID"
-                : "Sin sitio"}
+                : "Sin Pixel ID"}
             </span>
           </div>
         </div>
