@@ -6,6 +6,7 @@ import {
   saveMetaConnectionAction,
   testMetaConnectionAction,
   disconnectMetaConnectionAction,
+  updateMetaEventConfigAction,
   type MetaConnectionPublic,
 } from "@/domains/meta/actions"
 import { Plug, Unplug, RefreshCw, CheckCircle2, AlertCircle, Clock, Loader2 } from "lucide-react"
@@ -69,8 +70,25 @@ function ConnectionCard({
 }) {
   const [testPending, startTest] = useTransition()
   const [disconnectPending, startDisconnect] = useTransition()
+  const [configPending, startConfig] = useTransition()
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
+  const [sendLeadEvents, setSendLeadEvents] = useState(conn.sendLeadEvents)
+  const [sendContactEvents, setSendContactEvents] = useState(conn.sendContactEvents)
+
+  function handleToggleLeadEvents(checked: boolean) {
+    setSendLeadEvents(checked)
+    startConfig(async () => {
+      await updateMetaEventConfigAction(clientId, { sendLeadEvents: checked })
+    })
+  }
+
+  function handleToggleContactEvents(checked: boolean) {
+    setSendContactEvents(checked)
+    startConfig(async () => {
+      await updateMetaEventConfigAction(clientId, { sendContactEvents: checked })
+    })
+  }
 
   function handleTest() {
     setTestResult(null)
@@ -166,6 +184,31 @@ function ConnectionCard({
             Desconectar
           </button>
         )}
+      </div>
+
+      {/* Auto-event config */}
+      <div className="border-t border-zinc-800 pt-3 space-y-2">
+        <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Eventos automáticos</p>
+        <label className={`flex items-center gap-2.5 cursor-pointer ${configPending ? "opacity-60" : ""}`}>
+          <input
+            type="checkbox"
+            checked={sendLeadEvents}
+            onChange={(e) => handleToggleLeadEvents(e.target.checked)}
+            disabled={configPending}
+            className="h-3.5 w-3.5 rounded accent-indigo-500"
+          />
+          <span className="text-xs text-zinc-300">Enviar evento &ldquo;Lead&rdquo; al crear un lead</span>
+        </label>
+        <label className={`flex items-center gap-2.5 cursor-pointer ${configPending ? "opacity-60" : ""}`}>
+          <input
+            type="checkbox"
+            checked={sendContactEvents}
+            onChange={(e) => handleToggleContactEvents(e.target.checked)}
+            disabled={configPending}
+            className="h-3.5 w-3.5 rounded accent-indigo-500"
+          />
+          <span className="text-xs text-zinc-300">Enviar evento &ldquo;Contact&rdquo; al contactar un lead</span>
+        </label>
       </div>
     </div>
   )

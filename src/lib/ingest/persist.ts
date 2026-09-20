@@ -1,10 +1,12 @@
 import "server-only"
 
-import { eq } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { leads, webhookEvents, leadAttributionTouchpoints, leadActivities } from "@/lib/db/schema"
+import { leads, webhookEvents, leadAttributionTouchpoints, leadActivities, metaConnections, campaigns, metaEvents } from "@/lib/db/schema"
 import type { NormalizedLead } from "./normalize"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
+import { decryptTokenVersioned } from "@/lib/crypto"
+import { sendMetaEventDirect } from "@/lib/meta-outbox/worker"
 
 export interface PersistInput {
   credential: {
@@ -163,6 +165,63 @@ export async function persistLead(input: PersistInput): Promise<PersistResult> {
 
   // ─── 6. Auto-qualification (non-fatal, fire-and-forget) ───────────────────────
   autoQualifyLeadInternal(leadId, orgId, campaignId).catch(() => undefined)
+
+  // ─── 7. Lead CAPI event (non-fatal, fire-and-forget) ─────────────────────────
+  ;(async () => {
+    try {
+      // Get the campaign's clientId
+      const campaign = await db.query.campaigns.findFirst({
+        where: and(eq(campaigns.id, campaignId), eq(campaigns.orgId, orgId)),
+        columns: { clientId: true },
+      })
+      if (!campaign) return
+
+      // Look up active meta_connection with sendLeadEvents enabled
+      const conn = await db.query.metaConnections.findFirst({
+        where: and(
+          eq(metaConnections.clientId, campaign.clientId),
+          eq(metaConnections.orgId, orgId),
+          eq(metaConnections.status, "active"),
+          eq(metaConnections.sendLeadEvents, true),
+        ),
+      })
+      if (!conn?.pixelId || !conn.accessTokenEnc) return
+
+      // Create meta_event row
+      const eventId = `lead_${leadId}`
+      const [insertedEvent] = await db
+        .insert(metaEvents)
+        .values({
+          orgId,
+          leadId,
+          conversionId: null,
+          pixelId: conn.pixelId,
+          eventName: "Lead",
+          eventId,
+          payloadVersion: 1,
+          payload: {
+            event_name: "Lead",
+            event_id: eventId,
+            action_source: "website",
+            event_time: Math.floor(Date.now() / 1000),
+            // PII will be re-fetched by worker; payload is minimal for Lead events
+            user_data: {},
+          },
+          status: "pending",
+          attemptCount: 0,
+          nextAttemptAt: new Date(),
+        })
+        .onConflictDoNothing()
+        .returning({ id: metaEvents.id })
+
+      if (!insertedEvent) return
+
+      // Fire immediately — fire-and-forget
+      sendMetaEventDirect(insertedEvent.id, orgId).catch(() => undefined)
+    } catch {
+      // Non-fatal — swallow all errors
+    }
+  })().catch(() => undefined)
 
   return { kind: "created", leadId }
 }

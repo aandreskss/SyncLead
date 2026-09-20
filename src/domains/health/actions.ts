@@ -1,10 +1,11 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { metaEvents, importBatches, cronRuns } from "@/lib/db/schema"
-import { and, eq, inArray, lt } from "drizzle-orm"
-import { requireRole } from "@/lib/auth/server"
+import { metaEvents, importBatches, cronRuns, leads, campaigns } from "@/lib/db/schema"
+import { and, eq, inArray, lt, notLike } from "drizzle-orm"
+import { requireRole, requireClientAccess } from "@/lib/auth/server"
 import { writeAuditLog } from "@/lib/audit"
+import { getClientMetaEvents, type ClientMetaEventRow } from "./repository"
 
 const ADMIN_ROLES = ["owner", "admin"] as const
 
@@ -55,6 +56,89 @@ export async function retryFailedCapiEventsAction() {
   }).catch(() => undefined)
 
   return { success: true, count }
+}
+
+// ─── CAPI retry per client ────────────────────────────────────────────────────
+
+export async function retryFailedCapiForClientAction(
+  clientId: string
+): Promise<{ success: true; count: number } | { error: string }> {
+  let ctx
+  try {
+    ctx = await requireClientAccess(clientId)
+  } catch {
+    return { error: "No autorizado" }
+  }
+
+  // Get all leadIds in campaigns belonging to this client
+  const campaignRows = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.clientId, clientId), eq(campaigns.orgId, ctx.orgId)))
+
+  if (campaignRows.length === 0) return { success: true, count: 0 }
+  const campaignIds = campaignRows.map((c) => c.id)
+
+  const leadRows = await db
+    .select({ id: leads.id })
+    .from(leads)
+    .where(and(inArray(leads.campaignId, campaignIds), eq(leads.orgId, ctx.orgId)))
+
+  if (leadRows.length === 0) return { success: true, count: 0 }
+  const leadIds = leadRows.map((l) => l.id)
+
+  const now = new Date()
+
+  // Reset failed events — exclude permanent auth failures (code 190, 102)
+  const updated = await db
+    .update(metaEvents)
+    .set({
+      status: "pending",
+      attemptCount: 0,
+      nextAttemptAt: now,
+      lockedUntil: null,
+      lastError: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(metaEvents.orgId, ctx.orgId),
+        eq(metaEvents.status, "failed"),
+        inArray(metaEvents.leadId, leadIds),
+        notLike(metaEvents.lastError, "%code:190%"),
+        notLike(metaEvents.lastError, "%code:102%"),
+      )
+    )
+
+  const count = updated.rowCount ?? 0
+
+  writeAuditLog({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    actorType: "user",
+    action: "capi.retry_failed_client",
+    resourceType: "meta_events",
+    metadata: { clientId, count },
+  }).catch(() => undefined)
+
+  return { success: true, count }
+}
+
+// ─── CAPI event log action ────────────────────────────────────────────────────
+
+export async function getClientMetaEventsAction(
+  clientId: string,
+  limit?: number
+): Promise<{ data: ClientMetaEventRow[] } | { error: string }> {
+  let ctx
+  try {
+    ctx = await requireClientAccess(clientId)
+  } catch {
+    return { error: "No autorizado" }
+  }
+
+  const data = await getClientMetaEvents(ctx.orgId, clientId, limit ?? 50)
+  return { data }
 }
 
 // ─── Import retry ─────────────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ import { ClientLeadsTab } from "./_components/ClientLeadsTab"
 import { LeadSourcesPanel } from "./_components/LeadSourcesPanel"
 import { ScriptInstallPanel } from "./_components/ScriptInstallPanel"
 import { TrackingDashboard } from "./tracking/_components/TrackingDashboard"
+import { CapiLogPanel } from "./_components/CapiLogPanel"
 import { ArrowLeft, Building2 } from "lucide-react"
 import Link from "next/link"
 import type { LeadStage, Temperature } from "@/lib/db/schema"
@@ -135,6 +136,8 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       webhookVerifyToken: c.webhookVerifyToken ?? null,
       leadAdsEnabled: c.leadAdsEnabled,
       captureScriptKey: c.captureScriptKey ?? null,
+      sendLeadEvents: c.sendLeadEvents,
+      sendContactEvents: c.sendContactEvents,
     }))
     tabContent = (
       <LeadSourcesPanel clientId={id} metaConnections={publicConnections} />
@@ -173,6 +176,8 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       webhookVerifyToken: c.webhookVerifyToken ?? null,
       leadAdsEnabled: c.leadAdsEnabled,
       captureScriptKey: c.captureScriptKey ?? null,
+      sendLeadEvents: c.sendLeadEvents,
+      sendContactEvents: c.sendContactEvents,
     }))
 
     const publicInsightsConnections = insightsConnections.map((c) => ({
@@ -220,13 +225,17 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       getMetaConnectionsAction(id),
     ])
     tabContent = (
-      <TrackingDashboard
-        clientId={id}
-        sites={sitesResult.data ?? []}
-        definitions={definitionsResult.data ?? []}
-        issues={issuesResult.data ?? []}
-        metaConnections={metaConns}
-      />
+      <div className="space-y-6">
+        <TrackingDashboard
+          clientId={id}
+          sites={sitesResult.data ?? []}
+          definitions={definitionsResult.data ?? []}
+          issues={issuesResult.data ?? []}
+          metaConnections={metaConns}
+        />
+        <div className="border-t border-zinc-800" />
+        <CapiLogPanel clientId={id} />
+      </div>
     )
   }
 

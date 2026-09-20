@@ -16,6 +16,128 @@ function hashIfPresent(value: string | null | undefined): string[] {
   return [sha256(value)]
 }
 
+// ─── Lead event ───────────────────────────────────────────────────────────────
+
+export interface LeadEventParams {
+  pixelId: string
+  accessToken: string
+  graphApiVersion?: string
+  leadId: string
+  eventId: string
+  email?: string | null
+  phone?: string | null
+  name?: string | null
+  city?: string | null
+  fbc?: string | null
+  fbp?: string | null
+  ip?: string | null
+  userAgent?: string | null
+  sourceUrl?: string | null
+}
+
+export async function sendLeadEvent(params: LeadEventParams): Promise<{ sent: boolean; status: string }> {
+  const { pixelId, accessToken, leadId, eventId } = params
+  const apiVersion = params.graphApiVersion ?? getApiVersion()
+
+  const firstName = params.name?.split(" ")[0] ?? params.name
+
+  const userData: Record<string, unknown> = {
+    em: hashIfPresent(params.email),
+    ph: hashIfPresent(params.phone?.replace(/\D/g, "")),
+    fn: hashIfPresent(firstName),
+    ct: hashIfPresent(params.city),
+  }
+  if (params.fbc) userData.fbc = params.fbc
+  if (params.fbp) userData.fbp = params.fbp
+  if (params.ip) userData.client_ip_address = params.ip
+  if (params.userAgent) userData.client_user_agent = params.userAgent
+
+  const event: Record<string, unknown> = {
+    event_name: "Lead",
+    event_time: Math.floor(Date.now() / 1000),
+    event_id: eventId,
+    action_source: "website",
+    user_data: userData,
+  }
+  if (params.sourceUrl) event.event_source_url = params.sourceUrl
+
+  try {
+    const url = `${META_GRAPH_BASE}/${apiVersion}/${pixelId}/events`
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+      body: JSON.stringify({ data: [event] }),
+      signal: AbortSignal.timeout(15_000),
+    })
+    const json = await res.json() as { events_received?: number; error?: { code?: number } }
+    if (!res.ok) {
+      const code = json.error?.code
+      return { sent: false, status: `error:api_${code ?? "unknown"}` }
+    }
+    return { sent: true, status: `sent:${json.events_received ?? 1}` }
+  } catch (err) {
+    const message = err instanceof Error ? err.message.slice(0, 80) : "network_error"
+    return { sent: false, status: `fetch_error:${message}` }
+  }
+}
+
+// ─── Contact event ────────────────────────────────────────────────────────────
+
+export interface ContactEventParams {
+  pixelId: string
+  accessToken: string
+  graphApiVersion?: string
+  leadId: string
+  eventId: string
+  email?: string | null
+  phone?: string | null
+  name?: string | null
+  city?: string | null
+}
+
+export async function sendContactEvent(params: ContactEventParams): Promise<{ sent: boolean; status: string }> {
+  const { pixelId, accessToken, eventId } = params
+  const apiVersion = params.graphApiVersion ?? getApiVersion()
+
+  const firstName = params.name?.split(" ")[0] ?? params.name
+
+  const userData: Record<string, unknown> = {
+    em: hashIfPresent(params.email),
+    ph: hashIfPresent(params.phone?.replace(/\D/g, "")),
+    fn: hashIfPresent(firstName),
+    ct: hashIfPresent(params.city),
+  }
+
+  const event = {
+    event_name: "Contact",
+    event_time: Math.floor(Date.now() / 1000),
+    event_id: eventId,
+    action_source: "website",
+    user_data: userData,
+  }
+
+  try {
+    const url = `${META_GRAPH_BASE}/${apiVersion}/${pixelId}/events`
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+      body: JSON.stringify({ data: [event] }),
+      signal: AbortSignal.timeout(15_000),
+    })
+    const json = await res.json() as { events_received?: number; error?: { code?: number } }
+    if (!res.ok) {
+      const code = json.error?.code
+      return { sent: false, status: `error:api_${code ?? "unknown"}` }
+    }
+    return { sent: true, status: `sent:${json.events_received ?? 1}` }
+  } catch (err) {
+    const message = err instanceof Error ? err.message.slice(0, 80) : "network_error"
+    return { sent: false, status: `fetch_error:${message}` }
+  }
+}
+
+// ─── Purchase event ───────────────────────────────────────────────────────────
+
 export interface PurchaseEventParams {
   pixelId: string
   accessToken: string
