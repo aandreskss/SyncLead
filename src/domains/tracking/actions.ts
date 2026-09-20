@@ -26,6 +26,7 @@ import {
   getObservationsByDefinition,
   getIssuesByDefinition,
   computeDiagStatus,
+  createObservation,
 } from "./repository"
 import {
   CreateTrackingSiteSchema,
@@ -595,6 +596,54 @@ export async function scanTrackingSiteAction(
   }).catch(() => undefined)
 
   return { data: scanResult }
+}
+
+// ─── Simulate ────────────────────────────────────────────────────────────────
+
+export async function simulateObservationAction(input: {
+  clientId: string
+  conversionDefinitionId: string
+}): Promise<{ error?: string; data?: ConversionObservationPublic }> {
+  let ctx
+  try { ctx = await requireClientAccess(input.clientId) } catch { return { error: "No autorizado" } }
+
+  const def = await getConversionDefinitionById(input.conversionDefinitionId, ctx.orgId)
+  if (!def || def.clientId !== input.clientId) return { error: "Conversión no encontrada" }
+
+  const requiredParams: string[] = def.requiredParameters ?? []
+  const parametersPresent: Record<string, boolean> = Object.fromEntries(
+    requiredParams.map((p) => [p, true])
+  )
+  const validationResult: Record<string, unknown> = Object.fromEntries(
+    requiredParams.map((p) => [p, "present"])
+  )
+
+  const obs = await createObservation({
+    orgId: ctx.orgId,
+    clientId: input.clientId,
+    trackingSiteId: null,
+    conversionDefinitionId: def.id,
+    testSessionId: null,
+    source: "diagnostic_collector",
+    eventName: def.providerEventName,
+    eventIdHash: null,
+    pageUrl: "https://simulator.synclead/simulated",
+    environment: "production",
+    parametersPresent,
+    validationResult,
+  })
+
+  writeAuditLog({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    actorType: "user",
+    action: "tracking.observation.simulated",
+    resourceType: "conversion_definition",
+    resourceId: def.id,
+    metadata: { eventName: def.providerEventName },
+  }).catch(() => undefined)
+
+  return { data: toObservationPublic(obs) }
 }
 
 // ─── Issues ───────────────────────────────────────────────────────────────────
