@@ -209,6 +209,7 @@ export function ConversionList({ definitions, clientId }: Props) {
         <TestWizard
           definition={testWizardDef}
           clientId={clientId}
+          siteId={testWizardDef.trackingSiteId}
           onClose={() => setTestWizardDef(null)}
         />
       )}

@@ -6,6 +6,7 @@ import { getMetaConnectionsByClientId } from "@/domains/meta/repository"
 import { listSalesReps } from "@/domains/team/repository"
 import { getWaClientConfig, listMessageTemplates } from "@/domains/whatsapp/repository"
 import { getClientCapiStats } from "@/domains/health/repository"
+import { getTrackingSitesByClient } from "@/domains/tracking/repository"
 import { db } from "@/lib/db"
 import { metaConnections } from "@/lib/db/schema"
 import { and, eq, isNotNull } from "drizzle-orm"
@@ -28,6 +29,7 @@ import { ClientHubTabs } from "./_components/ClientHubTabs"
 import { ClientResumenTab } from "./_components/ClientResumenTab"
 import { ClientLeadsTab } from "./_components/ClientLeadsTab"
 import { LeadSourcesPanel } from "./_components/LeadSourcesPanel"
+import { ScriptInstallPanel } from "./_components/ScriptInstallPanel"
 import { TrackingDashboard } from "./tracking/_components/TrackingDashboard"
 import { ArrowLeft, Building2 } from "lucide-react"
 import Link from "next/link"
@@ -138,7 +140,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       <LeadSourcesPanel clientId={id} metaConnections={publicConnections} />
     )
   } else if (tab === "configuracion") {
-    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats] =
+    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats, trackingSitesData] =
       await Promise.all([
         getMetaConnectionsByClientId(id, ctx.orgId),
         listSalesReps(ctx.orgId, id),
@@ -152,6 +154,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
           ),
         }),
         getClientCapiStats(ctx.orgId, id),
+        getTrackingSitesByClient(ctx.orgId, id),
       ])
 
     const publicConnections = metaConnectionsList.map((c) => ({
@@ -197,6 +200,15 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         <WhatsAppConfigPanel clientId={client.id} initial={waConfig} />
         <div className="border-t border-zinc-800" />
         <MessageTemplatesPanel clientId={client.id} initialTemplates={templates} />
+        <div className="border-t border-zinc-800" />
+        <ScriptInstallPanel
+          sites={trackingSitesData.map((s) => ({
+            id: s.id,
+            name: s.name,
+            domain: s.domain,
+            collectToken: s.collectToken ?? null,
+          }))}
+        />
       </div>
     )
   } else {

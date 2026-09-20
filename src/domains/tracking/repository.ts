@@ -463,6 +463,64 @@ export async function acknowledgeIssue(id: string, orgId: string): Promise<void>
     .where(and(eq(conversionIssues.id, id), eq(conversionIssues.orgId, orgId)))
 }
 
+// ─── Permanent site-level collect token ──────────────────────────────────────
+
+/**
+ * Looks up a tracking site by its permanent collect token.
+ * Used by the collector endpoint as a fallback when no test session matches.
+ */
+export async function getTrackingSiteByCollectToken(
+  token: string
+): Promise<TrackingSite | null> {
+  const rows = await db
+    .select()
+    .from(trackingSites)
+    .where(eq(trackingSites.collectToken, token))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+/**
+ * Persists a newly generated collect token for a tracking site.
+ * Filtered by orgId to prevent cross-tenant writes.
+ */
+export async function setTrackingSiteCollectToken(
+  siteId: string,
+  orgId: string,
+  token: string
+): Promise<void> {
+  await db
+    .update(trackingSites)
+    .set({ collectToken: token, updatedAt: new Date() })
+    .where(and(eq(trackingSites.id, siteId), eq(trackingSites.orgId, orgId)))
+}
+
+/**
+ * Finds a conversion definition by its internalKey (event name) for a given site.
+ * Returns id + requiredParameters for validation in the collector endpoint.
+ */
+export async function getDefinitionByEventNameForSite(
+  siteId: string,
+  orgId: string,
+  eventName: string
+): Promise<{ id: string; requiredParameters: string[] | null } | null> {
+  const rows = await db
+    .select({
+      id: conversionDefinitions.id,
+      requiredParameters: conversionDefinitions.requiredParameters,
+    })
+    .from(conversionDefinitions)
+    .where(
+      and(
+        eq(conversionDefinitions.trackingSiteId, siteId),
+        eq(conversionDefinitions.orgId, orgId),
+        eq(conversionDefinitions.internalKey, eventName)
+      )
+    )
+    .limit(1)
+  return rows[0] ?? null
+}
+
 // ─── Status computation ───────────────────────────────────────────────────────
 
 /**
