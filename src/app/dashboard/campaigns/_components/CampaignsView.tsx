@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button"
 import { CampaignDialog } from "./CampaignDialog"
 import { ApiKeyModal } from "./ApiKeyModal"
 import { MultiScriptModal } from "./MultiScriptModal"
+import { UrlParamBuilderModal } from "./UrlParamBuilderModal"
 import { deleteCampaignAction, toggleCampaignActiveAction } from "@/domains/campaigns/actions"
 import type { Campaign, Client } from "@/lib/db/schema"
 import type { CampaignWithClient } from "@/domains/campaigns/repository"
 import Link from "next/link"
-import { Plus, Pencil, Trash2, Key, Megaphone, Users, Code2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Key, Megaphone, Users, Code2, Link2 } from "lucide-react"
 
 interface Props {
   campaigns: CampaignWithClient[]
@@ -30,6 +31,7 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
   const [editCampaign, setEditCampaign] = useState<Campaign | null>(null)
   const [apiKeyModal, setApiKeyModal] = useState<CampaignWithClient | null>(null)
   const [multiScriptOpen, setMultiScriptOpen] = useState(false)
+  const [urlBuilderOpen, setUrlBuilderOpen] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletePending, startDeleteTransition] = useTransition()
   const [togglePending, startToggleTransition] = useTransition()
@@ -70,6 +72,13 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
           <p className="text-sm text-zinc-400 mt-0.5">{orgName}</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setUrlBuilderOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 rounded-lg transition-colors"
+          >
+            <Link2 className="h-4 w-4" />
+            Parámetros de URL
+          </button>
           {campaigns.length > 0 && (
             <button
               onClick={() => setMultiScriptOpen(true)}
@@ -233,6 +242,11 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
         onOpenChange={setMultiScriptOpen}
         campaigns={campaigns}
         appUrl={appUrl}
+      />
+
+      <UrlParamBuilderModal
+        open={urlBuilderOpen}
+        onOpenChange={setUrlBuilderOpen}
       />
     </div>
   )
