@@ -85,6 +85,7 @@ export async function getPerformanceTable(
     .select({
       campaignId: campaigns.id,
       campaignName: campaigns.name,
+      metaAdsetName: sql<string>`coalesce(nullif(${leads.metaAdsetName}, ''), '(sin conjunto)')`,
       utmContent: sql<string>`coalesce(nullif(${leads.utmContent}, ''), '(sin anuncio)')`,
       totalLeads: sql<number>`cast(count(distinct ${leads.id}) as int)`,
       totalSales: sql<number>`cast(count(distinct ${conversions.id}) as int)`,
@@ -112,6 +113,7 @@ export async function getPerformanceTable(
     .groupBy(
       campaigns.id,
       campaigns.name,
+      sql`coalesce(nullif(${leads.metaAdsetName}, ''), '(sin conjunto)')`,
       sql`coalesce(nullif(${leads.utmContent}, ''), '(sin anuncio)')`,
     )
     .orderBy(desc(sql`count(distinct ${leads.id})`))
@@ -122,6 +124,7 @@ export async function getPerformanceTable(
     return {
       campaignId: r.campaignId,
       campaignName: r.campaignName,
+      metaAdsetName: r.metaAdsetName,
       utmContent: r.utmContent,
       totalLeads: tl,
       totalSales: ts,

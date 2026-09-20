@@ -13,6 +13,7 @@ export interface DashboardKPIs {
 export interface PerformanceRow {
   campaignId: string
   campaignName: string
+  metaAdsetName: string
   utmContent: string
   totalLeads: number
   totalSales: number
