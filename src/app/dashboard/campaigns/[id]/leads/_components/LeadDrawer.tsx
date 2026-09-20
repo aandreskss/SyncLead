@@ -498,19 +498,22 @@ export function LeadDrawer({ lead, open, onClose, whatsappNumbers, clientId, sal
 
   async function loadAll(leadId: string) {
     setLoading(true)
-    const [d, c, assign, msgs] = await Promise.all([
-      fetchLeadDetailAction(leadId),
-      fetchConversionStatusAction(leadId),
-      getLeadAssignmentAction(leadId),
-      getLeadWaMessagesAction(leadId),
-    ])
-    setDetail(d)
-    setNotes(d?.notes ?? "")
-    setNotesDirty(false)
-    setConversion(c)
-    setCurrentAssignment(assign)
-    setWaMessages(msgs)
-    setLoading(false)
+    try {
+      const [d, c, assign, msgs] = await Promise.all([
+        fetchLeadDetailAction(leadId),
+        fetchConversionStatusAction(leadId),
+        getLeadAssignmentAction(leadId),
+        getLeadWaMessagesAction(leadId),
+      ])
+      setDetail(d)
+      setNotes(d?.notes ?? "")
+      setNotesDirty(false)
+      setConversion(c)
+      setCurrentAssignment(assign)
+      setWaMessages(msgs)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function refreshWa(leadId: string) {
