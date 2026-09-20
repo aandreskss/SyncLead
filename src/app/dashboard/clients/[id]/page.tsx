@@ -64,17 +64,17 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     redirect("/login")
   }
 
-  const client = await getClientById(id, ctx.orgId)
+  const client = await getClientById(id, ctx.orgId).catch((e) => { console.error("[ClientPage] getClientById:", e); throw e })
   if (!client) notFound()
 
   let tabContent: React.ReactNode
 
   if (tab === "resumen") {
     const [campaigns, metaConn] = await Promise.all([
-      getCampaignsByClientWithCounts(id, ctx.orgId),
-      getMetaConnectionsByClientId(id, ctx.orgId),
+      getCampaignsByClientWithCounts(id, ctx.orgId).catch((e) => { console.error("[ClientPage/resumen] getCampaignsByClientWithCounts:", e); throw e }),
+      getMetaConnectionsByClientId(id, ctx.orgId).catch((e) => { console.error("[ClientPage/resumen] getMetaConnectionsByClientId:", e); throw e }),
     ])
-    const salesRepsData = await listSalesReps(ctx.orgId, id)
+    const salesRepsData = await listSalesReps(ctx.orgId, id).catch((e) => { console.error("[ClientPage/resumen] listSalesReps:", e); throw e })
     tabContent = (
       <ClientResumenTab
         client={client}
@@ -145,19 +145,19 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
   } else if (tab === "configuracion") {
     const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats, trackingSitesData] =
       await Promise.all([
-        getMetaConnectionsByClientId(id, ctx.orgId),
-        listSalesReps(ctx.orgId, id),
-        getWaClientConfig(id, ctx.orgId),
-        listMessageTemplates(ctx.orgId, id),
+        getMetaConnectionsByClientId(id, ctx.orgId).catch((e) => { console.error("[ClientPage/config] getMetaConnections:", e); throw e }),
+        listSalesReps(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] listSalesReps:", e); throw e }),
+        getWaClientConfig(id, ctx.orgId).catch((e) => { console.error("[ClientPage/config] getWaClientConfig:", e); throw e }),
+        listMessageTemplates(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] listMessageTemplates:", e); throw e }),
         db.query.metaConnections.findMany({
           where: and(
             eq(metaConnections.clientId, id),
             eq(metaConnections.orgId, ctx.orgId),
             isNotNull(metaConnections.adAccountId),
           ),
-        }),
-        getClientCapiStats(ctx.orgId, id),
-        getTrackingSitesByClient(ctx.orgId, id),
+        }).catch((e) => { console.error("[ClientPage/config] insightsConnections:", e); throw e }),
+        getClientCapiStats(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] getClientCapiStats:", e); throw e }),
+        getTrackingSitesByClient(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] getTrackingSites:", e); throw e }),
       ])
 
     const publicConnections = metaConnectionsList.map((c) => ({
