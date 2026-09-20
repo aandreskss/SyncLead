@@ -1,6 +1,130 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+
+/* ─── Signal Glass: tokens semánticos ─────────────────────────────────────────
+   Valores por defecto = tema oscuro (obsidiana). `.sg-ivory` los invierte para
+   las secciones editoriales en marfil. Nunca se usa color como único indicador. */
+:root {
+  --sg-bg: #0b0e17;
+  --sg-s1: #11151f;
+  --sg-s2: #171c28;
+  --sg-s3: #1e2432;
+  --sg-s4: #262d3d;
+  --sg-elev: #1b2130;
+  --sg-glass: rgba(23, 28, 40, 0.72);
+  --sg-border: #2a3142;
+  --sg-border-strong: #7a849c;
+  --sg-ink: #eef1f8;
+  --sg-muted: #a3adc2;
+  --sg-subtle: #8d97ad;
+  --sg-accent: #818cf8;
+  --sg-on-accent: #0b0e17;
+  --sg-cyan: #46cff5;
+  --sg-green: #57e8b0;
+  --sg-hot: #ff7f6e;
+  --sg-warm: #f7be55;
+  --sg-cold: #86b6ff;
+  --sg-danger: #ff6b93;
+  --sg-on-signal: #071018;
+  --sg-focus: #b4bcff;
+  --sg-raise: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 8px 24px rgb(0 0 0 / 0.35);
+  --sg-float: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 24px 64px rgb(0 0 0 / 0.55);
+  --sg-glow: 0 0 0 1px rgb(129 140 248 / 0.45), 0 0 32px rgb(129 140 248 / 0.25);
+  --sg-glow-green: 0 0 0 1px rgb(87 232 176 / 0.5), 0 0 40px rgb(87 232 176 / 0.28);
+
+  /* Motion */
+  --sg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sg-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --sg-spring: linear(0, 0.2 4%, 0.55 9%, 0.85 15%, 1.03 24%, 1.05 30%, 1.01 40%, 0.995 52%, 1);
+  --sg-dur-instant: 110ms;
+  --sg-dur-quick: 180ms;
+  --sg-dur-standard: 280ms;
+  --sg-dur-expressive: 520ms;
+}
+
+.sg-ivory {
+  --sg-bg: #f6f2ea;
+  --sg-s1: #fffdf9;
+  --sg-s2: #ffffff;
+  --sg-s3: #ece6da;
+  --sg-s4: #e0d8c8;
+  --sg-elev: #ffffff;
+  --sg-glass: rgba(255, 255, 255, 0.72);
+  --sg-border: #ddd5c6;
+  --sg-border-strong: #6f7690;
+  --sg-ink: #14172a;
+  --sg-muted: #4a5270;
+  --sg-subtle: #5a6280;
+  --sg-accent: #4f46e5;
+  --sg-on-accent: #ffffff;
+  --sg-cyan: #0b7290;
+  --sg-green: #0c7a55;
+  --sg-hot: #c2361f;
+  --sg-warm: #8a5600;
+  --sg-cold: #2a5db8;
+  --sg-danger: #b3204f;
+  --sg-on-signal: #ffffff;
+  --sg-focus: #2f3bc7;
+  --sg-raise: 0 1px 0 rgb(255 255 255 / 0.8) inset, 0 8px 24px rgb(20 23 42 / 0.1);
+  --sg-float: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 24px 64px rgb(20 23 42 / 0.18);
+  --sg-glow: 0 0 0 1px rgb(79 70 229 / 0.4), 0 0 24px rgb(79 70 229 / 0.18);
+  --sg-glow-green: 0 0 0 1px rgb(12 122 85 / 0.45), 0 0 28px rgb(12 122 85 / 0.2);
+  background-color: var(--sg-bg);
+  color: var(--sg-ink);
+}
+
+/* ─── Ámbito de la app (dashboard, auth, onboarding) ──────────────────────────
+   Re-mapea la paleta zinc/índigo/esmeralda/ámbar/azul de Tailwind a Signal Glass
+   solo dentro de `.sg-app`, de modo que las páginas heredadas de marketing (fondo
+   blanco) no cambian. Las utilidades de Tailwind v4 leen estas variables en
+   tiempo de ejecución. */
+.sg-app {
+  --color-zinc-50: #f6f7fb;
+  --color-zinc-100: #eef1f8;
+  --color-zinc-200: #dde2ef;
+  --color-zinc-300: #c5cce0;
+  --color-zinc-400: #a3adc2;
+  --color-zinc-500: #8d97ad;
+  --color-zinc-600: #7a849c;
+  --color-zinc-700: #2a3142;
+  --color-zinc-800: #1e2432;
+  --color-zinc-900: #11151f;
+  --color-zinc-950: #0b0e17;
+  --color-emerald-300: #8af0c6;
+  --color-emerald-400: #57e8b0;
+  --color-amber-400: #f7be55;
+  --color-blue-400: #86b6ff;
+
+  --background: 225 35.3% 6.7%;
+  --foreground: 222 41.7% 95.3%;
+  --card: 222.9 29.2% 9.4%;
+  --card-foreground: 222 41.7% 95.3%;
+  --popover: 222.4 27% 12.4%;
+  --popover-foreground: 222 41.7% 95.3%;
+  --primary: 234.5 89.5% 73.9%;
+  --primary-foreground: 225 35.3% 6.7%;
+  --secondary: 222.4 27% 12.4%;
+  --secondary-foreground: 222 41.7% 95.3%;
+  --muted: 222.4 27% 12.4%;
+  --muted-foreground: 220.6 20.3% 70%;
+  --accent: 223 26% 19%;
+  --accent-foreground: 222 41.7% 95.3%;
+  --destructive: 343.8 100% 71%;
+  --destructive-foreground: 208.2 54.8% 6.1%;
+  --border: 222.5 22.2% 21.2%;
+  --input: 223 15% 48%;
+  --ring: 233.6 100% 85.3%;
+  --radius: 0.75rem;
+  --brand: 234.5 89.5% 73.9%;
+  --brand-foreground: 225 35.3% 6.7%;
+  --hot: 7 100% 71.6%;
+  --warm: 38.9 91% 65.1%;
+  --cold: 216.2 100% 76.3%;
+
+  color-scheme: dark;
+}
+
 /* ─── shadcn/ui CSS variables (zinc base) ─────────────────────────────────── */
 
 :root {
@@ -63,6 +187,29 @@
 }
 
 @theme inline {
+  --color-sg-bg: var(--sg-bg);
+  --color-sg-s1: var(--sg-s1);
+  --color-sg-s2: var(--sg-s2);
+  --color-sg-s3: var(--sg-s3);
+  --color-sg-s4: var(--sg-s4);
+  --color-sg-elev: var(--sg-elev);
+  --color-sg-border: var(--sg-border);
+  --color-sg-border-strong: var(--sg-border-strong);
+  --color-sg-ink: var(--sg-ink);
+  --color-sg-muted: var(--sg-muted);
+  --color-sg-subtle: var(--sg-subtle);
+  --color-sg-accent: var(--sg-accent);
+  --color-sg-on-accent: var(--sg-on-accent);
+  --color-sg-cyan: var(--sg-cyan);
+  --color-sg-green: var(--sg-green);
+  --color-sg-hot: var(--sg-hot);
+  --color-sg-warm: var(--sg-warm);
+  --color-sg-cold: var(--sg-cold);
+  --color-sg-danger: var(--sg-danger);
+  --color-sg-on-signal: var(--sg-on-signal);
+  --shadow-sg-raise: var(--sg-raise);
+  --shadow-sg-float: var(--sg-float);
+  --shadow-sg-glow: var(--sg-glow);
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));
@@ -101,4 +248,161 @@
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+}
+
+/* ─── Utilidades Signal Glass ─────────────────────────────────────────────── */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--sg-focus);
+  outline-offset: 2px;
+}
+
+.sg-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.sg-glass {
+  background-color: var(--sg-glass);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.sg-press {
+  transition: transform var(--sg-dur-instant) var(--sg-ease);
+}
+.sg-press:active {
+  transform: scale(0.98);
+}
+
+@keyframes sg-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sg-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes sg-pop {
+  from { opacity: 0; transform: scale(0.97) translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sg-halo {
+  0% { box-shadow: inset 0 0 0 2px var(--sg-accent); }
+  100% { box-shadow: inset 0 0 0 2px transparent; }
+}
+@keyframes sg-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes sg-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes sg-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes sg-hop {
+  0% { left: 0; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: calc(100% - 10px); opacity: 0; }
+}
+@keyframes sg-travel {
+  0% { offset-distance: 0%; opacity: 0; }
+  5% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+@keyframes sg-ring {
+  0%, 88% { opacity: 0; transform: scale(0.8); }
+  94% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* Entrada escalonada: hijos con --i (0..n). Solo transform y opacity. */
+.sg-rise {
+  animation: sg-rise var(--sg-dur-expressive) var(--sg-ease) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+.sg-halo {
+  animation: sg-halo 2s var(--sg-ease) 1;
+}
+
+/* Movimiento ambiental y de recorrido: solo mientras el bloque está visible
+   (el cliente añade `data-inview`). Sin él, el estado final queda estático. */
+.sg-signal[data-inview="false"] * {
+  animation-play-state: paused !important;
+}
+
+/* Diálogos, hojas y scrim: propiedades individuales (scale/translate/opacity)
+   que se componen con el `transform` de posicionamiento de Radix. */
+@keyframes sg-scrim-in { from { opacity: 0; } }
+@keyframes sg-scrim-out { to { opacity: 0; } }
+@keyframes sg-dialog-in { from { opacity: 0; scale: 0.97; translate: 0 12px; } }
+@keyframes sg-dialog-out { to { opacity: 0; scale: 0.97; } }
+@keyframes sg-sheet-in { from { opacity: 0; translate: 32px 0; } }
+@keyframes sg-sheet-out { to { opacity: 0; translate: 36px 0; } }
+.sg-scrim[data-state="open"] { animation: sg-scrim-in var(--sg-dur-quick) var(--sg-ease); }
+.sg-scrim[data-state="closed"] { animation: sg-scrim-out 160ms var(--sg-ease-in) forwards; }
+.sg-dialog[data-state="open"] { animation: sg-dialog-in 320ms var(--sg-ease); }
+.sg-dialog[data-state="closed"] { animation: sg-dialog-out 160ms var(--sg-ease-in) forwards; }
+.sg-sheet[data-state="open"] { animation: sg-sheet-in 360ms var(--sg-ease); }
+.sg-sheet[data-state="closed"] { animation: sg-sheet-out 200ms var(--sg-ease-in) forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .sg-travel {
+    offset-distance: 100% !important;
+    opacity: 1 !important;
+  }
+}
+
+/* ─── Landing (Signal Glass) ──────────────────────────────────────────────── */
+.lp-reveal {
+  transition:
+    opacity var(--sg-dur-expressive) var(--sg-ease),
+    transform var(--sg-dur-expressive) var(--sg-ease);
+  transition-delay: var(--lp-delay, 0ms);
+}
+.lp-reveal[data-shown="false"] {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.lp-grid-bg {
+  background-image:
+    linear-gradient(to right, rgb(129 140 248 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(129 140 248 / 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+}
+.lp-line {
+  background: linear-gradient(90deg, var(--sg-border), var(--sg-accent), var(--sg-border));
+  background-size: 200% 100%;
+}
+.lp-pulse-dot {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 9999px;
+  background: var(--sg-cyan);
+  box-shadow: 0 0 14px var(--sg-cyan);
+  animation: sg-hop 3.6s var(--sg-ease) infinite;
+  animation-delay: calc(var(--i, 0) * 900ms);
+}
+.lp-ring {
+  animation: sg-ring 3.6s var(--sg-ease) infinite;
+  animation-delay: calc(var(--i, 0) * 900ms + 2600ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-reveal[data-shown="false"] { opacity: 1; transform: none; }
+  .lp-pulse-dot { left: calc(50% - 5px); opacity: 1; animation: none; }
+  .lp-ring { opacity: 0; animation: none; }
 }

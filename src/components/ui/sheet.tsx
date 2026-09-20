@@ -16,7 +16,7 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/50 backdrop-blur-sm", className)}
+    className={cn("sg-scrim fixed inset-0 z-50 bg-[rgb(4_6_12/0.66)]", className)}
     {...props}
   />
 ))
@@ -31,16 +31,16 @@ const SheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 inset-y-0 right-0 h-full w-full sm:max-w-xl",
-        "flex flex-col bg-zinc-900 border-l border-zinc-700 shadow-2xl",
+        "sg-app sg-sheet fixed z-50 inset-y-0 right-0 h-full w-full sm:max-w-xl",
+        "flex flex-col bg-sg-elev text-sg-ink border-l border-sg-border shadow-sg-float sm:rounded-l-3xl",
         "focus:outline-none",
         className
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors">
-        <X className="h-4 w-4" />
+      <DialogPrimitive.Close className="sg-press absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-xl text-sg-muted transition-colors hover:bg-sg-s3 hover:text-sg-ink">
+        <X className="h-4 w-4" aria-hidden="true" />
         <span className="sr-only">Cerrar</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -49,7 +49,7 @@ const SheetContent = React.forwardRef<
 SheetContent.displayName = "SheetContent"
 
 function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("px-6 py-4 border-b border-zinc-800", className)} {...props} />
+  return <div className={cn("px-6 py-4 border-b border-sg-border", className)} {...props} />
 }
 
 function SheetTitle({
@@ -58,7 +58,7 @@ function SheetTitle({
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn("text-base font-semibold text-zinc-100 pr-8", className)}
+      className={cn("text-lg font-semibold tracking-tight text-sg-ink pr-12", className)}
       {...props}
     />
   )
