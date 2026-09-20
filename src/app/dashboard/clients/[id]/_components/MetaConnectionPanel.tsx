@@ -39,6 +39,25 @@ function formatTs(d: Date | null): string {
   }).format(new Date(d))
 }
 
+function translateTestError(status: string): string {
+  if (status === "invalid_token") return "Token inválido o revocado — regenera el token en Meta Business"
+  if (status === "network_error") return "Error de red — Meta no respondió"
+  if (status === "decrypt_error") return "Error interno al descifrar el token"
+  if (status === "not_found") return "Conexión no encontrada"
+  if (status === "no_credentials") return "Sin credenciales configuradas"
+  // api_error:CODE — traducir códigos Meta comunes
+  const match = status.match(/^api_error:(\d+)$/)
+  if (match) {
+    const code = Number(match[1])
+    if (code === 100) return "Parámetro inválido (código 100) — verifica el Pixel ID"
+    if (code === 200 || code === 273) return "Sin permiso CAPI en este Pixel (código " + code + ") — el token no tiene acceso de envío"
+    if (code === 190) return "Token expirado (código 190)"
+    if (code === 102) return "Token revocado (código 102)"
+    return `Error de Meta API (código ${code}) — verifica permisos del token`
+  }
+  return status
+}
+
 function ConnectionCard({
   conn,
   clientId,
@@ -57,7 +76,12 @@ function ConnectionCard({
     setTestResult(null)
     startTest(async () => {
       const r = await testMetaConnectionAction(conn.id, clientId)
-      setTestResult(r.sent ? `Enviado (${r.status})` : `Fallo: ${r.status}`)
+      if (r.sent) {
+        setTestResult(`ok:Evento enviado correctamente`)
+      } else {
+        const label = translateTestError(r.status)
+        setTestResult(`err:${label}`)
+      }
       onDone()
     })
   }
@@ -86,8 +110,8 @@ function ConnectionCard({
           </p>
           {conn.lastError && (
             <p className="text-xs text-red-400 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {conn.lastError}
+              <AlertCircle className="h-3 w-3 shrink-0" />
+              {translateTestError(conn.lastError)}
             </p>
           )}
           {conn.scopes.length > 0 && (
@@ -99,8 +123,8 @@ function ConnectionCard({
       </div>
 
       {testResult && (
-        <p className={`text-xs px-2 py-1 rounded ${testResult.startsWith("Enviado") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
-          {testResult}
+        <p className={`text-xs px-2 py-1 rounded ${testResult.startsWith("ok:") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
+          {testResult.startsWith("ok:") ? testResult.slice(3) : testResult.startsWith("err:") ? testResult.slice(4) : testResult}
         </p>
       )}
 

@@ -76,12 +76,17 @@ export async function sendTestLeadEvent(
   const apiVersion = graphApiVersion ?? process.env.META_GRAPH_API_VERSION ?? "v19.0"
   const testEventCode = process.env.META_TEST_EVENT_CODE
 
+  // Meta CAPI requires at least one user_data field — use a synthetic SHA-256 hash
+  // of a fixed test address so the test event always passes validation.
+  const emBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("test@synclead.test"))
+  const emHash = Array.from(new Uint8Array(emBytes)).map(b => b.toString(16).padStart(2, "0")).join("")
+
   const event = {
     event_name: "Lead",
     event_time: Math.floor(Date.now() / 1000),
     event_id: `test_${crypto.randomUUID()}`,
     action_source: "website",
-    user_data: {},
+    user_data: { em: [emHash] },
   }
 
   try {
@@ -96,11 +101,12 @@ export async function sendTestLeadEvent(
       },
       body: JSON.stringify(body),
     })
-    const json = await res.json() as { events_received?: number; error?: { code?: number } }
+    const json = await res.json() as { events_received?: number; error?: { code?: number; message?: string } }
     if (!res.ok) {
       const code = json.error?.code
       if (code === 190 || code === 102) return { sent: false, status: "invalid_token" }
-      return { sent: false, status: "api_error" }
+      // Return the actual Meta error code so it appears in lastError and the UI
+      return { sent: false, status: `api_error:${code ?? res.status}` }
     }
     return { sent: true, status: `sent:${json.events_received ?? 1}` }
   } catch {
