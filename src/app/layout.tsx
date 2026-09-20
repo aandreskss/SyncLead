@@ -15,7 +15,7 @@ const inter = Inter({
   subsets: ["latin"],
 })
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://synclead.app"
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://synclead.app"
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),

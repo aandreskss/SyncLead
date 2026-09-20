@@ -192,7 +192,7 @@ const softwareAppLd = {
   operatingSystem: "Web",
   description:
     "CRM de leads para anunciantes de Meta Ads. Captura leads en tiempo real, gestiona etapas en kanban, asigna a WhatsApp y notifica conversiones con Meta CAPI.",
-  url: process.env.NEXT_PUBLIC_APP_URL ?? "https://synclead.app",
+  url: process.env.NEXT_PUBLIC_APP_URL || "https://synclead.app",
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
 }
 

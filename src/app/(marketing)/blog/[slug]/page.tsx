@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = getPostBySlug(slug)
   if (!post) return { title: "Artículo no encontrado — SyncLead" }
 
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://synclead.app"
+  const base = process.env.NEXT_PUBLIC_APP_URL || "https://synclead.app"
   return {
     title: `${post.title} — Blog SyncLead`,
     description: post.description,
@@ -46,7 +46,7 @@ export default async function BlogPostPage({ params }: Props) {
   const post = getPostBySlug(slug)
   if (!post) notFound()
 
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://synclead.app"
+  const base = process.env.NEXT_PUBLIC_APP_URL || "https://synclead.app"
 
   const articleLd = {
     "@context": "https://schema.org",
