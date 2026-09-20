@@ -1,6 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
+import { useRouter } from "next/navigation"
 import type { HealthSnapshot } from "@/domains/health/repository"
 import {
   retryFailedCapiEventsAction,
@@ -288,9 +289,56 @@ function CronHistoryCard({
   )
 }
 
+// ─── Client Filter ────────────────────────────────────────────────────────────
+
+function ClientFilter({
+  clients,
+  selectedClientId,
+}: {
+  clients: { id: string; name: string }[]
+  selectedClientId?: string
+}) {
+  const router = useRouter()
+
+  function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const val = e.target.value
+    const url = val ? `/dashboard/health?clientId=${val}` : "/dashboard/health"
+    router.push(url)
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <label className="text-xs text-zinc-500 shrink-0">Filtrar por cliente:</label>
+      <select
+        value={selectedClientId ?? ""}
+        onChange={handleChange}
+        className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+      >
+        <option value="">Toda la organización</option>
+        {clients.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+      {selectedClientId && (
+        <span className="text-xs text-amber-400 bg-amber-900/20 border border-amber-800/40 px-2 py-0.5 rounded">
+          Vista filtrada
+        </span>
+      )}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function HealthDashboard({ snapshot }: { snapshot: HealthSnapshot }) {
+export default function HealthDashboard({
+  snapshot,
+  clients,
+  selectedClientId,
+}: {
+  snapshot: HealthSnapshot
+  clients: { id: string; name: string }[]
+  selectedClientId?: string
+}) {
   const [isPending, startTransition] = useTransition()
 
   function handleCapiRetry() {
@@ -316,6 +364,7 @@ export default function HealthDashboard({ snapshot }: { snapshot: HealthSnapshot
 
   return (
     <div className="grid gap-4">
+      <ClientFilter clients={clients} selectedClientId={selectedClientId} />
       <DbCard db={snapshot.db} />
       <MetaConnectionsCard connections={snapshot.metaConnections} />
       <CapiQueueCard
