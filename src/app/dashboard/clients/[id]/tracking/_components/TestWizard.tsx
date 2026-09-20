@@ -6,7 +6,7 @@ import { startTestSessionAction, pollTestSessionAction } from "@/domains/trackin
 import { Button } from "@/components/ui/button"
 import { X, Copy, CheckCircle2, Loader2, AlertCircle, ExternalLink } from "lucide-react"
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.synclead.com"
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.synclead.com"
 
 type WizardStep = "select_url" | "start_session" | "instructions" | "waiting" | "result"
 
