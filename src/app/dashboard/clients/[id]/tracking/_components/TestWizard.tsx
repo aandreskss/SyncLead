@@ -46,7 +46,7 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function buildDiagnosticScript(token: string): string {
+function buildDiagnosticScript(token: string, eventName: string): string {
   const collector = `${APP_URL}/api/collect/${token}`
   return `// Colocar antes del cierre </body>
 (function() {
@@ -65,6 +65,8 @@ function buildDiagnosticScript(token: string): string {
     });
   }
   window.__synclead_collect = send;
+  // Dispara el evento de diagnóstico al cargar la página
+  send("${eventName}");
 })();`
 }
 
@@ -194,7 +196,7 @@ export function TestWizard({ definition, clientId, onClose }: Props) {
     }
   }
 
-  const diagnosticScript = publicToken ? buildDiagnosticScript(publicToken) : ""
+  const diagnosticScript = publicToken ? buildDiagnosticScript(publicToken, definition.providerEventName) : ""
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -306,18 +308,24 @@ export function TestWizard({ definition, clientId, onClose }: Props) {
                 </pre>
               </div>
 
-              <div className="rounded border border-blue-900 bg-blue-950 px-4 py-3 text-sm text-blue-300">
-                <strong className="text-blue-200">Instrucción:</strong> Agrega el script al HTML de{" "}
-                <a
-                  href={targetUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline inline-flex items-center gap-1"
-                >
-                  esta URL <ExternalLink className="h-3.5 w-3.5" />
-                </a>{" "}
-                antes del cierre{" "}<code className="text-blue-200">&lt;/body&gt;</code> y realiza la acción de{" "}
-                <strong className="text-blue-200">{definition.displayName}</strong>.
+              <div className="rounded border border-blue-900 bg-blue-950 px-4 py-3 text-sm text-blue-300 space-y-1.5">
+                <p>
+                  <strong className="text-blue-200">Instrucción:</strong> Agrega el script al HTML de{" "}
+                  <a
+                    href={targetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline inline-flex items-center gap-1"
+                  >
+                    esta URL <ExternalLink className="h-3.5 w-3.5" />
+                  </a>{" "}
+                  antes del cierre{" "}<code className="text-blue-200">&lt;/body&gt;</code>.
+                </p>
+                <p>
+                  El script dispara <code className="text-blue-200">{definition.providerEventName}</code>{" "}
+                  automáticamente al cargar la página — recarga la URL después de instalarlo y haz clic en{" "}
+                  <strong className="text-blue-200">Listo, esperando evento</strong>.
+                </p>
               </div>
 
               <div className="flex justify-end gap-2">
