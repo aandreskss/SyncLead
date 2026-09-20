@@ -38,20 +38,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await db.query.users.findFirst({
-          where: eq(users.email, credentials.email as string),
-        })
+        try {
+          const user = await db.query.users.findFirst({
+            where: eq(users.email, credentials.email as string),
+          })
 
-        if (!user?.password) return null
+          if (!user?.password) return null
 
-        const valid = await compare(credentials.password as string, user.password)
-        if (!valid) return null
+          const valid = await compare(credentials.password as string, user.password)
+          if (!valid) return null
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+          }
+        } catch (error) {
+          console.error("[authorize]", error instanceof Error ? error.message : String(error))
+          return null
         }
       },
     }),
