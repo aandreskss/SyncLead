@@ -8,13 +8,20 @@ import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { compare } from "bcryptjs"
 
+// DrizzleAdapter inspeciona o db no nível de módulo (getPrototypeOf, has…).
+// Sem DATABASE_URL (ex: build time) deixamos o adapter undefined —
+// JWT strategy não precisa do adapter para validar sessões.
+const adapter = process.env.DATABASE_URL
+  ? DrizzleAdapter(db, {
+      usersTable: users,
+      accountsTable: accounts,
+      sessionsTable: sessions,
+      verificationTokensTable: verificationTokens,
+    })
+  : undefined
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  adapter,
   // JWT strategy: session data is encoded in the cookie so the middleware
   // can read it without a DB round-trip on every request.
   session: { strategy: "jwt" },

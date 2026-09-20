@@ -16,10 +16,24 @@ function getInstance(): Db {
   return _db
 }
 
-// Proxy para lazy init: neon() no se llama hasta la primera query,
-// lo que permite que el módulo se importe durante el build sin DATABASE_URL.
+// Proxy totalmente transparente: delega get, has, prototype, ownKeys y
+// getOwnPropertyDescriptor al singleton real para que DrizzleAdapter y
+// cualquier inspector de tipos reciba la instancia correcta.
+// neon() solo se llama en la primera query, no al importar el módulo.
 export const db: Db = new Proxy({} as Db, {
   get(_, prop) {
     return Reflect.get(getInstance(), prop)
+  },
+  has(_, prop) {
+    return Reflect.has(getInstance(), prop)
+  },
+  getPrototypeOf(_) {
+    return Reflect.getPrototypeOf(getInstance())
+  },
+  ownKeys(_) {
+    return Reflect.ownKeys(getInstance())
+  },
+  getOwnPropertyDescriptor(_, prop) {
+    return Reflect.getOwnPropertyDescriptor(getInstance(), prop)
   },
 })
