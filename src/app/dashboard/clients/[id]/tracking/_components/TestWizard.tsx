@@ -46,13 +46,18 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function buildDiagnosticScript(token: string, eventName: string): string {
+function buildDiagnosticScript(token: string): string {
   const collector = `${APP_URL}/api/collect/${token}`
-  return `// Colocar antes del cierre </body>
+  return `// Script de diagnóstico SyncLead — colocar antes del cierre </body>
+// Intercepta fbq('track') automáticamente. Solo reporta cuando la conversión real ocurre.
 (function() {
-  var token = "${token}";
   var collector = "${collector}";
-  function send(eventName, params) {
+
+  function sendToDiagnostic(eventName, params) {
+    var boolParams = {};
+    if (params && typeof params === "object") {
+      Object.keys(params).forEach(function(k) { boolParams[k] = true; });
+    }
     fetch(collector, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -60,13 +65,38 @@ function buildDiagnosticScript(token: string, eventName: string): string {
         eventName: eventName,
         pageUrl: window.location.href,
         environment: "production",
-        parameters: params || {}
+        parameters: boolParams
       })
     });
   }
-  window.__synclead_collect = send;
-  // Dispara el evento de diagnóstico al cargar la página
-  send("${eventName}");
+
+  // API manual: window.__synclead_collect("Purchase", { value: true, currency: true })
+  window.__synclead_collect = sendToDiagnostic;
+
+  // Intercepta llamadas reales a fbq('track') / fbq('trackCustom')
+  function wrapFbq(original) {
+    return function() {
+      var args = Array.prototype.slice.call(arguments);
+      if (args[0] === "track" || args[0] === "trackCustom") {
+        sendToDiagnostic(args[1], args[2] || {});
+      }
+      return original.apply(this, arguments);
+    };
+  }
+
+  if (typeof window.fbq === "function") {
+    window.fbq = wrapFbq(window.fbq);
+  } else {
+    Object.defineProperty(window, "fbq", {
+      configurable: true,
+      set: function(val) {
+        Object.defineProperty(window, "fbq", {
+          configurable: true, writable: true,
+          value: typeof val === "function" ? wrapFbq(val) : val
+        });
+      }
+    });
+  }
 })();`
 }
 
@@ -196,7 +226,7 @@ export function TestWizard({ definition, clientId, onClose }: Props) {
     }
   }
 
-  const diagnosticScript = publicToken ? buildDiagnosticScript(publicToken, definition.providerEventName) : ""
+  const diagnosticScript = publicToken ? buildDiagnosticScript(publicToken) : ""
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -308,9 +338,9 @@ export function TestWizard({ definition, clientId, onClose }: Props) {
                 </pre>
               </div>
 
-              <div className="rounded border border-blue-900 bg-blue-950 px-4 py-3 text-sm text-blue-300 space-y-1.5">
+              <div className="rounded border border-blue-900 bg-blue-950 px-4 py-3 text-sm text-blue-300 space-y-2">
                 <p>
-                  <strong className="text-blue-200">Instrucción:</strong> Agrega el script al HTML de{" "}
+                  <strong className="text-blue-200">1.</strong> Agrega el script al HTML de{" "}
                   <a
                     href={targetUrl}
                     target="_blank"
@@ -319,12 +349,18 @@ export function TestWizard({ definition, clientId, onClose }: Props) {
                   >
                     esta URL <ExternalLink className="h-3.5 w-3.5" />
                   </a>{" "}
-                  antes del cierre{" "}<code className="text-blue-200">&lt;/body&gt;</code>.
+                  antes del cierre <code className="text-blue-200">&lt;/body&gt;</code>.
                 </p>
                 <p>
-                  El script dispara <code className="text-blue-200">{definition.providerEventName}</code>{" "}
-                  automáticamente al cargar la página — recarga la URL después de instalarlo y haz clic en{" "}
-                  <strong className="text-blue-200">Listo, esperando evento</strong>.
+                  <strong className="text-blue-200">2.</strong>{" "}
+                  {definition.triggerType === "page_load" && "Recarga la página. El evento se detectará cuando tu pixel de Meta dispare al cargar."}
+                  {definition.triggerType === "form_submit" && "Completa y envía el formulario real. El evento se detectará cuando el pixel confirme el envío."}
+                  {definition.triggerType === "element_click" && "Haz clic en el elemento de conversión. El evento se detectará cuando el pixel lo capture."}
+                  {definition.triggerType === "ecommerce_event" && "Completa una transacción de prueba. El evento se detectará cuando el pixel confirme la compra."}
+                  {!["page_load","form_submit","element_click","ecommerce_event"].includes(definition.triggerType) && `Realiza la acción de conversión real. El evento se detectará cuando fbq('track', '${definition.providerEventName}') se dispare.`}
+                </p>
+                <p className="text-blue-300/60 text-xs">
+                  El script intercepta llamadas reales a <code>fbq('track')</code> — no dispara por sí solo. Si tu pixel no está instalado, llama <code>window.__synclead_collect</code> manualmente.
                 </p>
               </div>
 
