@@ -55,7 +55,11 @@ export async function addMemberAction(
   let tempPassword: string | undefined
 
   if (!user) {
-    tempPassword = randomBytes(8).toString("hex")
+    const providedPassword = (formData.get("password") as string | null)?.trim() ?? ""
+    if (providedPassword.length > 0 && providedPassword.length < 8) {
+      return { error: "La contraseña debe tener al menos 8 caracteres." }
+    }
+    tempPassword = providedPassword.length >= 8 ? providedPassword : randomBytes(8).toString("hex")
     const passwordHash = await hash(tempPassword, 12)
     const [created] = await db
       .insert(users)

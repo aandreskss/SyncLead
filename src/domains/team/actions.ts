@@ -25,6 +25,7 @@ import { requireCampaignAccess } from "@/lib/auth/server"
 import { db } from "@/lib/db"
 import { leads } from "@/lib/db/schema"
 import { and, eq } from "drizzle-orm"
+import { sendLeadAssignmentEmail } from "@/lib/email"
 
 // ─── Sales Reps ───────────────────────────────────────────────────────────────
 
@@ -101,9 +102,16 @@ export async function assignLeadAction(input: unknown) {
   const parsed = AssignLeadSchema.safeParse(input)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" }
 
-  // Verify lead belongs to org
+  // Verify lead belongs to org (also fetch fields needed for email notification)
   const [lead] = await db
-    .select({ id: leads.id, campaignId: leads.campaignId })
+    .select({
+      id: leads.id,
+      campaignId: leads.campaignId,
+      name: leads.name,
+      phone: leads.phone,
+      email: leads.email,
+      metaCampaignName: leads.metaCampaignName,
+    })
     .from(leads)
     .where(and(eq(leads.id, parsed.data.leadId), eq(leads.orgId, ctx.orgId)))
     .limit(1)
@@ -141,6 +149,27 @@ export async function assignLeadAction(input: unknown) {
       parsed.data.reason,
       parsed.data.note,
     )
+
+    // Fire-and-forget email notification to the assigned rep
+    if (parsed.data.salesRepId) {
+      const rep = await getSalesRep(parsed.data.salesRepId, ctx.orgId)
+      if (rep?.email) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
+        const leadUrl = `${appUrl}/dashboard/campaigns/${lead.campaignId}/leads?open=${lead.id}`
+        sendLeadAssignmentEmail({
+          to: rep.email,
+          repName: rep.displayName,
+          lead: {
+            name: lead.name,
+            phone: lead.phone,
+            email: lead.email,
+            metaCampaignName: lead.metaCampaignName,
+          },
+          dashboardUrl: leadUrl,
+        }).catch(() => undefined)
+      }
+    }
+
     return { data: assignment }
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Error al asignar" }

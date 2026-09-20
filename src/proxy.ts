@@ -43,8 +43,7 @@ export default auth((req) => {
   const isAuthenticated = !!req.auth
   const { pathname } = req.nextUrl
 
-  const isProtected =
-    pathname.startsWith("/dashboard") || pathname.startsWith("/onboarding")
+  const isProtected = pathname.startsWith("/dashboard")
   const isAuthRoute = pathname === "/login" || pathname === "/register"
 
   if (isProtected && !isAuthenticated) {
