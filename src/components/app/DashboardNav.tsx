@@ -10,6 +10,7 @@ import {
   Megaphone,
   ShieldCheck,
   Upload,
+  Users,
 } from "lucide-react"
 import type { ComponentType, SVGProps } from "react"
 import { cn } from "@/lib/utils"
@@ -29,6 +30,7 @@ const ITEMS: NavItem[] = [
   { href: "/dashboard/funnels", label: "Embudos", icon: Funnel },
   { href: "/dashboard/import", label: "Importar", icon: Upload },
   { href: "/dashboard/health", label: "Salud", icon: ShieldCheck, adminOnly: true },
+  { href: "/dashboard/settings/team", label: "Equipo", icon: Users, adminOnly: true },
 ]
 
 function isActive(pathname: string, href: string) {
