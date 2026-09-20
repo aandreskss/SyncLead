@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { users } from "@/lib/db/schema"
+import { users, orgMembers } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { hash } from "bcryptjs"
 import { signIn } from "@/auth"
@@ -9,6 +9,8 @@ import { AuthError } from "next-auth"
 import { Ratelimit } from "@upstash/ratelimit"
 import { getRedis } from "@/lib/redis"
 import { headers } from "next/headers"
+import { provisionOrganization } from "@/domains/organizations/service"
+import { markOnboardingComplete } from "@/domains/organizations/repository"
 
 const redis = getRedis()
 const ratelimit = redis
@@ -86,13 +88,18 @@ export async function registerAction(
     if (existing) return { error: "Ya existe una cuenta con ese email." }
 
     const hashedPassword = await hash(password, 12)
+    const userId = crypto.randomUUID()
 
     await db.insert(users).values({
-      id: crypto.randomUUID(),
+      id: userId,
       name,
       email,
       password: hashedPassword,
     })
+
+    const org = await provisionOrganization(userId, name)
+    await db.insert(orgMembers).values({ orgId: org.id, userId, role: "owner" })
+    await markOnboardingComplete(org.id)
   } catch (error) {
     console.error("[registerAction:db]", error instanceof Error ? error.message : String(error))
     return { error: "Error al crear la cuenta. Verifica tu conexión e intenta de nuevo." }
@@ -100,7 +107,7 @@ export async function registerAction(
 
   // Separado del bloque anterior: signIn lanza NEXT_REDIRECT que debe propagarse
   try {
-    await signIn("credentials", { email, password, redirectTo: "/onboarding" })
+    await signIn("credentials", { email, password, redirectTo: "/dashboard" })
   } catch (error) {
     if (isRedirectError(error)) throw error
     if (error instanceof AuthError) {

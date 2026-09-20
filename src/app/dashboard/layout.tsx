@@ -11,12 +11,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   try {
     const ctx = await requireOrganizationMembership()
     const org = await getOrganizationById(ctx.orgId)
-    if (!org) redirect("/onboarding")
+    if (!org) redirect("/login")
     orgName = org.name
     isAdmin = ctx.role === "owner" || ctx.role === "admin"
   } catch (e) {
     if (e instanceof AuthError) redirect("/login")
-    if (e instanceof ForbiddenError) redirect("/onboarding")
+    if (e instanceof ForbiddenError) redirect("/login")
     throw e
   }
 
