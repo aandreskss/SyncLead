@@ -1,0 +1,1 @@
+ALTER TABLE "meta_connections" ADD COLUMN "capture_script_key" text;

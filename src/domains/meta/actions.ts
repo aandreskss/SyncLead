@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { auditLogs } from "@/lib/db/schema"
+import { auditLogs, metaConnections, campaigns, ingestionCredentials } from "@/lib/db/schema"
 import { requireClientAccess } from "@/lib/auth/server"
 import { encryptTokenVersioned, decryptTokenVersioned } from "@/lib/crypto"
 import { verifyMetaConnection, sendTestLeadEvent } from "./verify"
@@ -13,6 +13,8 @@ import {
   deleteMetaConnection,
 } from "./repository"
 import type { MetaConnection } from "@/lib/db/schema"
+import { and, eq } from "drizzle-orm"
+import { createHash, randomBytes } from "crypto"
 
 // Shape returned to the browser — never includes accessTokenEnc
 export type MetaConnectionPublic = {
@@ -27,6 +29,11 @@ export type MetaConnectionPublic = {
   lastError: string | null
   createdAt: Date
   updatedAt: Date
+  // Lead Ads fields (safe to expose)
+  metaPageId: string | null
+  webhookVerifyToken: string | null
+  leadAdsEnabled: boolean
+  captureScriptKey: string | null
 }
 
 function toPublic(conn: MetaConnection): MetaConnectionPublic {
@@ -42,6 +49,10 @@ function toPublic(conn: MetaConnection): MetaConnectionPublic {
     lastError: conn.lastError,
     createdAt: conn.createdAt,
     updatedAt: conn.updatedAt,
+    metaPageId: conn.metaPageId ?? null,
+    webhookVerifyToken: conn.webhookVerifyToken ?? null,
+    leadAdsEnabled: conn.leadAdsEnabled,
+    captureScriptKey: conn.captureScriptKey ?? null,
   }
 }
 
@@ -181,6 +192,121 @@ export async function disconnectMetaConnectionAction(
     resourceId: connectionId,
     metadata: { clientId, pixelId: conn.pixelId },
   })
+
+  return { success: true }
+}
+
+// ─── Lead Ads actions ─────────────────────────────────────────────────────────
+
+export async function enableLeadAdsAction(
+  clientId: string,
+  pageId: string
+): Promise<{ success: boolean; error?: string; webhookVerifyToken?: string }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch {
+    return { success: false, error: "No autorizado" }
+  }
+
+  if (!pageId || pageId.trim().length === 0) {
+    return { success: false, error: "Page ID inválido" }
+  }
+
+  // Find existing connection or the first active one
+  const conn = await db.query.metaConnections.findFirst({
+    where: and(eq(metaConnections.clientId, clientId), eq(metaConnections.orgId, ctx.orgId)),
+    columns: { id: true, captureScriptKey: true },
+  })
+
+  if (!conn) {
+    return { success: false, error: "No hay conexión Meta configurada" }
+  }
+
+  const verifyToken = crypto.randomUUID()
+
+  // Generate capture script key if not already set
+  let captureScriptKey = conn.captureScriptKey
+  if (!captureScriptKey) {
+    captureScriptKey = `pub_mlads_${randomBytes(24).toString("hex")}`
+
+    // Find or create meta-lead-ads campaign and credential
+    let campaign = await db.query.campaigns.findFirst({
+      where: and(
+        eq(campaigns.clientId, clientId),
+        eq(campaigns.orgId, ctx.orgId),
+        eq(campaigns.slug, "meta-lead-ads")
+      ),
+      columns: { id: true },
+    })
+
+    if (!campaign) {
+      const randomApiKey = `mlads_${randomBytes(16).toString("hex")}`
+      const [newCampaign] = await db
+        .insert(campaigns)
+        .values({
+          orgId: ctx.orgId,
+          clientId,
+          name: "Meta Lead Ads",
+          slug: "meta-lead-ads",
+          apiKey: randomApiKey,
+          active: true,
+        })
+        .returning({ id: campaigns.id })
+      campaign = newCampaign
+    }
+
+    // Create ingestion credential
+    const keyHash = createHash("sha256").update(captureScriptKey).digest("hex")
+    const keyPrefix = captureScriptKey.slice(0, 10)
+    await db
+      .insert(ingestionCredentials)
+      .values({
+        orgId: ctx.orgId,
+        campaignId: campaign.id,
+        type: "public_form",
+        keyHash,
+        keyPrefix,
+        status: "active",
+        allowedOrigins: [],
+      })
+      .catch(() => undefined)
+  }
+
+  await db
+    .update(metaConnections)
+    .set({
+      leadAdsEnabled: true,
+      metaPageId: pageId.trim(),
+      webhookVerifyToken: verifyToken,
+      captureScriptKey,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(metaConnections.id, conn.id), eq(metaConnections.orgId, ctx.orgId)))
+
+  await db.insert(auditLogs).values({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    actorType: "user",
+    action: "meta_connection.lead_ads_enabled",
+    resourceType: "meta_connection",
+    resourceId: conn.id,
+    metadata: { clientId, pageId: pageId.trim() },
+  }).catch(() => undefined)
+
+  return { success: true, webhookVerifyToken: verifyToken }
+}
+
+export async function disableLeadAdsAction(
+  clientId: string
+): Promise<{ success: boolean; error?: string }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch {
+    return { success: false, error: "No autorizado" }
+  }
+
+  await db
+    .update(metaConnections)
+    .set({ leadAdsEnabled: false, updatedAt: new Date() })
+    .where(and(eq(metaConnections.clientId, clientId), eq(metaConnections.orgId, ctx.orgId)))
 
   return { success: true }
 }

@@ -211,6 +211,12 @@ export const metaConnections = pgTable(
     // Prompt 18: Ads Insights beta
     adAccountId: text("ad_account_id"),
     connectionMode: metaConnectionModeEnum("connection_mode").notNull().default("internal_manual"),
+    // Prompt 26: Meta Lead Ads webhook
+    metaPageId: text("meta_page_id"),
+    webhookVerifyToken: text("webhook_verify_token"),
+    leadAdsEnabled: boolean("lead_ads_enabled").notNull().default(false),
+    // Public key for the capture script (public_form credential, safe to embed in JS)
+    captureScriptKey: text("capture_script_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
