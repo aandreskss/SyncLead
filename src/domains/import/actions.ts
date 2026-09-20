@@ -75,16 +75,22 @@ export async function uploadImportFileAction(formData: FormData): Promise<
   }
 
   // Create the batch record
-  const batch = await createImportBatch({
-    orgId: ctx.orgId,
-    clientId: clientId ?? undefined,
-    campaignId,
-    originalFilename: file.name,
-    fileHash: parsed.fileHash,
-    sheetName: parsed.sheetName,
-    totalRows: parsed.rowCount,
-    source: ext,
-  })
+  let batch: Awaited<ReturnType<typeof createImportBatch>>
+  try {
+    batch = await createImportBatch({
+      orgId: ctx.orgId,
+      clientId: clientId ?? undefined,
+      campaignId,
+      originalFilename: file.name,
+      fileHash: parsed.fileHash,
+      sheetName: parsed.sheetName,
+      totalRows: parsed.rowCount,
+      source: ext,
+    })
+  } catch (e) {
+    console.error("[uploadImportFileAction:createBatch]", e instanceof Error ? e.message : String(e))
+    return { error: "Error al crear el lote de importación. Intenta de nuevo." }
+  }
 
   // Insert import_rows — ON CONFLICT DO NOTHING on dedupe_key means re-uploading
   // the same file returns 0 new rows (idempotent upload).
@@ -101,7 +107,13 @@ export async function uploadImportFileAction(formData: FormData): Promise<
     }
   })
 
-  const insertedCount = await insertImportRows(rowsToInsert)
+  let insertedCount: number
+  try {
+    insertedCount = await insertImportRows(rowsToInsert)
+  } catch (e) {
+    console.error("[uploadImportFileAction:insertRows]", e instanceof Error ? e.message : String(e))
+    return { error: "Error al guardar las filas del archivo. Intenta de nuevo." }
+  }
 
   if (insertedCount === 0 && parsed.rowCount > 0) {
     return { error: "Este archivo ya fue importado anteriormente (todas las filas son duplicadas)." }
