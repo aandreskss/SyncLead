@@ -68,6 +68,7 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`drizzle.config.ts` requiere dotenv**: `drizzle-kit` no carga `.env.local` automáticamente. Añadir `import { config } from "dotenv"; config({ path: ".env.local" })` al inicio del archivo; sin esto los comandos drizzle-kit leen `DATABASE_URL` como `undefined`.
 - **`createOrgAction` DEBE llamar `ensureOwnerMembership()`**: `provisionOrganization()` crea la org pero no inserta en `org_members`. `requireOrganizationMembership()` solo consulta `org_members`, por lo que sin este insert todos los usuarios nuevos son redirigidos al onboarding en un bucle infinito. Ver `src/app/onboarding/actions.ts`.
 - **`authorize` en `auth.ts` DEBE tener try/catch**: Si la DB no está disponible y `authorize` lanza una excepción, Auth.js muestra "There was a problem with the server configuration" en lugar de un error manejable. Envolver todo el cuerpo de `authorize` en try/catch y devolver `null` ante cualquier error de DB.
+- **`verifyMetaConnection` no bloquea por errores 100/200 del pixel read**: Los tokens de CAPI no requieren `ads_read` scope para enviar eventos; solo verificar que el token sea válido (error 190/102 = inválido). Si el pixel read falla con 100/200 (permisos de lectura), proceder igual — el token puede enviara CAPI sin leer metadatos del pixel.
 - **`registerAction` usa dos bloques try/catch separados**: El bloque DB (crear usuario) y el bloque `signIn` deben estar separados. `signIn()` de Auth.js lanza un error especial con `digest.startsWith("NEXT_REDIRECT")` que DEBE ser re-lanzado — usar el helper `isRedirectError()` para detectarlo antes de capturarlo.
 - **`import_rows.dedupe_key` requiere `.notNull().unique()`**: `onConflictDoNothing({ target: importRows.dedupeKey })` necesita un índice único en Postgres o rechaza el INSERT con "no unique constraint matching the ON CONFLICT specification". La columna debe tener `.notNull().unique()` en el schema Drizzle y el constraint aplicado en DB via `drizzle-kit push`.
 - **Design system del dashboard usa clases `sg-*`**: El dashboard usa CSS custom properties definidas en `globals.css` (sg-app, bg-sg-bg, sg-border, sg-accent, sg-s1/s2/s3, sg-ink, sg-muted, sg-subtle, sg-radius). Nuevos componentes del dashboard deben usar estas clases, no `zinc-*` directamente. El componente `DashboardNav` en `src/components/app/DashboardNav.tsx` es el nav principal del dashboard.
@@ -289,6 +290,7 @@ src/components/
     DashboardNav.tsx  ← nav principal del dashboard (sidebar + links + org info)
   landing/
     CapiDemo.tsx, Hero.tsx, InView.tsx, KanbanDemo.tsx, LandingNav.tsx, Logo.tsx, Reveal.tsx, Sections.tsx
+    Analytics.tsx, ProductTabs.tsx, Steps.tsx, data.ts, ui.tsx
 src/proxy.ts  ← protege /dashboard/*, applySecurityHeaders() (CSP+nonce, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy)
 ```
 
@@ -497,6 +499,23 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] Schema Neon sincronizado a 48 tablas via `drizzle-kit push` (wa_client_config, message_templates, cron_runs, tracking_sites, etc. faltaban tras migrate)
 - [x] Diseño del dashboard y landing
   - [x] `src/components/app/DashboardNav.tsx` — nav principal con design system sg-*
-  - [x] `src/components/landing/` — Hero, LandingNav, Sections, CapiDemo, KanbanDemo, Reveal, InView, Logo
+  - [x] `src/components/landing/` — Hero, LandingNav, Sections, CapiDemo, KanbanDemo, Reveal, InView, Logo, Analytics, ProductTabs, Steps, data, ui
   - [x] `src/app/globals.css` — CSS custom properties sg-* (sg-app, bg-sg-bg, sg-border, sg-accent, sg-s1/s2/s3, sg-ink, sg-muted, sg-subtle, sg-radius)
   - [x] Dashboard refactorizado con DashboardNav + tokens sg-*
+- [x] Hub de cliente con 4 tabs (Resumen / Leads / Configuración / Diagnóstico)
+  - [x] `src/app/dashboard/clients/[id]/page.tsx` — refactorizado a tabs via `?tab=` URL param; max-w-7xl
+  - [x] `_components/ClientHubTabs.tsx` — navegación de tabs con links SSR-friendly
+  - [x] `_components/ClientResumenTab.tsx` — KPIs, campañas con métricas, checklist de configuración
+  - [x] `_components/ClientLeadsTab.tsx` — tabla con todos los leads del cliente + filtros + campaña filter + LeadDrawer
+  - [x] `src/domains/leads/repository.ts` → `getLeadsByClient(clientId, orgId, filters)` vía inArray por campaignIds
+  - [x] `src/domains/campaigns/repository.ts` → `getCampaignsByClientWithCounts(clientId, orgId)` con leadCount + saleCount
+  - [x] `src/domains/team/repository.ts` → `listSalesRepsByOrg(orgId)` sin filtro de clientId
+- [x] Kanban CRM con click-to-edit
+  - [x] `KanbanBoard.tsx` — cards clickables abren LeadDrawer; acepta `salesReps?`, `whatsappNumbers?`, `clientId?`
+  - [x] `FunnelsView.tsx` — pasa datos adicionales al board
+  - [x] `funnels/page.tsx` — carga client + salesReps + whatsappNumbers cuando hay `campaignId` filtrado
+- [x] Fixes de tracking y Meta
+  - [x] `src/domains/meta/verify.ts` — tokens CAPI ya no se bloquean por error 100/200 del pixel read (no requieren ads_read scope)
+  - [x] `TrackingDashboard.tsx` — `HealthSummary` muestra "Configurado" (amber) cuando site tiene `expectedPixelId` sin observaciones aún
+  - [x] Modal "Agregar sitio" — incluye campo Pixel ID opcional
+  - [x] Botón "Aplicar plantilla" — conectado con `ApplyTemplateModal` (lead_gen / ecommerce / bookings)
