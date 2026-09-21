@@ -14,6 +14,8 @@ import {
   updateProfile,
   publishProfile,
   archiveProfile,
+  reactivateProfile,
+  deleteProfile,
   duplicateProfile,
   upsertRules,
   listProfilesByOrg,
@@ -82,6 +84,32 @@ export async function archiveProfileAction(profileId: string) {
     return { success: true }
   } catch {
     return { error: "No se pudo archivar el perfil" }
+  }
+}
+
+export async function deleteProfileAction(profileId: string) {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+
+  try {
+    await deleteProfile(ctx.orgId, profileId)
+    return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "No se pudo eliminar el perfil"
+    return { error: msg }
+  }
+}
+
+export async function reactivateProfileAction(profileId: string) {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+
+  try {
+    await reactivateProfile(ctx.orgId, profileId)
+    return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "No se pudo reactivar el perfil"
+    return { error: msg }
   }
 }
 

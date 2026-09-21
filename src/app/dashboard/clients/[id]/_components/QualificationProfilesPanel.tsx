@@ -7,6 +7,8 @@ import {
   createProfileAction,
   publishProfileAction,
   archiveProfileAction,
+  reactivateProfileAction,
+  deleteProfileAction,
 } from "@/domains/qualification/profile-actions"
 import {
   listRuleSetsAction,
@@ -35,6 +37,8 @@ import {
   CheckCircle2,
   AlertCircle,
   TriangleAlert,
+  Trash2,
+  RotateCcw,
 } from "lucide-react"
 import { ProfileRuleBuilder } from "./ProfileRuleBuilder"
 
@@ -67,16 +71,25 @@ function ProfileCard({
   onEditRules,
   onPublish,
   onArchive,
+  onReactivate,
+  onDelete,
 }: {
   profile: QualificationProfile
   onEditRules: (profileId: string) => void
   onPublish: (profileId: string) => void
   onArchive: (profileId: string) => void
+  onReactivate: (profileId: string) => void
+  onDelete: (profileId: string) => void
 }) {
   const [publishPending, startPublish] = useTransition()
   const [archivePending, startArchive] = useTransition()
+  const [reactivatePending, startReactivate] = useTransition()
+  const [deletePending, startDelete] = useTransition()
   const [confirmArchive, setConfirmArchive] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const anyPending = publishPending || archivePending || reactivatePending || deletePending
 
   function handlePublish() {
     setError(null)
@@ -94,6 +107,27 @@ function ProfileCard({
       else {
         setConfirmArchive(false)
         onArchive(profile.id)
+      }
+    })
+  }
+
+  function handleReactivate() {
+    setError(null)
+    startReactivate(async () => {
+      const r = await reactivateProfileAction(profile.id)
+      if ("error" in r) setError(r.error ?? null)
+      else onReactivate(profile.id)
+    })
+  }
+
+  function handleDelete() {
+    startDelete(async () => {
+      const r = await deleteProfileAction(profile.id)
+      if ("error" in r) {
+        setError(r.error ?? null)
+        setConfirmDelete(false)
+      } else {
+        onDelete(profile.id)
       }
     })
   }
@@ -129,7 +163,7 @@ function ProfileCard({
       )}
 
       <div className="flex items-center gap-2 flex-wrap pt-1">
-        {/* Editar reglas — available for draft profiles */}
+        {/* Editar reglas — draft only */}
         {profile.status === "draft" && (
           <button
             onClick={() => onEditRules(profile.id)}
@@ -140,7 +174,7 @@ function ProfileCard({
           </button>
         )}
 
-        {/* View only for non-draft */}
+        {/* Ver reglas — non-draft */}
         {profile.status !== "draft" && (
           <button
             onClick={() => onEditRules(profile.id)}
@@ -151,11 +185,11 @@ function ProfileCard({
           </button>
         )}
 
-        {/* Publicar — only from draft */}
+        {/* Publicar — draft only */}
         {profile.status === "draft" && (
           <button
             onClick={handlePublish}
-            disabled={publishPending || archivePending}
+            disabled={anyPending}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-emerald-900/30 hover:text-emerald-400 text-zinc-300 transition-colors disabled:opacity-50"
           >
             {publishPending ? (
@@ -167,25 +201,37 @@ function ProfileCard({
           </button>
         )}
 
-        {/* Archivar */}
+        {/* Reactivar — archived only */}
+        {profile.status === "archived" && (
+          <button
+            onClick={handleReactivate}
+            disabled={anyPending}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-indigo-900/30 hover:text-indigo-400 text-zinc-400 transition-colors disabled:opacity-50"
+          >
+            {reactivatePending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="h-3.5 w-3.5" />
+            )}
+            Reactivar
+          </button>
+        )}
+
+        {/* Archivar — draft or published */}
         {profile.status !== "archived" && (
           confirmArchive ? (
             <>
               <button
                 onClick={handleArchive}
-                disabled={archivePending}
+                disabled={anyPending}
                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
               >
-                {archivePending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Archive className="h-3.5 w-3.5" />
-                )}
+                {archivePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Archive className="h-3.5 w-3.5" />}
                 Confirmar
               </button>
               <button
                 onClick={() => setConfirmArchive(false)}
-                disabled={archivePending}
+                disabled={anyPending}
                 className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
               >
                 Cancelar
@@ -194,13 +240,44 @@ function ProfileCard({
           ) : (
             <button
               onClick={() => setConfirmArchive(true)}
-              disabled={publishPending || archivePending}
+              disabled={anyPending}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-red-900/30 hover:text-red-400 text-zinc-500 transition-colors disabled:opacity-50"
             >
               <Archive className="h-3.5 w-3.5" />
               Archivar
             </button>
           )
+        )}
+
+        {/* Eliminar — always available */}
+        {confirmDelete ? (
+          <>
+            <button
+              onClick={handleDelete}
+              disabled={anyPending}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+            >
+              {deletePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Eliminar
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              disabled={anyPending}
+              className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+            >
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            disabled={anyPending}
+            title="Eliminar perfil permanentemente"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-red-900/30 hover:text-red-400 text-zinc-600 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Eliminar
+          </button>
         )}
       </div>
     </div>
@@ -429,6 +506,8 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
               onEditRules={handleEditRules}
               onPublish={handleMutation}
               onArchive={handleMutation}
+              onReactivate={handleMutation}
+              onDelete={handleMutation}
             />
           ))}
         </div>
