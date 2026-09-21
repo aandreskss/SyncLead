@@ -4,6 +4,7 @@ import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import { getOrganizationById } from "@/domains/organizations/repository"
 import { DashboardNav } from "@/components/app/DashboardNav"
 import { DashboardSidebar } from "@/components/app/DashboardSidebar"
+import { ThemeProvider } from "@/components/app/ThemeProvider"
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Propietario",
@@ -32,24 +33,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="sg-app flex min-h-screen bg-ops-bg text-sg-ink">
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-sg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-sg-on-accent"
-      >
-        Saltar al contenido
-      </a>
+    <ThemeProvider attribute="class" defaultTheme="dark" storageKey="sl-theme" disableTransitionOnChange>
+      <div className="sg-app flex min-h-screen bg-ops-bg text-sg-ink">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-sg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-sg-on-accent"
+        >
+          Saltar al contenido
+        </a>
 
-      {/* Sidebar (escritorio) */}
-      <DashboardSidebar isAdmin={isAdmin} orgName={orgName} roleLabel={roleLabel} />
+        {/* Sidebar (escritorio) */}
+        <DashboardSidebar isAdmin={isAdmin} orgName={orgName} roleLabel={roleLabel} />
 
-      {/* Contenido */}
-      <main id="main" className="min-w-0 flex-1 overflow-auto pb-20 text-sg-ink md:pb-0">
-        {children}
-      </main>
+        {/* Contenido */}
+        <main id="main" className="min-w-0 flex-1 overflow-auto pb-20 text-sg-ink md:pb-0">
+          {children}
+        </main>
 
-      {/* Navegación inferior (móvil) */}
-      <DashboardNav isAdmin={isAdmin} />
-    </div>
+        {/* Navegación inferior (móvil) */}
+        <DashboardNav isAdmin={isAdmin} />
+      </div>
+    </ThemeProvider>
   )
 }
