@@ -101,18 +101,23 @@
       }
     }
 
-    // sendBeacon garantiza entrega aunque la página navegue inmediatamente
-    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-      var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-      navigator.sendBeacon(host + '/api/leads/ingest', blob);
-      return Promise.resolve({ queued: true });
-    }
-
+    // keepalive guarantees delivery even if the page navigates away immediately.
+    // Prefer fetch+keepalive over sendBeacon: same guarantee, correct CORS preflight,
+    // and traceable errors. sendBeacon with application/json silently fails in some
+    // browser/CSP combinations.
     return fetch(host + '/api/leads/ingest', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
-    }).then(function (r) { return r.json(); });
+      keepalive: true,
+    }).then(function () { return { queued: true }; }).catch(function () {
+      // keepalive can fail if payload exceeds 64 KB budget — plain fetch as last resort
+      return fetch(host + '/api/leads/ingest', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+      }).then(function () { return { queued: true }; });
+    });
   }
 
   // ── Registra una venta en la página de confirmación de pedido ────────────
