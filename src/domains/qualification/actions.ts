@@ -144,8 +144,12 @@ export async function autoQualifyLeadInternal(
       return
     }
 
-    // ── Step 3: Behavior-based fallback (no profile, no rule set configured) ─
-    // purchase → hot (never downgrade); engagement signals → warm if still cold.
+    // No profile and no rule set — behavior signals handled in finally block.
+  } finally {
+    // ── Safety net A: Behavior signals always upgrade, never downgrade ────────
+    // Runs after EVERY evaluation path (profile, savaya_v1, or no config).
+    // This ensures cart abandonment, form submission, etc. promote temperature
+    // even when a rule set evaluated the lead as cold based on field data alone.
     const eventData = await getEventDataForLead(leadId, orgId).catch((): Record<string, unknown> => ({}))
 
     if (eventData.ecom_purchased) {
@@ -154,23 +158,22 @@ export async function autoQualifyLeadInternal(
         .set({ temperature: "hot", updatedAt: new Date() })
         .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), ne(leads.temperature, "hot")))
         .catch(() => undefined)
-      return
+    } else {
+      const hasEngagement =
+        eventData.ecom_form_submitted ||
+        eventData.ecom_checkout_started ||
+        eventData.ecom_cart_abandoned
+
+      if (hasEngagement) {
+        await db
+          .update(leads)
+          .set({ temperature: "warm", updatedAt: new Date() })
+          .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), eq(leads.temperature, "cold")))
+          .catch(() => undefined)
+      }
     }
 
-    const hasEngagement =
-      eventData.ecom_form_submitted ||
-      eventData.ecom_checkout_started ||
-      eventData.ecom_cart_abandoned
-
-    if (hasEngagement) {
-      await db
-        .update(leads)
-        .set({ temperature: "warm", updatedAt: new Date() })
-        .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), eq(leads.temperature, "cold")))
-        .catch(() => undefined)
-    }
-  } finally {
-    // Safety net: a confirmed sale always wins — qualification can never undo it.
+    // ── Safety net B: Confirmed sale always wins ──────────────────────────────
     const [confirmedSale] = await db
       .select({ id: conversions.id })
       .from(conversions)

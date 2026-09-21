@@ -87,6 +87,8 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`LeadWithActivity.hasPendingCapi`**: booleano cargado en TODAS las consultas (4ª query paralela en `getLeadsByCampaignWithActivity`). Indica que el lead tiene al menos un `meta_event` con `status = 'pending' OR 'retrying'`. Activa el icono ⚡ en `ActivityBadges` y el filtro `pending_capi`. En `getLeadsByClientWithActivity` y `funnels/repository.ts` siempre se devuelve como `false` (no se cargan eventos CAPI en esas vistas).
 - **Eliminar leads**: tres acciones multi-tenant en `leads/actions.ts` — `deleteLeadsAction(ids[])` (por selección), `deleteLeadsByCampaignAction(campaignId)`, `deleteLeadsByClientAction(clientId)`. Todas validan pertenencia a `ctx.orgId` antes de borrar. La DB hace cascade en `lead_stage_history`, `conversions`, `lead_qualifications`, etc.; `meta_events.leadId` queda en `NULL` (set null) para no perder el historial CAPI.
 - **`drizzle-kit push` puede bloquearse por prompts TTY**: cuando la CLI detecta cambios que podrían ser destructivos (ej. añadir UNIQUE constraint a tabla con datos), pide confirmación interactiva. En entornos no-TTY usar SQL directo via `neon()` client. Para agregar columnas simples con DEFAULT, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` siempre es seguro.
+- **`calculateTemperature()` eliminado de todos los flujos de ingest**: los tres ingest paths (Modo A `/api/ingest/form`, Modo B `/api/ingest/server`, legacy `/api/leads/ingest`) guardan `temperature: "cold"` y delegan a `autoQualifyLeadInternal()` fire-and-forget. La función `calculateTemperature` aún existe en `normalize.ts` para no romper imports que no se han migrado, pero no se debe invocar en código nuevo.
+- **`autoQualifyLeadInternal` tiene try/finally como red de seguridad absoluta**: el bloque `finally` siempre consulta la tabla `conversions` al terminar (incluso si la función sale con `return` anticipado). Si existe una conversión con `status = "confirmed"`, fuerza `temperature = "hot"`. Esto garantiza que ningún camino de calificación pueda dejar en frío a un lead que ya compró. La guarda `ne(leads.temperature, "hot")` en el `finally` evita writes innecesarios.
 
 ## Arquitectura multi-tenant
 Aislamiento a nivel de aplicación (no RLS). **Todas las tablas tienen `org_id`.**
@@ -173,8 +175,8 @@ src/
       ingest/
         form/route.ts                   ← Modo A: token público, CORS, Turnstile, honeypot
         server/route.ts                 ← Modo B: Authorization Bearer, hash lookup
-      behavior/route.ts                 ← POST: eventos de comportamiento (checkout/cart/form/info); auth: Bearer pub_xxx; CORS wildcard; escribe en lead_behavior_events; idempotente con externalId
-      leads/ingest/route.ts             ← @deprecated: legacy X-Campaign-Key adapter
+      behavior/route.ts                 ← POST: eventos de comportamiento (begin_checkout/checkout_abandoned/add_to_cart/remove_from_cart/form_submitted/info_requested/view_product/payment_failed/purchase); auth: Bearer pub_xxx; CORS wildcard; escribe en lead_behavior_events; idempotente con externalId; evento "purchase" → temperature=hot directo (awaited, sin motor de calificación)
+      leads/ingest/route.ts             ← @deprecated: legacy X-Campaign-Key adapter; temperature="cold" (calculateTemperature eliminado); llama autoQualifyLeadInternal fire-and-forget
       auth/[...nextauth]/route.ts       ← Auth.js handler
       webhook/whatsapp/[clientId]/route.ts ← webhook proveedor WA (verificación de firma)
       cron/
@@ -188,7 +190,7 @@ src/
     clients/        repository.ts, actions.ts, types.ts
     campaigns/      repository.ts, actions.ts, types.ts
     leads/
-      normalize.ts  ← normalizePhone, calculateTemperature, normalizeCity
+      normalize.ts  ← normalizePhone, normalizeCity (calculateTemperature eliminado — no se usa en ningún flujo de ingest)
       repository.ts ← getLeadsByCampaign, getLeadsByCampaignWithActivity (4 queries: leads+conversions+behavior+metaEvents pending/retrying), getLeadDetail, updateLeadTemperature/Stage/Notes/assign; LeadWithActivity: saleCount/saleTotalAmount/saleCurrency/hasPendingCapi/activity
       actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }; deleteLeadsAction(ids[]), deleteLeadsByCampaignAction(campaignId), deleteLeadsByClientAction(clientId)
     analytics/
@@ -199,11 +201,11 @@ src/
       schema.ts     ← RegisterSaleSchema (Zod v4): amount>0, currency 3-char uppercase, orderId
       payload.ts    ← buildPurchasePayload(): PII hash SHA-256, event_id = purchase_{conversionId}
       repository.ts ← createConversionIdempotent(), createMetaEventIdempotent(), cancelConversion(), etc.
-      actions.ts    ← registerSaleAction() (body en try/catch → retorna error en lugar de lanzar; queries de leads/campaigns con columns selectivos), fetchConversionStatusAction(), getAllConversionsByLeadAction(), retryCAPIAction(), cancelConversionAction()
+      actions.ts    ← registerSaleAction() (body en try/catch → retorna error en lugar de lanzar; queries de leads/campaigns con columns selectivos; temperature=hot es AWAITED — no fire-and-forget), fetchConversionStatusAction(), getAllConversionsByLeadAction(), retryCAPIAction(), cancelConversionAction()
     qualification/
       types.ts, normalize.ts, engine.ts, repository.ts, actions.ts  ← motor v1 Savaya
-      profile-types.ts, field-registry.ts, condition-evaluator.ts, score-engine.ts  ← motor v2 genérico
-      profile-repository.ts, profile-actions.ts  ← CRUD perfiles + 13 Server Actions
+      profile-types.ts, field-registry.ts, condition-evaluator.ts, score-engine.ts  ← motor v2 genérico (field-registry incluye sys_ecom_purchased — campo boolean para evento purchase)
+      profile-repository.ts, profile-actions.ts  ← CRUD perfiles + 13 Server Actions; getEventDataForLead() incluye ecom_purchased
     funnels/
       repository.ts, actions.ts ← CRUD funnels (deprecated, migrar a pipelines)
     meta/
@@ -328,7 +330,7 @@ src/proxy.ts  ← protege /dashboard/*, applySecurityHeaders() (CSP+nonce, X-Fra
 - Assign WhatsApp: abre `https://wa.me/{num}?text=...` + llama `assignLeadAction`; segundo click deselecciona
 
 ## Tipos de leads (schema)
-- `temperature`: `"hot" | "warm" | "cold"` (calculado al ingestar: negocio+capital=hot, negocio=warm, rest=cold)
+- `temperature`: `"hot" | "warm" | "cold"` — todos los leads entran como `"cold"`; la calificación automática (`autoQualifyLeadInternal`) es la única que sube la temperatura. Jerarquía de promoción: venta confirmada → hot siempre; evento `purchase` → hot; regla v2/v1 → según resultado; engagement (checkout/form/cart) → warm si aún cold. **Nunca se degrada desde hot**: `refreshEffectiveQualClass` y el bloque `finally` de `autoQualifyLeadInternal` usan `ne(leads.temperature, "hot")` como guard.
 - `stage`: `"new" | "contacted" | "interested" | "quoted" | "won" | "lost"` — **@deprecated**, usar `current_stage_id` + `pipeline_stages`
 - Historial en tabla `lead_stage_history`: field (temperature/stage/assignedTo), fromValue, toValue, changedBy, changedAt
 
