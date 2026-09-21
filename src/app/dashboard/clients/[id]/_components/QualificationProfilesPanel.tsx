@@ -8,6 +8,10 @@ import {
   publishProfileAction,
   archiveProfileAction,
 } from "@/domains/qualification/profile-actions"
+import {
+  listRuleSetsAction,
+  deactivateClientRuleSetsAction,
+} from "@/domains/qualification/actions"
 import type { QualificationProfile } from "@/domains/qualification/profile-types"
 import { DEFAULT_THRESHOLDS } from "@/domains/qualification/profile-types"
 import {
@@ -30,6 +34,7 @@ import {
   Settings2,
   CheckCircle2,
   AlertCircle,
+  TriangleAlert,
 } from "lucide-react"
 import { ProfileRuleBuilder } from "./ProfileRuleBuilder"
 
@@ -324,19 +329,41 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
   const [showNewDialog, setShowNewDialog] = useState(false)
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [hasLegacyRules, setHasLegacyRules] = useState(false)
+  const [deactivatingLegacy, startDeactivateLegacy] = useTransition()
+  const [legacyError, setLegacyError] = useState<string | null>(null)
 
   async function loadProfiles() {
     setLoading(true)
-    const r = await listProfilesAction()
-    if ("profiles" in r && r.profiles) {
-      // Filter to profiles for this client (or org-wide ones with no clientId)
+    const [profilesRes, ruleSetsRes] = await Promise.all([
+      listProfilesAction(),
+      listRuleSetsAction(),
+    ])
+    if ("profiles" in profilesRes && profilesRes.profiles) {
       setProfiles(
-        r.profiles.filter(
+        profilesRes.profiles.filter(
           (p) => p.clientId === clientId || p.clientId === null
         )
       )
     }
+    if (Array.isArray(ruleSetsRes)) {
+      setHasLegacyRules(
+        ruleSetsRes.some((rs) => rs.clientId === clientId && rs.isActive)
+      )
+    }
     setLoading(false)
+  }
+
+  function handleDeactivateLegacy() {
+    setLegacyError(null)
+    startDeactivateLegacy(async () => {
+      const r = await deactivateClientRuleSetsAction(clientId)
+      if ("error" in r) {
+        setLegacyError(r.error ?? null)
+      } else {
+        setHasLegacyRules(false)
+      }
+    })
   }
 
   useEffect(() => {
@@ -415,6 +442,43 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
         onClose={() => setShowNewDialog(false)}
         onCreated={handleMutation}
       />
+
+      {/* Legacy rule sets warning */}
+      {hasLegacyRules && (
+        <div className="border border-amber-500/30 bg-amber-500/5 rounded-xl p-4 space-y-2">
+          <div className="flex items-start gap-2">
+            <TriangleAlert className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-300">Reglas legadas activas (v1)</p>
+              <p className="text-xs text-amber-500/80">
+                Este cliente tiene reglas de negocio/ciudad del sistema anterior. El perfil de calificación
+                tiene prioridad, pero es recomendable desactivar las reglas legadas para evitar
+                evaluaciones inesperadas si el perfil se archiva.
+              </p>
+            </div>
+          </div>
+          {legacyError && (
+            <p className="text-xs text-red-400 flex items-center gap-1 pl-6">
+              <AlertCircle className="h-3 w-3 flex-shrink-0" />
+              {legacyError}
+            </p>
+          )}
+          <div className="pl-6">
+            <button
+              onClick={handleDeactivateLegacy}
+              disabled={deactivatingLegacy}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 transition-colors disabled:opacity-50"
+            >
+              {deactivatingLegacy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Archive className="h-3.5 w-3.5" />
+              )}
+              {deactivatingLegacy ? "Desactivando…" : "Desactivar reglas legadas"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Rule builder sheet */}
       <Sheet open={sheetOpen} onOpenChange={(o) => { if (!o) handleSheetClose() }}>
