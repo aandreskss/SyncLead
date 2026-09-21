@@ -205,6 +205,8 @@ export async function createQualification(input: CreateQualificationInput): Prom
 
 /**
  * Recomputes effective_qual_class = manual ?? automatic and writes it to leads.
+ * Also syncs leads.temperature when the effective class maps to a temperature value
+ * (hot/warm/cold). "unqualified" and null do not touch temperature.
  * Non-fatal — caller should .catch(() => undefined) if firing in background.
  */
 export async function refreshEffectiveQualClass(
@@ -214,9 +216,20 @@ export async function refreshEffectiveQualClass(
   const { manual, automatic } = await getEffectiveQualification(leadId, orgId)
   const effectiveClass = manual?.qualClass ?? automatic?.qualClass ?? null
 
+  const temperatureMap: Partial<Record<string, "hot" | "warm" | "cold">> = {
+    hot: "hot",
+    warm: "warm",
+    cold: "cold",
+  }
+  const newTemperature = effectiveClass ? temperatureMap[effectiveClass] : undefined
+
   await db
     .update(leads)
-    .set({ effectiveQualClass: effectiveClass, updatedAt: new Date() })
+    .set({
+      effectiveQualClass: effectiveClass,
+      ...(newTemperature ? { temperature: newTemperature } : {}),
+      updatedAt: new Date(),
+    })
     .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
 }
 

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { leads, leadBehaviorEvents, campaigns } from "@/lib/db/schema"
-import { and, eq, inArray, or, isNotNull } from "drizzle-orm"
+import { and, eq, inArray, or } from "drizzle-orm"
 import { lookupCredential } from "@/lib/ingest/lookup"
+import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
           inArray(leads.campaignId, campaignIds),
           or(...matchConditions)
         ),
-        columns: { id: true },
+        columns: { id: true, campaignId: true },
       })
     : undefined
 
@@ -122,6 +123,11 @@ export async function POST(req: NextRequest) {
       occurredAt: data.occurredAt ? new Date(data.occurredAt) : new Date(),
     })
     .onConflictDoNothing()
+
+  // Re-qualify the lead so behavior events (checkout, form, etc.) update temperature
+  if (lead?.id && lead.campaignId) {
+    autoQualifyLeadInternal(lead.id, orgId, lead.campaignId).catch(() => undefined)
+  }
 
   return NextResponse.json({ ok: true }, { headers: CORS_HEADERS })
 }

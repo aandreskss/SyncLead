@@ -617,6 +617,12 @@ export async function getEventDataForLead(
   // ecom_cart_abandoned: any event_type='checkout_abandoned'
   result.ecom_cart_abandoned = events.some((e) => e.eventType === "checkout_abandoned")
 
+  // ecom_form_submitted: any event_type='form_submitted'
+  result.ecom_form_submitted = events.some((e) => e.eventType === "form_submitted")
+
+  // ecom_info_requested: any event_type='info_requested'
+  result.ecom_info_requested = events.some((e) => e.eventType === "info_requested")
+
   // ecom_payment_failed: any event_type='payment_failed'
   result.ecom_payment_failed = events.some((e) => e.eventType === "payment_failed")
 
