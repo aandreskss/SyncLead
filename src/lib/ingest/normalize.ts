@@ -126,6 +126,69 @@ export function anonymizeIp(ip: string | null): string | null {
   return `${parts[0]}.${parts[1]}.${parts[2]}.0`
 }
 
+export interface ParsedUA {
+  platform: string | null
+  device: string | null
+  browser: string | null
+}
+
+/**
+ * Lightweight User-Agent parser — no external dependency.
+ * Returns null for each field if the UA string is absent or unrecognized.
+ * Device/platform/browser labels are kept in Spanish where they're visible in the UI.
+ */
+export function parseUserAgent(ua: string | null): ParsedUA {
+  if (!ua) return { platform: null, device: null, browser: null }
+
+  // ── Platform (OS) ─────────────────────────────────────────────────────────
+  let platform: string | null = null
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    platform = "iOS"
+  } else if (/Android/i.test(ua)) {
+    platform = "Android"
+  } else if (/Windows/i.test(ua)) {
+    platform = "Windows"
+  } else if (/CrOS/i.test(ua)) {
+    platform = "ChromeOS"
+  } else if (/Macintosh|Mac OS X/i.test(ua)) {
+    platform = "macOS"
+  } else if (/Linux/i.test(ua)) {
+    platform = "Linux"
+  }
+
+  // ── Device type ───────────────────────────────────────────────────────────
+  let device: string | null = null
+  if (/iPad|Tablet|tablet|PlayBook|Kindle|Silk/i.test(ua)) {
+    device = "Tablet"
+  } else if (/Mobi|Android(?!.*Tablet)|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) {
+    device = "Móvil"
+  } else if (platform !== null) {
+    device = "Escritorio"
+  }
+
+  // ── Browser ───────────────────────────────────────────────────────────────
+  let browser: string | null = null
+  if (/SamsungBrowser/i.test(ua)) {
+    browser = "Samsung"
+  } else if (/OPR|OPiOS/i.test(ua)) {
+    browser = "Opera"
+  } else if (/Edg\//i.test(ua)) {
+    browser = "Edge"
+  } else if (/YaBrowser/i.test(ua)) {
+    browser = "Yandex"
+  } else if (/UCBrowser/i.test(ua)) {
+    browser = "UCBrowser"
+  } else if (/Firefox|FxiOS/i.test(ua)) {
+    browser = "Firefox"
+  } else if (/Chrome|CriOS/i.test(ua)) {
+    browser = "Chrome"
+  } else if (/Safari/i.test(ua)) {
+    browser = "Safari"
+  }
+
+  return { platform, device, browser }
+}
+
 /**
  * Checks whether the request origin is within the credential's allowlist.
  * If the allowlist is empty, any origin is accepted.

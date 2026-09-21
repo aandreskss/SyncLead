@@ -6,6 +6,7 @@ import {
   getLeadsByUtmContent,
   getLeadsByPlatform,
   getLeadsByDevice,
+  getLeadsByBrowser,
   getTopCities,
   getLeadsByTemperatureDay,
   getPerformanceTable,
@@ -63,7 +64,7 @@ function buildDays(from: Date, to: Date, prevFrom: Date, prevTo: Date, cur: Lead
 }
 
 export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clientId, isAdmin }: Props) {
-  const [current, prev, byDay, prevByDay, perf, campaigns, byUtm, byPlatform, byDevice, byCities, byTempDay] = await Promise.all([
+  const [current, prev, byDay, prevByDay, perf, campaigns, byUtm, byPlatform, byDevice, byBrowser, byCities, byTempDay] = await Promise.all([
     getKPIMetrics(orgId, from, to, clientId),
     getKPIMetrics(orgId, prevFrom, prevTo, clientId),
     getLeadsByDay(orgId, from, to, clientId),
@@ -73,6 +74,7 @@ export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clie
     getLeadsByUtmContent(orgId, from, to, clientId),
     getLeadsByPlatform(orgId, from, to, clientId),
     getLeadsByDevice(orgId, from, to, clientId),
+    getLeadsByBrowser(orgId, from, to, clientId),
     getTopCities(orgId, from, to, clientId),
     getLeadsByTemperatureDay(orgId, from, to, clientId),
   ])
@@ -125,6 +127,10 @@ export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clie
   const utmKnownN = utmKnown.reduce((a, r) => a + r.total, 0)
   const utmTotal = byUtm.reduce((a, r) => a + r.total, 0)
 
+  const browTotal = byBrowser.reduce((a, r) => a + r.total, 0)
+  const browTop = byBrowser.find((r) => r.browser !== "Desconocido")
+  const browUnknown = byBrowser.find((r) => r.browser === "Desconocido")?.total ?? 0
+
   const checks: QualityCheck[] = [
     !platTop
       ? { label: "Plataforma", value: "Sin datos", status: "unknown" }
@@ -136,6 +142,11 @@ export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clie
       : share(devUnknown, devTotal) >= 50
         ? { label: "Dispositivo", value: `Desconocido · ${share(devUnknown, devTotal)} %`, status: "bad" }
         : { label: "Dispositivo", value: `${byDevice[0].device} · ${share(byDevice[0].total, devTotal)} %`, status: "ok" },
+    browTotal === 0 || !browTop
+      ? { label: "Navegador", value: "Sin datos", status: "unknown" }
+      : share(browUnknown, browTotal) >= 50
+        ? { label: "Navegador", value: `Desconocido · ${share(browUnknown, browTotal)} %`, status: "bad" }
+        : { label: "Navegador", value: `${browTop.browser} · ${share(browTop.total, browTotal)} %`, status: "ok" },
     totalLeads < 5 || cityKnownN / Math.max(totalLeads, 1) < 0.5
       ? { label: "Ciudad", value: "Sin datos suficientes", status: "unknown" }
       : { label: "Ciudad", value: `${cityKnown[0].city} · ${share(cityKnown[0].total, totalLeads)} %`, status: "ok" },
