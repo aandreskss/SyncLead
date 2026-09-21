@@ -32,13 +32,13 @@ export default async function DashboardPage({
   const selectedClient = clients.find((c) => c.id === sp.clientId)
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-5 px-4 py-5 md:px-7 md:py-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Dashboard</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            {formatRangeLabel(range.from, range.to)} · {selectedClient ? selectedClient.name : org.name}
+          <h1 className="text-xl font-semibold text-ops-tx">Resumen ejecutivo</h1>
+          <p className="mt-0.5 text-sm text-ops-tx2">
+            Resultados de {selectedClient ? selectedClient.name : org.name} · {formatRangeLabel(range.from, range.to)}
           </p>
         </div>
         <DateRangeSelector
@@ -59,6 +59,7 @@ export default async function DashboardPage({
           prevFrom={range.prevFrom}
           prevTo={range.prevTo}
           clientId={sp.clientId}
+          isAdmin={ctx.role === "owner" || ctx.role === "admin"}
         />
       </Suspense>
 
