@@ -8,6 +8,20 @@ import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { compare } from "bcryptjs"
 
+async function fetchFreshUserToken(token: JWT): Promise<JWT> {
+  if (!token.sub) return token
+  const u = await db.query.users.findFirst({
+    where: eq(users.id, token.sub),
+    columns: { name: true, email: true, image: true },
+  })
+  if (u) {
+    token.name = u.name
+    token.email = u.email
+    token.picture = u.image
+  }
+  return token
+}
+
 // DrizzleAdapter inspeciona o db no nível de módulo (getPrototypeOf, has…).
 // Sem DATABASE_URL (ex: build time) deixamos o adapter undefined —
 // JWT strategy não precisa do adapter para validar sessões.
@@ -62,9 +76,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    // Persist user.id into the JWT on first login
-    jwt({ token, user }: { token: JWT; user?: { id?: string } }) {
+    // Persist user.id into the JWT on first login; re-fetch profile on update()
+    async jwt({ token, user, trigger }: { token: JWT; user?: { id?: string }; trigger?: string }) {
       if (user?.id) token.sub = user.id
+      if (trigger === "update") return fetchFreshUserToken(token)
       return token
     },
     // Expose user.id from the JWT in session.user
