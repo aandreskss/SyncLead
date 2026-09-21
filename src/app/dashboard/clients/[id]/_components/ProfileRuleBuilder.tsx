@@ -5,6 +5,8 @@ import {
   getProfileAction,
   upsertRulesAction,
   previewProfileEvaluationAction,
+  toggleRuleActiveAction,
+  deleteRuleByIdAction,
 } from "@/domains/qualification/profile-actions"
 import type { QualificationProfile, QualificationRule } from "@/domains/qualification/profile-types"
 import type { QualificationRuleInput } from "@/domains/qualification/profile-types"
@@ -342,15 +344,22 @@ function operatorLabel(op: string): string {
 
 function RuleCard({
   draft,
+  profileId,
   onChange,
   onDelete,
   isReadOnly,
 }: {
   draft: RuleDraft
+  profileId: string
   onChange: (d: RuleDraft) => void
   onDelete: () => void
   isReadOnly: boolean
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deletePending, startDelete] = useTransition()
+  const [togglePending, startToggle] = useTransition()
+  const [actionError, setActionError] = useState<string | null>(null)
+
   function updateLeaf(i: number, l: LeafDraft) {
     const leaves = [...draft.leaves]
     leaves[i] = l
@@ -365,6 +374,50 @@ function RuleCard({
   function removeLeaf(i: number) {
     if (draft.leaves.length <= 1) return
     onChange({ ...draft, leaves: draft.leaves.filter((_, idx) => idx !== i) })
+  }
+
+  function handleToggleActive() {
+    if (isReadOnly || togglePending) return
+    const newActive = !draft.active
+    if (draft.id) {
+      const prevActive = draft.active
+      onChange({ ...draft, active: newActive })
+      startToggle(async () => {
+        try {
+          const r = await toggleRuleActiveAction(profileId, draft.id!, newActive)
+          if ("error" in r) {
+            onChange({ ...draft, active: prevActive })
+            setActionError(r.error ?? null)
+          }
+        } catch {
+          onChange({ ...draft, active: prevActive })
+          setActionError("Error al actualizar la regla")
+        }
+      })
+    } else {
+      onChange({ ...draft, active: newActive })
+    }
+  }
+
+  function handleDelete() {
+    if (draft.id) {
+      startDelete(async () => {
+        try {
+          const r = await deleteRuleByIdAction(profileId, draft.id!)
+          if ("error" in r) {
+            setActionError(r.error ?? null)
+            setConfirmDelete(false)
+          } else {
+            onDelete()
+          }
+        } catch {
+          setActionError("Error al eliminar la regla")
+          setConfirmDelete(false)
+        }
+      })
+    } else {
+      onDelete()
+    }
   }
 
   const showGroupOperator = draft.leaves.length > 1
@@ -396,30 +449,80 @@ function RuleCard({
         </div>
 
         {/* Active toggle */}
-        <div className="flex items-center gap-2 mt-5">
-          <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={draft.active}
-              onChange={(e) => onChange({ ...draft, active: e.target.checked })}
-              disabled={isReadOnly}
-              className="rounded border-zinc-700 bg-zinc-800 text-indigo-500 focus:ring-indigo-500"
-            />
-            Activa
-          </label>
+        <div className="flex flex-col items-center gap-1 mt-4">
+          <button
+            type="button"
+            onClick={handleToggleActive}
+            disabled={isReadOnly || togglePending}
+            title={draft.active ? "Desactivar regla" : "Activar regla"}
+            className={`relative flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-zinc-900 ${
+              draft.active ? "bg-indigo-600" : "bg-zinc-700"
+            }`}
+          >
+            {togglePending ? (
+              <Loader2 className="absolute left-1 h-3 w-3 animate-spin text-white" />
+            ) : (
+              <span
+                className={`absolute h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+                  draft.active ? "translate-x-[18px]" : "translate-x-[2px]"
+                }`}
+              />
+            )}
+          </button>
+          <span className="text-[10px] text-zinc-500 select-none">
+            {draft.active ? "Activa" : "Inactiva"}
+          </span>
         </div>
 
         {/* Delete */}
         {!isReadOnly && (
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-900/20 transition-colors mt-4"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          confirmDelete ? (
+            <div className="flex flex-col items-center gap-1 mt-4">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deletePending}
+                className="text-[10px] px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 flex items-center gap-1"
+              >
+                {deletePending && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                Eliminar
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                disabled={deletePending}
+                className="text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              title="Eliminar regla"
+              className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-900/20 transition-colors mt-4"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )
         )}
       </div>
+
+      {/* Action error */}
+      {actionError && (
+        <div className="flex items-center gap-1.5 text-xs text-red-400">
+          <AlertCircle className="h-3 w-3 flex-shrink-0" />
+          {actionError}
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="ml-auto text-zinc-600 hover:text-zinc-400"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
 
       {/* Conditions section */}
       <div className="space-y-2">
@@ -775,8 +878,8 @@ export function ProfileRuleBuilder({ profileId, clientId, onClose }: Props) {
                 <RuleCard
                   key={draft.id ?? `draft-${i}`}
                   draft={draft}
+                  profileId={profileId}
                   onChange={(d) => {
-                    // Find original index
                     const originalIdx = drafts.indexOf(draft)
                     updateRule(originalIdx >= 0 ? originalIdx : i, d)
                   }}
