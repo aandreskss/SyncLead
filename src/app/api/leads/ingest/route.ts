@@ -64,7 +64,23 @@ const IngestPayloadSchema = z.object({
 type IngestPayload = z.infer<typeof IngestPayloadSchema>
 
 export async function POST(req: NextRequest) {
-  const apiKey = req.headers.get("x-campaign-key")
+  // Leer el body primero — sendBeacon no puede enviar headers custom,
+  // por lo que el SDK nuevo incluye el key en el body como _key.
+  let rawBody: unknown
+  try {
+    rawBody = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: CORS })
+  }
+
+  // Key desde header (fetch legacy) o desde body (sendBeacon)
+  let apiKey = req.headers.get("x-campaign-key")
+  if (!apiKey && rawBody && typeof rawBody === "object" && "_key" in rawBody) {
+    apiKey = (rawBody as Record<string, unknown>)._key as string
+    const { _key: _, ...rest } = rawBody as Record<string, unknown>
+    rawBody = rest
+  }
+
   if (!apiKey) {
     return NextResponse.json({ error: "Missing X-Campaign-Key header" }, { status: 401, headers: CORS })
   }
@@ -86,13 +102,6 @@ export async function POST(req: NextRequest) {
   }
   if (!campaign.active) {
     return NextResponse.json({ error: "Campaign is inactive" }, { status: 403, headers: CORS })
-  }
-
-  let rawBody: unknown
-  try {
-    rawBody = await req.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: CORS })
   }
 
   const parsed = IngestPayloadSchema.safeParse(rawBody)
