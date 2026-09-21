@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { campaigns, leads, metaConnections } from "@/lib/db/schema"
-import { eq, and, or, ne } from "drizzle-orm"
+import { eq, and, or, ne, ilike } from "drizzle-orm"
 import { normalizePhone } from "@/domains/leads/normalize"
 import {
   createConversionIdempotent,
@@ -28,6 +28,7 @@ const PurchaseSchema = z.object({
     .string()
     .regex(/^[A-Z]{3}$/, "Moneda debe ser código ISO 4217 (ej. USD, EUR, VES)"),
   order_id: z.string().min(1).max(255).optional(),
+  lead_id: z.string().uuid().optional().nullable(),
   email: z.string().email().max(255).optional().nullable(),
   phone: z.string().max(30).optional().nullable(),
   name: z.string().max(255).optional().nullable(),
@@ -99,12 +100,21 @@ export async function POST(req: NextRequest) {
     landingUrl: true,
   } as const
 
-  // ── Buscar lead existente por email o phone ───────────────────────────────
+  // ── Buscar lead existente: lead_id directo → email → phone ──────────────
   let lead: LeadCols | null = null
 
-  if (body.email || phone) {
+  // 1. Lookup directo por leadId (enviado por sl.js desde localStorage)
+  if (body.lead_id) {
+    lead = (await db.query.leads.findFirst({
+      where: and(eq(leads.id, body.lead_id), eq(leads.orgId, campaign.orgId)),
+      columns: QUERY_COLS,
+    })) ?? null
+  }
+
+  // 2. Fallback por email (case-insensitive) o phone normalizados
+  if (!lead && (body.email || phone)) {
     const conditions = []
-    if (body.email) conditions.push(eq(leads.email, body.email.toLowerCase().trim()))
+    if (body.email) conditions.push(ilike(leads.email, body.email.trim()))
     if (phone) conditions.push(eq(leads.phone, phone))
 
     lead = (await db.query.leads.findFirst({
