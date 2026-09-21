@@ -195,12 +195,17 @@ export async function registerSaleAction(
       capiScheduled = true
     }
 
-    // 3. Sync deprecated lead fields (non-fatal — for backward-compat UI)
+    // 3. Sync deprecated lead fields + mark temperature hot (non-fatal)
     syncLeadConvertedFields(
       leadId, ctx.orgId,
       input.amount.toFixed(2), input.currency.toUpperCase(),
       input.convertedAt, ctx.userId
     ).catch(() => undefined)
+
+    db.update(leads)
+      .set({ temperature: "hot", updatedAt: new Date() })
+      .where(and(eq(leads.id, leadId), eq(leads.orgId, ctx.orgId)))
+      .catch(() => undefined)
 
     // 4. Activity log (non-fatal)
     db.insert(leadActivities).values({

@@ -257,6 +257,7 @@ async function processImportRow(
         conversionAmount: String(p.saleAmount),
         conversionCurrency: "USD",
         conversionDate: p.saleDate ?? createdAt,
+        temperature: "hot",
       }).where(and(eq(leads.id, lead.id), eq(leads.orgId, orgId)))
     }
 
