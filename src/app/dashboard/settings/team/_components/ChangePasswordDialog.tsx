@@ -1,9 +1,13 @@
 "use client"
 
 import { useState, useTransition, useRef, useId } from "react"
+import { KeyRound } from "lucide-react"
+import { opsIconBtn } from "@/components/app/ops"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -58,32 +62,36 @@ export default function ChangePasswordDialog({ memberId, memberName }: Props) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <button className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-          Contraseña
+        <button
+          type="button"
+          aria-label={`Cambiar contraseña de ${memberName ?? "este usuario"}`}
+          title="Cambiar contraseña"
+          className={opsIconBtn}
+        >
+          <KeyRound className="h-4 w-4" aria-hidden />
         </button>
       </DialogTrigger>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-sm">
+      <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Cambiar contraseña</DialogTitle>
+          <DialogTitle>Cambiar contraseña</DialogTitle>
+          <DialogDescription>
+            Nueva contraseña para {memberName ?? "este usuario"}.
+          </DialogDescription>
         </DialogHeader>
 
         {success ? (
           <div className="space-y-4">
-            <p className="text-sm text-emerald-400">
+            <p className="text-sm text-ops-green">
               Contraseña actualizada para <strong>{memberName ?? "el usuario"}</strong>.
             </p>
-            <Button className="w-full" onClick={() => handleOpenChange(false)}>
+            <Button onClick={() => handleOpenChange(false)}>
               Cerrar
             </Button>
           </div>
         ) : (
           <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
-            <p className="text-sm text-zinc-400">
-              Nueva contraseña para <strong className="text-zinc-200">{memberName ?? "este usuario"}</strong>.
-            </p>
-
             <div className="space-y-1.5">
-              <Label htmlFor={pwId} className="text-zinc-300 text-sm">
+              <Label htmlFor={pwId} className="text-sm text-ops-tx">
                 Nueva contraseña
               </Label>
               <div className="relative">
@@ -95,13 +103,13 @@ export default function ChangePasswordDialog({ memberId, memberName }: Props) {
                   required
                   minLength={8}
                   disabled={isPending}
-                  className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-0 focus:border-zinc-500 pr-16"
+                  className="pr-16"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-200 px-1"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-ops-tx2 hover:text-ops-tx px-1 rounded focus-visible:outline-2 focus-visible:outline-ops-blue"
                 >
                   {showPassword ? "Ocultar" : "Ver"}
                 </button>
@@ -109,12 +117,17 @@ export default function ChangePasswordDialog({ memberId, memberName }: Props) {
             </div>
 
             {error && (
-              <p className="text-sm text-red-400">{error}</p>
+              <p className="text-sm text-ops-coral">{error}</p>
             )}
 
-            <Button type="submit" disabled={isPending} className="w-full">
-              {isPending ? "Guardando…" : "Guardar contraseña"}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)} disabled={isPending}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Guardando…" : "Guardar contraseña"}
+              </Button>
+            </DialogFooter>
           </form>
         )}
       </DialogContent>

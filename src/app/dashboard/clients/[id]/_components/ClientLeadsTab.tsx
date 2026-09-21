@@ -72,8 +72,8 @@ const ACTIVITIES = [
 ]
 
 function tempBadge(t: string) {
-  if (t === "hot") return "bg-red-500/20 text-red-400 border border-red-500/30"
-  if (t === "warm") return "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+  if (t === "hot") return "bg-red-500/20 text-ops-coral border border-red-500/30"
+  if (t === "warm") return "bg-amber-500/20 text-ops-amber border border-amber-500/30"
   return "bg-blue-500/20 text-blue-400 border border-blue-500/30"
 }
 
@@ -84,13 +84,13 @@ function tempLabel(t: string) {
 }
 
 function stageBadge(s: string) {
-  if (s === "new") return "bg-zinc-700/60 text-zinc-400 border border-zinc-600/40"
+  if (s === "new") return "bg-ops-sel/60 text-ops-tx2 border border-ops-bd/40"
   if (s === "contacted") return "bg-blue-500/15 text-blue-400 border border-blue-500/25"
-  if (s === "interested") return "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
+  if (s === "interested") return "bg-ops-blue/15 text-ops-blue-t border border-ops-blue/25"
   if (s === "quoted") return "bg-purple-500/15 text-purple-400 border border-purple-500/25"
-  if (s === "won") return "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25"
-  if (s === "lost") return "bg-red-500/15 text-red-400 border border-red-500/25"
-  return "bg-zinc-700/60 text-zinc-400 border border-zinc-600/40"
+  if (s === "won") return "bg-emerald-500/15 text-ops-green border border-emerald-500/25"
+  if (s === "lost") return "bg-red-500/15 text-ops-coral border border-red-500/25"
+  return "bg-ops-sel/60 text-ops-tx2 border border-ops-bd/40"
 }
 
 function stageLabel(s: string) {
@@ -139,7 +139,7 @@ function SourceBadge({ source }: { source: string }) {
     )
   }
   return (
-    <span title="Orgánico" className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+    <span title="Orgánico" className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium bg-emerald-500/20 text-ops-green border border-emerald-500/30">
       <Globe className="h-2.5 w-2.5" />
       Org
     </span>
@@ -149,12 +149,12 @@ function SourceBadge({ source }: { source: string }) {
 function ActivityBadges({ activity, hasPendingCapi }: { activity: LeadWithActivity["activity"]; hasPendingCapi?: boolean }) {
   const badges = []
   if (hasPendingCapi) badges.push(
-    <span key="capi" title="CAPI pendiente" className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+    <span key="capi" title="CAPI pendiente" className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-ops-amber border border-amber-500/30">
       <Zap className="h-2.5 w-2.5" />
     </span>
   )
   if (activity.hasCheckout) badges.push(
-    <span key="checkout" title="Checkout" className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+    <span key="checkout" title="Checkout" className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-ops-blue/20 text-ops-blue-t border border-ops-blue/30">
       <CheckCircle className="h-2.5 w-2.5" />
     </span>
   )
@@ -169,11 +169,11 @@ function ActivityBadges({ activity, hasPendingCapi }: { activity: LeadWithActivi
     </span>
   )
   if (activity.hasInfoRequest) badges.push(
-    <span key="info" title="Info solicitada" className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-zinc-700/60 text-zinc-400 border border-zinc-600/40">
+    <span key="info" title="Info solicitada" className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-ops-sel/60 text-ops-tx2 border border-ops-bd/40">
       <Info className="h-2.5 w-2.5" />
     </span>
   )
-  if (badges.length === 0) return <span className="text-zinc-600 text-xs">—</span>
+  if (badges.length === 0) return <span className="text-ops-tx3 text-xs">—</span>
   return <div className="flex items-center gap-1 flex-wrap">{badges}</div>
 }
 
@@ -204,6 +204,7 @@ export function ClientLeadsTab({
   const campaignMap = Object.fromEntries(campaigns.map((c) => [c.id, c.name]))
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedLeads(new Set())
     setDeleteConfirm(null)
     setDeleteError(null)
@@ -306,46 +307,46 @@ export function ClientLeadsTab({
     <div className="space-y-6">
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Total</p>
-          <p className="text-2xl font-bold text-zinc-100">{totalLeads}</p>
+        <div className="rounded-lg border border-ops-line bg-ops-s1 p-4">
+          <p className="text-xs text-ops-tx3 mb-1">Total</p>
+          <p className="text-2xl font-bold text-ops-tx">{totalLeads}</p>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Calientes</p>
-          <p className="text-2xl font-bold text-red-400">{hotCount}</p>
+        <div className="rounded-lg border border-ops-line bg-ops-s1 p-4">
+          <p className="text-xs text-ops-tx3 mb-1">Calientes</p>
+          <p className="text-2xl font-bold text-ops-coral">{hotCount}</p>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Con venta</p>
-          <p className="text-2xl font-bold text-emerald-400">{convertedCount}</p>
+        <div className="rounded-lg border border-ops-line bg-ops-s1 p-4">
+          <p className="text-xs text-ops-tx3 mb-1">Con venta</p>
+          <p className="text-2xl font-bold text-ops-green">{convertedCount}</p>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Contactados</p>
+        <div className="rounded-lg border border-ops-line bg-ops-s1 p-4">
+          <p className="text-xs text-ops-tx3 mb-1">Contactados</p>
           <p className="text-2xl font-bold text-blue-400">{contactedCount}</p>
         </div>
       </div>
 
       {/* Header with delete-all button */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-500">{leads.length} leads mostrados</p>
+        <p className="text-sm text-ops-tx3">{leads.length} leads mostrados</p>
         {leads.length > 0 && (
           <div className="flex items-center gap-2">
             {deleteError && deleteConfirm === "client" && (
-              <span className="text-xs text-red-400">{deleteError}</span>
+              <span className="text-xs text-ops-coral">{deleteError}</span>
             )}
             {deleteConfirm === "client" ? (
               <>
-                <span className="text-xs text-red-400">¿Eliminar todos los leads del cliente permanentemente?</span>
+                <span className="text-xs text-ops-coral">¿Eliminar todos los leads del cliente permanentemente?</span>
                 <button
                   onClick={() => { setDeleteConfirm(null); setDeleteError(null) }}
                   disabled={isPending}
-                  className="px-2.5 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-lg transition-colors"
+                  className="px-2.5 py-1.5 text-xs text-ops-tx2 hover:text-ops-tx border border-ops-bd rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDeleteClient}
                   disabled={isPending}
-                  className="px-2.5 py-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 bg-red-500/10 rounded-lg transition-colors flex items-center gap-1"
+                  className="px-2.5 py-1.5 text-xs text-ops-coral hover:text-ops-coral border border-red-500/30 bg-red-500/10 rounded-lg transition-colors flex items-center gap-1"
                 >
                   <Trash2 className="h-3 w-3" />
                   {isPending ? "Eliminando…" : "Confirmar"}
@@ -354,7 +355,7 @@ export function ClientLeadsTab({
             ) : (
               <button
                 onClick={handleDeleteClient}
-                className="px-2.5 py-1.5 text-xs text-zinc-500 hover:text-red-400 border border-zinc-700 hover:border-red-500/30 rounded-lg transition-colors flex items-center gap-1"
+                className="px-2.5 py-1.5 text-xs text-ops-tx3 hover:text-ops-coral border border-ops-bd hover:border-red-500/30 rounded-lg transition-colors flex items-center gap-1"
               >
                 <Trash2 className="h-3 w-3" />
                 Eliminar todos
@@ -366,26 +367,26 @@ export function ClientLeadsTab({
 
       {/* Bulk action bar */}
       {selectedLeads.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
-          <span className="text-sm text-indigo-300 font-medium">{selectedLeads.size} seleccionados</span>
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-ops-blue/10 border border-ops-blue/20 rounded-lg">
+          <span className="text-sm text-ops-blue-t font-medium">{selectedLeads.size} seleccionados</span>
           <div className="flex items-center gap-2 ml-auto">
             {deleteError && deleteConfirm === "selected" && (
-              <span className="text-xs text-red-400">{deleteError}</span>
+              <span className="text-xs text-ops-coral">{deleteError}</span>
             )}
             {deleteConfirm === "selected" ? (
               <>
-                <span className="text-xs text-red-400">¿Eliminar permanentemente?</span>
+                <span className="text-xs text-ops-coral">¿Eliminar permanentemente?</span>
                 <button
                   onClick={() => { setDeleteConfirm(null); setDeleteError(null) }}
                   disabled={isPending}
-                  className="px-2.5 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-lg transition-colors"
+                  className="px-2.5 py-1.5 text-xs text-ops-tx2 hover:text-ops-tx border border-ops-bd rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDeleteSelected}
                   disabled={isPending}
-                  className="px-2.5 py-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 bg-red-500/10 rounded-lg transition-colors flex items-center gap-1"
+                  className="px-2.5 py-1.5 text-xs text-ops-coral hover:text-ops-coral border border-red-500/30 bg-red-500/10 rounded-lg transition-colors flex items-center gap-1"
                 >
                   <Trash2 className="h-3 w-3" />
                   {isPending ? "Eliminando…" : "Confirmar"}
@@ -394,7 +395,7 @@ export function ClientLeadsTab({
             ) : (
               <button
                 onClick={handleDeleteSelected}
-                className="px-2.5 py-1.5 text-xs text-red-400 hover:text-red-300 border border-red-500/30 bg-red-500/10 rounded-lg transition-colors flex items-center gap-1"
+                className="px-2.5 py-1.5 text-xs text-ops-coral hover:text-ops-coral border border-red-500/30 bg-red-500/10 rounded-lg transition-colors flex items-center gap-1"
               >
                 <Trash2 className="h-3 w-3" />
                 Eliminar seleccionados
@@ -407,20 +408,20 @@ export function ClientLeadsTab({
       {/* Filters row */}
       <div className="flex flex-wrap gap-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ops-tx3 pointer-events-none" />
           <input
             type="text"
             placeholder="Buscar nombre, email, teléfono…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-64 transition-colors"
+            className="pl-9 pr-3 py-2 bg-ops-s2 border border-ops-bd rounded-lg text-sm text-ops-tx placeholder-ops-tx3 focus:outline-none focus:border-ops-blue w-64 transition-colors"
           />
         </div>
 
         <select
           value={filters.temperature}
           onChange={(e) => updateFilter("temperature", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className="px-3 py-2 bg-ops-s2 border border-ops-bd rounded-lg text-sm text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
         >
           {TEMPERATURES.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
@@ -430,7 +431,7 @@ export function ClientLeadsTab({
         <select
           value={filters.stage}
           onChange={(e) => updateFilter("stage", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className="px-3 py-2 bg-ops-s2 border border-ops-bd rounded-lg text-sm text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
         >
           {STAGES.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
@@ -440,7 +441,7 @@ export function ClientLeadsTab({
         <select
           value={filters.converted}
           onChange={(e) => updateFilter("converted", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className="px-3 py-2 bg-ops-s2 border border-ops-bd rounded-lg text-sm text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
         >
           {CONVERSION_FILTERS.map((c) => (
             <option key={c.value} value={c.value}>{c.label}</option>
@@ -450,7 +451,7 @@ export function ClientLeadsTab({
         <select
           value={filters.source}
           onChange={(e) => updateFilter("source", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className="px-3 py-2 bg-ops-s2 border border-ops-bd rounded-lg text-sm text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
         >
           {SOURCES.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
@@ -460,7 +461,7 @@ export function ClientLeadsTab({
         <select
           value={filters.activity}
           onChange={(e) => updateFilter("activity", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className="px-3 py-2 bg-ops-s2 border border-ops-bd rounded-lg text-sm text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
         >
           {ACTIVITIES.map((a) => (
             <option key={a.value} value={a.value}>{a.label}</option>
@@ -471,7 +472,7 @@ export function ClientLeadsTab({
           <select
             value={filters.campaignId}
             onChange={(e) => updateFilter("campaignId", e.target.value)}
-            className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="px-3 py-2 bg-ops-s2 border border-ops-bd rounded-lg text-sm text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
           >
             <option value="">Todas las campañas</option>
             {campaigns.map((c) => (
@@ -483,7 +484,7 @@ export function ClientLeadsTab({
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="px-3 py-2 text-xs text-ops-tx3 hover:text-ops-tx2 transition-colors"
           >
             Limpiar filtros
           </button>
@@ -493,74 +494,74 @@ export function ClientLeadsTab({
       {/* Table */}
       {leads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="h-14 w-14 rounded-full bg-zinc-800 flex items-center justify-center mb-4">
-            <Users className="h-7 w-7 text-zinc-500" />
+          <div className="h-14 w-14 rounded-full bg-ops-s2 flex items-center justify-center mb-4">
+            <Users className="h-7 w-7 text-ops-tx3" />
           </div>
-          <p className="text-zinc-300 font-medium">Sin leads</p>
-          <p className="text-zinc-500 text-sm mt-1 max-w-xs">
+          <p className="text-ops-tx2 font-medium">Sin leads</p>
+          <p className="text-ops-tx3 text-sm mt-1 max-w-xs">
             {hasActiveFilters
               ? "No hay leads que coincidan con los filtros."
               : "Este cliente aún no tiene leads en ninguna campaña."}
           </p>
         </div>
       ) : (
-        <div className="border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
+        <div className="border border-ops-line rounded-lg overflow-hidden overflow-x-auto">
           <table className="w-full text-sm min-w-[1350px]">
             <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-900/50">
+              <tr className="border-b border-ops-line bg-ops-s1/50">
                 <th className="px-3 py-3 w-10">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     ref={(el) => { if (el) el.indeterminate = someSelected }}
                     onChange={handleSelectAll}
-                    className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500 cursor-pointer"
+                    className="w-4 h-4 rounded border-ops-bd bg-ops-s2 accent-indigo-500 cursor-pointer"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Nombre</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Teléfono</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Email</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Temp.</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Etapa</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Venta</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Actividad</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Negocio</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Campaña</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Conjunto</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Anuncio</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Asignado</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Fecha</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Nombre</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Teléfono</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Email</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Temp.</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Etapa</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Venta</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Actividad</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Negocio</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Campaña</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Conjunto</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Anuncio</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Asignado</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Fecha</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-ops-line">
               {leads.map((lead) => (
                 <tr
                   key={lead.id}
                   onClick={() => setDrawerLead(lead)}
-                  className={`hover:bg-zinc-800/40 transition-colors cursor-pointer ${selectedLeads.has(lead.id) ? "bg-indigo-500/5" : ""}`}
+                  className={`hover:bg-ops-s2/40 transition-colors cursor-pointer ${selectedLeads.has(lead.id) ? "bg-ops-blue/5" : ""}`}
                 >
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selectedLeads.has(lead.id)}
                       onChange={() => handleSelectLead(lead.id)}
-                      className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500 cursor-pointer"
+                      className="w-4 h-4 rounded border-ops-bd bg-ops-s2 accent-indigo-500 cursor-pointer"
                     />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <SourceBadge source={lead.leadSource ?? "organic"} />
-                      <span className="font-medium text-zinc-100">{lead.name}</span>
+                      <span className="font-medium text-ops-tx">{lead.name}</span>
                     </div>
                     {lead.city && (
-                      <span className="block text-xs text-zinc-500 mt-0.5">{lead.city}</span>
+                      <span className="block text-xs text-ops-tx3 mt-0.5">{lead.city}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-zinc-400 font-mono text-xs">
-                    {lead.phone ?? <span className="text-zinc-600">—</span>}
+                  <td className="px-4 py-3 text-ops-tx2 font-mono text-xs">
+                    {lead.phone ?? <span className="text-ops-tx3">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-zinc-400 text-xs max-w-[160px] truncate">
-                    {lead.email ?? <span className="text-zinc-600">—</span>}
+                  <td className="px-4 py-3 text-ops-tx2 text-xs max-w-[160px] truncate">
+                    {lead.email ?? <span className="text-ops-tx3">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${tempBadge(lead.temperature)}`}>
@@ -574,7 +575,7 @@ export function ClientLeadsTab({
                   </td>
                   <td className="px-4 py-3">
                     {lead.saleCount > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-ops-green bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                         <BadgeDollarSign className="h-3 w-3" />
                         {lead.saleTotalAmount
                           ? formatMoney(lead.saleTotalAmount, lead.saleCurrency ?? "USD")
@@ -584,7 +585,7 @@ export function ClientLeadsTab({
                         )}
                       </span>
                     ) : (
-                      <span className="text-zinc-600 text-xs">—</span>
+                      <span className="text-ops-tx3 text-xs">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -592,32 +593,32 @@ export function ClientLeadsTab({
                   </td>
                   <td className="px-4 py-3 text-center">
                     {lead.negocio ? (
-                      <span className="text-emerald-400 text-xs font-medium">Sí</span>
+                      <span className="text-ops-green text-xs font-medium">Sí</span>
                     ) : (
-                      <span className="text-zinc-600 text-xs">—</span>
+                      <span className="text-ops-tx3 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-zinc-400 text-xs max-w-[140px] truncate">
-                    {campaignMap[lead.campaignId] ?? <span className="text-zinc-600">—</span>}
+                  <td className="px-4 py-3 text-ops-tx2 text-xs max-w-[140px] truncate">
+                    {campaignMap[lead.campaignId] ?? <span className="text-ops-tx3">—</span>}
                   </td>
                   <td className="px-4 py-3 text-xs max-w-[160px] truncate">
                     {lead.metaAdsetName
-                      ? <span className="text-indigo-400/80">{lead.metaAdsetName}</span>
-                      : <span className="text-zinc-600">—</span>}
+                      ? <span className="text-ops-blue-t/80">{lead.metaAdsetName}</span>
+                      : <span className="text-ops-tx3">—</span>}
                   </td>
                   <td className="px-4 py-3 text-xs max-w-[160px] truncate">
                     {lead.metaAdName
-                      ? <span className="text-zinc-300">{lead.metaAdName}</span>
-                      : <span className="text-zinc-600">—</span>}
+                      ? <span className="text-ops-tx2">{lead.metaAdName}</span>
+                      : <span className="text-ops-tx3">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
+                  <td className="px-4 py-3 text-ops-tx3 text-xs">
                     {lead.assignedTo ? (
                       <span className="font-mono">{lead.assignedTo}</span>
                     ) : (
-                      <span className="text-zinc-600">—</span>
+                      <span className="text-ops-tx3">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
+                  <td className="px-4 py-3 text-ops-tx3 text-xs whitespace-nowrap">
                     {formatDate(lead.createdAt)}
                   </td>
                 </tr>

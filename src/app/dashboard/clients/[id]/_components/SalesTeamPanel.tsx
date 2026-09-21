@@ -93,12 +93,12 @@ export function SalesTeamPanel({ clientId, initialReps }: Props) {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-zinc-400" />
-          <h2 className="text-sm font-semibold text-zinc-200">Equipo comercial</h2>
+          <Users className="h-4 w-4 text-ops-tx2" />
+          <h2 className="text-sm font-semibold text-ops-tx">Equipo comercial</h2>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 rounded-lg px-3 py-1.5 transition-colors"
+          className="flex items-center gap-1.5 text-xs text-ops-tx2 hover:text-ops-tx border border-ops-bd hover:border-zinc-500 rounded-lg px-3 py-1.5 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" /> Agregar vendedor
         </button>
@@ -119,12 +119,12 @@ export function SalesTeamPanel({ clientId, initialReps }: Props) {
 
       {/* List */}
       {reps.length === 0 && !showCreate && (
-        <p className="text-sm text-zinc-500 text-center py-6">No hay vendedores. Agrega el primero.</p>
+        <p className="text-sm text-ops-tx3 text-center py-6">No hay vendedores. Agrega el primero.</p>
       )}
 
       <div className="space-y-2">
         {reps.map((rep) => (
-          <div key={rep.id} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-4">
+          <div key={rep.id} className="rounded-lg border border-ops-bd bg-ops-s2/50 p-4">
             {editId === rep.id ? (
               <RepForm
                 form={form}
@@ -139,31 +139,31 @@ export function SalesTeamPanel({ clientId, initialReps }: Props) {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-zinc-100 truncate">{rep.displayName}</p>
+                    <p className="text-sm font-medium text-ops-tx truncate">{rep.displayName}</p>
                     <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      rep.active ? "bg-emerald-400/10 text-emerald-400" : "bg-zinc-700/60 text-zinc-500"
+                      rep.active ? "bg-emerald-400/10 text-ops-green" : "bg-ops-sel/60 text-ops-tx3"
                     }`}>
                       {rep.active ? "Activo" : "Inactivo"}
                     </span>
                   </div>
                   {rep.whatsappNumber && (
-                    <p className="text-xs text-zinc-500 mt-0.5">{rep.whatsappNumber}</p>
+                    <p className="text-xs text-ops-tx3 mt-0.5">{rep.whatsappNumber}</p>
                   )}
                   {rep.email && (
-                    <p className="text-xs text-zinc-600 truncate">{rep.email}</p>
+                    <p className="text-xs text-ops-tx3 truncate">{rep.email}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => handleToggleActive(rep.id)}
                     title={rep.active ? "Desactivar" : "Activar"}
-                    className="p-1.5 rounded-lg hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-ops-sel text-ops-tx3 hover:text-ops-tx2 transition-colors"
                   >
                     {rep.active ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
                   </button>
                   <button
                     onClick={() => openEdit(rep)}
-                    className="p-1.5 rounded-lg hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-ops-sel text-ops-tx3 hover:text-ops-tx2 transition-colors"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
@@ -172,13 +172,13 @@ export function SalesTeamPanel({ clientId, initialReps }: Props) {
                       <button
                         onClick={() => handleDelete(rep.id)}
                         disabled={isPending}
-                        className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                        className="p-1.5 rounded-lg bg-red-500/20 text-ops-coral hover:bg-red-500/30 transition-colors"
                       >
                         <Check className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => setConfirmDeleteId(null)}
-                        className="p-1.5 rounded-lg hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-ops-sel text-ops-tx3 hover:text-ops-tx2 transition-colors"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -186,7 +186,7 @@ export function SalesTeamPanel({ clientId, initialReps }: Props) {
                   ) : (
                     <button
                       onClick={() => setConfirmDeleteId(rep.id)}
-                      className="p-1.5 rounded-lg hover:bg-zinc-700 text-zinc-500 hover:text-red-400 transition-colors"
+                      className="p-1.5 rounded-lg hover:bg-ops-sel text-ops-tx3 hover:text-ops-coral transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -221,51 +221,51 @@ function RepForm({
   title: string
 }) {
   return (
-    <div className="rounded-xl border border-zinc-600 bg-zinc-900 p-4 space-y-3">
-      <p className="text-xs font-semibold text-zinc-300">{title}</p>
+    <div className="rounded-lg border border-ops-bd bg-ops-s1 p-4 space-y-3">
+      <p className="text-xs font-semibold text-ops-tx2">{title}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-zinc-400">Nombre *</label>
+          <label className="text-xs text-ops-tx2">Nombre *</label>
           <input
-            className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+            className="mt-1 w-full bg-ops-s2 border border-ops-bd rounded-lg px-3 py-2 text-sm text-ops-tx placeholder-ops-tx3 focus:outline-none focus:border-zinc-500"
             placeholder="Nombre completo"
             value={form.displayName}
             onChange={(e) => onChange({ ...form, displayName: e.target.value })}
           />
         </div>
         <div>
-          <label className="text-xs text-zinc-400">WhatsApp (E.164)</label>
+          <label className="text-xs text-ops-tx2">WhatsApp (E.164)</label>
           <input
-            className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+            className="mt-1 w-full bg-ops-s2 border border-ops-bd rounded-lg px-3 py-2 text-sm text-ops-tx placeholder-ops-tx3 focus:outline-none focus:border-zinc-500"
             placeholder="+58414…"
             value={form.whatsappNumber}
             onChange={(e) => onChange({ ...form, whatsappNumber: e.target.value })}
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="text-xs text-zinc-400">Email</label>
+          <label className="text-xs text-ops-tx2">Email</label>
           <input
             type="email"
-            className="mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+            className="mt-1 w-full bg-ops-s2 border border-ops-bd rounded-lg px-3 py-2 text-sm text-ops-tx placeholder-ops-tx3 focus:outline-none focus:border-zinc-500"
             placeholder="vendedor@ejemplo.com"
             value={form.email}
             onChange={(e) => onChange({ ...form, email: e.target.value })}
           />
         </div>
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-ops-coral">{error}</p>}
       <div className="flex gap-2">
         <button
           onClick={onSubmit}
           disabled={isPending || !form.displayName.trim()}
-          className="flex items-center gap-1.5 text-sm bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-zinc-100 px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 text-sm bg-ops-sel hover:bg-zinc-600 disabled:opacity-50 text-ops-tx px-4 py-2 rounded-lg transition-colors"
         >
           {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Guardar
         </button>
         <button
           onClick={onCancel}
-          className="text-sm text-zinc-500 hover:text-zinc-300 px-4 py-2 rounded-lg transition-colors"
+          className="text-sm text-ops-tx3 hover:text-ops-tx2 px-4 py-2 rounded-lg transition-colors"
         >
           Cancelar
         </button>

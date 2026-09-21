@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign, Trash2, Zap, Target, Globe, Upload } from "lucide-react"
 import { LeadDrawer } from "./LeadDrawer"
+import { cn } from "@/lib/utils"
+import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField } from "@/components/app/ops"
 import type { Campaign, Client, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
 import type { LeadWithActivity } from "@/domains/leads/repository"
 import {
@@ -56,10 +58,10 @@ const ACTIVITIES: { value: string; label: string }[] = [
   { value: "info_requested", label: "Solicitó info" },
 ]
 
-function tempBadge(t: string) {
-  if (t === "hot") return "bg-red-500/15 text-red-400"
-  if (t === "warm") return "bg-amber-500/15 text-amber-400"
-  return "bg-blue-500/15 text-blue-400"
+function tempTone(t: string): "coral" | "amber" | "cold" {
+  if (t === "hot") return "coral"
+  if (t === "warm") return "amber"
+  return "cold"
 }
 
 function tempLabel(t: string) {
@@ -68,14 +70,11 @@ function tempLabel(t: string) {
   return "Frío"
 }
 
-function stageBadge(s: string) {
-  if (s === "new") return "bg-zinc-700/60 text-zinc-400"
-  if (s === "contacted") return "bg-blue-500/15 text-blue-400"
-  if (s === "interested") return "bg-indigo-500/15 text-indigo-400"
-  if (s === "quoted") return "bg-purple-500/15 text-purple-400"
-  if (s === "won") return "bg-emerald-500/15 text-emerald-400"
-  if (s === "lost") return "bg-red-500/15 text-red-400"
-  return "bg-zinc-700/60 text-zinc-400"
+function stageTone(s: string): "neutral" | "blue" | "green" | "coral" {
+  if (s === "contacted" || s === "interested" || s === "quoted") return "blue"
+  if (s === "won") return "green"
+  if (s === "lost") return "coral"
+  return "neutral"
 }
 
 function stageLabel(s: string) {
@@ -109,18 +108,18 @@ function formatMoney(amount: string, currency: string) {
 function SourceBadge({ source }: { source: string }) {
   if (source === "meta_ads")
     return (
-      <span title="Meta Ads" className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/30 whitespace-nowrap">
+      <span title="Meta Ads" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-ops-blue/20 text-ops-blue-t border border-ops-blue/30 whitespace-nowrap">
         <Target className="h-2.5 w-2.5" />Meta
       </span>
     )
   if (source === "imported")
     return (
-      <span title="Importado desde archivo" className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30 whitespace-nowrap">
+      <span title="Importado desde archivo" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-ops-cold/20 text-ops-cold border border-ops-cold/30 whitespace-nowrap">
         <Upload className="h-2.5 w-2.5" />CSV
       </span>
     )
   return (
-    <span title="Orgánico" className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+    <span title="Orgánico" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-ops-green/20 text-ops-green border border-ops-green/30 whitespace-nowrap">
       <Globe className="h-2.5 w-2.5" />Org
     </span>
   )
@@ -134,14 +133,14 @@ function ActivityBadges({
   hasPendingCapi?: boolean
 }) {
   const badges = [
-    { active: activity.hasCheckout, Icon: ShoppingCart, label: "Checkout", color: "text-indigo-400", bg: "bg-indigo-500/15" },
-    { active: activity.hasAbandonedCart, Icon: X, label: "Abandonó carrito", color: "text-orange-400", bg: "bg-orange-500/15" },
+    { active: activity.hasCheckout, Icon: ShoppingCart, label: "Checkout", color: "text-ops-blue-t", bg: "bg-ops-blue/15" },
+    { active: activity.hasAbandonedCart, Icon: X, label: "Abandonó carrito", color: "text-ops-amber", bg: "bg-ops-amber/15" },
     { active: activity.hasAddToCart, Icon: Plus, label: "Agregó al carrito", color: "text-cyan-400", bg: "bg-cyan-500/15" },
-    { active: activity.hasFormSubmit, Icon: FileText, label: "Formulario", color: "text-emerald-400", bg: "bg-emerald-500/15" },
-    { active: activity.hasInfoRequest, Icon: Info, label: "Info", color: "text-purple-400", bg: "bg-purple-500/15" },
+    { active: activity.hasFormSubmit, Icon: FileText, label: "Formulario", color: "text-ops-green", bg: "bg-ops-green/15" },
+    { active: activity.hasInfoRequest, Icon: Info, label: "Info", color: "text-ops-blue-t", bg: "bg-ops-blue/15" },
   ].filter((b) => b.active)
 
-  if (badges.length === 0 && !hasPendingCapi) return <span className="text-zinc-600 text-xs">—</span>
+  if (badges.length === 0 && !hasPendingCapi) return <span className="text-ops-tx3 text-xs">—</span>
 
   return (
     <div className="flex gap-1 flex-wrap">
@@ -155,7 +154,7 @@ function ActivityBadges({
         </span>
       ))}
       {hasPendingCapi && (
-        <span title="CAPI pendiente" className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium bg-amber-500/15 text-amber-400">
+        <span title="CAPI pendiente" className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium bg-ops-amber/15 text-ops-amber">
           <Zap className="h-3 w-3" />
         </span>
       )}
@@ -186,6 +185,7 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
 
   // Clear selection when leads list changes (e.g. after filter or delete)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedLeads(new Set())
     setDeleteConfirm(null)
     setDeleteError(null)
@@ -287,106 +287,102 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
   const someSelected = selectedLeads.size > 0 && selectedLeads.size < leads.length
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Link
-            href="/dashboard/campaigns"
-            className="mt-0.5 p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-xl font-semibold text-zinc-100">{campaign.name}</h1>
-            <p className="text-sm text-zinc-500 mt-0.5">
-              {campaign.client?.name ?? orgName} · {leads.length} leads
-            </p>
-          </div>
-        </div>
+    <PageShell>
+      <nav aria-label="Migas de pan" className="flex items-center gap-1.5 text-[13px] text-ops-tx3">
+        <Link
+          href="/dashboard/campaigns"
+          className="inline-flex items-center gap-1 rounded text-ops-tx2 hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Campañas
+        </Link>
+        <span aria-hidden>/</span>
+        <span className="truncate text-ops-tx">{campaign.name}</span>
+      </nav>
 
-        {/* Bulk delete by campaign / client */}
-        {leads.length > 0 && (
-          <div className="flex items-center gap-2">
-            {deleteConfirm === "campaign" ? (
-              <div className="flex items-center gap-2 bg-zinc-800 border border-red-800/50 rounded-lg px-3 py-1.5">
-                <span className="text-xs text-zinc-400">¿Eliminar {leads.length} leads de la campaña?</span>
-                <button
-                  onClick={handleDeleteCampaign}
-                  disabled={isPending}
-                  className="text-xs text-red-400 hover:text-red-300 font-medium disabled:opacity-50"
-                >
+      <PageHeader
+        title={campaign.name}
+        subtitle={`${campaign.client?.name ?? orgName} · ${leads.length} leads`}
+        actions={
+          leads.length > 0 ? (
+            deleteConfirm === "campaign" ? (
+              <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border border-ops-coral/50 bg-ops-s2 px-3 py-1.5">
+                <span className="text-xs text-ops-tx2">¿Eliminar {leads.length} leads de la campaña?</span>
+                <button onClick={handleDeleteCampaign} disabled={isPending} className="text-xs font-medium text-ops-coral disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ops-blue">
                   {isPending ? "Eliminando…" : "Confirmar"}
                 </button>
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={isPending}
-                  className="text-xs text-zinc-500 hover:text-zinc-300"
-                >
+                <button onClick={() => setDeleteConfirm(null)} disabled={isPending} className="text-xs text-ops-tx2 hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue">
                   Cancelar
                 </button>
               </div>
             ) : deleteConfirm === "client" && campaign.clientId ? (
-              <div className="flex items-center gap-2 bg-zinc-800 border border-red-800/50 rounded-lg px-3 py-1.5">
-                <span className="text-xs text-zinc-400">¿Eliminar todos los leads del cliente?</span>
-                <button
-                  onClick={handleDeleteClient}
-                  disabled={isPending}
-                  className="text-xs text-red-400 hover:text-red-300 font-medium disabled:opacity-50"
-                >
+              <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border border-ops-coral/50 bg-ops-s2 px-3 py-1.5">
+                <span className="text-xs text-ops-tx2">¿Eliminar todos los leads del cliente?</span>
+                <button onClick={handleDeleteClient} disabled={isPending} className="text-xs font-medium text-ops-coral disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ops-blue">
                   {isPending ? "Eliminando…" : "Confirmar"}
                 </button>
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={isPending}
-                  className="text-xs text-zinc-500 hover:text-zinc-300"
-                >
+                <button onClick={() => setDeleteConfirm(null)} disabled={isPending} className="text-xs text-ops-tx2 hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue">
                   Cancelar
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-1">
+              <>
                 <button
                   onClick={() => setDeleteConfirm("campaign")}
                   title="Eliminar todos los leads de esta campaña"
-                  className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-red-400 transition-colors px-2.5 py-2 rounded-lg hover:bg-zinc-800"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd px-3 text-xs text-ops-tx2 transition-colors hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-coral focus-visible:outline-2 focus-visible:outline-ops-blue"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Campaña
+                  <Trash2 className="h-4 w-4" />
+                  Eliminar de campaña
                 </button>
                 {campaign.clientId && (
                   <button
                     onClick={() => setDeleteConfirm("client")}
                     title="Eliminar todos los leads del cliente (todas las campañas)"
-                    className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-red-400 transition-colors px-2.5 py-2 rounded-lg hover:bg-zinc-800"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd px-3 text-xs text-ops-tx2 transition-colors hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-coral focus-visible:outline-2 focus-visible:outline-ops-blue"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Cliente
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar de cliente
                   </button>
                 )}
-              </div>
-            )}
+              </>
+            )
+          ) : undefined
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-ops-line bg-ops-line md:grid-cols-4">
+        {[
+          { label: "Leads", value: leads.length },
+          { label: "Calientes", value: leads.filter((l) => l.temperature === "hot").length },
+          { label: "Sin asignar", value: leads.filter((l) => !l.assignedTo).length },
+          { label: "Con venta", value: leads.filter((l) => l.saleCount > 0).length },
+        ].map((k) => (
+          <div key={k.label} className="bg-ops-s1 px-4 py-3">
+            <p className="text-xs text-ops-tx3">{k.label}</p>
+            <p className="font-plex text-xl font-semibold tabular-nums text-ops-tx">{k.value}</p>
           </div>
-        )}
+        ))}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+      <div className="flex flex-wrap gap-2">
+        <div className="relative w-full md:w-auto">
+          <Search aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ops-tx3 pointer-events-none" />
           <input
             type="text"
             placeholder="Buscar nombre, email, teléfono…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-72 transition-colors"
+            aria-label="Buscar lead" className={cn(opsField, "w-full pl-9 md:w-72")}
           />
         </div>
 
         <select
           value={currentTemp}
+          aria-label="Temperatura"
           onChange={(e) => updateFilter("temperature", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className={opsField}
         >
           {TEMPERATURES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -397,8 +393,9 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
 
         <select
           value={currentStage}
+          aria-label="Etapa"
           onChange={(e) => updateFilter("stage", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className={opsField}
         >
           {STAGES.map((s) => (
             <option key={s.value} value={s.value}>
@@ -409,8 +406,9 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
 
         <select
           value={currentSource}
+          aria-label="Fuente"
           onChange={(e) => updateFilter("source", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className={opsField}
         >
           {SOURCES.map((s) => (
             <option key={s.value} value={s.value}>
@@ -421,8 +419,9 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
 
         <select
           value={currentActivity}
+          aria-label="Actividad"
           onChange={(e) => updateFilter("activity", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className={opsField}
         >
           {ACTIVITIES.map((a) => (
             <option key={a.value} value={a.value}>
@@ -434,8 +433,9 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
         {/* Assignment filters */}
         <select
           value={currentAssignment}
+          aria-label="Asignación"
           onChange={(e) => updateFilter("assignment", e.target.value)}
-          className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+          className={opsField}
         >
           <option value="">Asignación</option>
           <option value="unassigned">Sin asignar</option>
@@ -445,8 +445,9 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
         {salesReps.length > 0 && (
           <select
             value={currentRepId}
+          aria-label="Vendedor"
             onChange={(e) => updateFilter("repId", e.target.value)}
-            className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500 transition-colors"
+            className={opsField}
           >
             <option value="">Vendedor</option>
             {salesReps.map((r) => (
@@ -461,7 +462,7 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
               setSearchInput("")
               router.push(`?`)
             }}
-            className="px-3 py-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="px-3 py-2 text-xs text-ops-tx3 hover:text-ops-tx transition-colors"
           >
             Limpiar filtros
           </button>
@@ -470,32 +471,32 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
 
       {/* Error */}
       {deleteError && (
-        <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-lg px-4 py-3">
+        <p className="text-sm text-ops-coral bg-ops-coral/10 border border-ops-coral/40 rounded-lg px-4 py-3">
           {deleteError}
         </p>
       )}
 
       {/* Bulk selection bar */}
       {selectedLeads.size > 0 && (
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg">
-          <span className="text-sm text-zinc-300">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-ops-s2 border border-ops-bd rounded-lg">
+          <span className="text-sm text-ops-tx">
             {selectedLeads.size} lead{selectedLeads.size !== 1 ? "s" : ""} seleccionado{selectedLeads.size !== 1 ? "s" : ""}
           </span>
           <div className="flex items-center gap-3">
             {deleteConfirm === "selected" ? (
               <>
-                <span className="text-xs text-zinc-400">¿Confirmar eliminación?</span>
+                <span className="text-xs text-ops-tx2">¿Confirmar eliminación?</span>
                 <button
                   onClick={handleDeleteSelected}
                   disabled={isPending}
-                  className="text-xs text-red-400 hover:text-red-300 font-medium disabled:opacity-50"
+                  className="text-xs text-ops-coral hover:text-ops-coral font-medium disabled:opacity-50"
                 >
                   {isPending ? "Eliminando…" : "Eliminar"}
                 </button>
                 <button
                   onClick={() => setDeleteConfirm(null)}
                   disabled={isPending}
-                  className="text-xs text-zinc-500 hover:text-zinc-300"
+                  className="text-xs text-ops-tx3 hover:text-ops-tx"
                 >
                   Cancelar
                 </button>
@@ -503,7 +504,7 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
             ) : (
               <button
                 onClick={() => setDeleteConfirm("selected")}
-                className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 font-medium"
+                className="flex items-center gap-1.5 text-xs text-ops-coral hover:text-ops-coral font-medium"
               >
                 <Trash2 className="h-3 w-3" />
                 Eliminar seleccionados
@@ -511,7 +512,7 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
             )}
             <button
               onClick={() => setSelectedLeads(new Set())}
-              className="text-xs text-zinc-500 hover:text-zinc-300"
+              className="text-xs text-ops-tx3 hover:text-ops-tx"
             >
               Cancelar selección
             </button>
@@ -521,23 +522,23 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
 
       {/* Table */}
       {leads.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="h-14 w-14 rounded-full bg-zinc-800 flex items-center justify-center mb-4">
-            <Users className="h-7 w-7 text-zinc-500" />
-          </div>
-          <p className="text-zinc-300 font-medium">Sin leads todavía</p>
-          <p className="text-zinc-500 text-sm mt-1 max-w-xs">
-            {hasFilters
-              ? "No hay leads que coincidan con los filtros."
-              : "Los leads llegarán cuando configures tu landing page con la API key de esta campaña."}
-          </p>
-        </div>
+        <Panel>
+          <EmptyState
+            icon={<Users className="h-5 w-5" />}
+            title="Sin leads todavía"
+            text={
+              hasFilters
+                ? "No hay leads que coincidan con los filtros."
+                : "Los leads llegarán cuando configures tu landing page con la API key de esta campaña."
+            }
+          />
+        </Panel>
       ) : (
-        <div className="border border-zinc-800 rounded-xl overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm min-w-[1300px]">
+        <Panel bodyClassName={opsTable.wrap}>
+          <table className={cn(opsTable.table, "min-w-[1300px]")}>
             <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                <th className="pl-4 pr-2 py-3 w-10">
+              <tr>
+                <th className={cn(opsTable.th, "w-10 pl-4 pr-2")}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -545,71 +546,70 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                       if (el) el.indeterminate = someSelected
                     }}
                     onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-zinc-600 bg-zinc-800 accent-indigo-500 cursor-pointer"
+                    className="h-4 w-4 cursor-pointer rounded border-ops-bd2 bg-ops-s2 accent-ops-blue focus-visible:outline-2 focus-visible:outline-ops-blue"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Nombre</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Teléfono</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Email</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Temp.</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Etapa</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Venta</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Conjunto</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Anuncio</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Asignado</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Actividad</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-400">Fecha</th>
+                <th className={opsTable.th}>Nombre</th>
+                <th className={opsTable.th}>Teléfono</th>
+                <th className={opsTable.th}>Email</th>
+                <th className={opsTable.th}>Temp.</th>
+                <th className={opsTable.th}>Etapa</th>
+                <th className={opsTable.th}>Venta</th>
+                <th className={opsTable.th}>Conjunto</th>
+                <th className={opsTable.th}>Anuncio</th>
+                <th className={opsTable.th}>Asignado</th>
+                <th className={opsTable.th}>Actividad</th>
+                <th className={opsTable.th}>Fecha</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody>
               {leads.map((lead) => (
                 <tr
                   key={lead.id}
                   onClick={() => setDrawerLead(lead)}
-                  className={`hover:bg-zinc-800/40 transition-colors cursor-pointer ${selectedLeads.has(lead.id) ? "bg-indigo-900/10" : "bg-transparent"}`}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault()
+                      setDrawerLead(lead)
+                    }
+                  }}
+                  className={cn(opsTable.row, "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ops-blue", selectedLeads.has(lead.id) && "bg-ops-sel")}
                 >
-                  <td className="pl-4 pr-2 py-3" onClick={(e) => e.stopPropagation()}>
+                  <td className={cn(opsTable.td, "pl-4 pr-2")} onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selectedLeads.has(lead.id)}
                       onChange={(e) => handleSelectLead(lead.id, e.target.checked)}
-                      className="rounded border-zinc-600 bg-zinc-800 accent-indigo-500 cursor-pointer"
+                      className="h-4 w-4 cursor-pointer rounded border-ops-bd2 bg-ops-s2 accent-ops-blue focus-visible:outline-2 focus-visible:outline-ops-blue"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={opsTable.td}>
                     <div className="flex items-start gap-1.5">
                       <SourceBadge source={lead.leadSource} />
                       <div>
-                        <span className="font-medium text-zinc-100">{lead.name}</span>
+                        <span className="font-medium text-ops-tx">{lead.name}</span>
                         {lead.city && (
-                          <span className="block text-xs text-zinc-500 mt-0.5">{lead.city}</span>
+                          <span className="block text-xs text-ops-tx3 mt-0.5">{lead.city}</span>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-zinc-400 font-mono text-xs">
-                    {lead.phone ?? <span className="text-zinc-600">—</span>}
+                  <td className={cn(opsTable.td, "text-ops-tx2 font-plex tabular-nums text-xs")}>
+                    {lead.phone ?? <span className="text-ops-tx3">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-zinc-400 text-xs max-w-[180px] truncate">
-                    {lead.email ?? <span className="text-zinc-600">—</span>}
+                  <td className={cn(opsTable.td, "text-ops-tx2 text-xs max-w-[180px] truncate")}>
+                    {lead.email ?? <span className="text-ops-tx3">—</span>}
                   </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${tempBadge(lead.temperature)}`}
-                    >
-                      {tempLabel(lead.temperature)}
-                    </span>
+                  <td className={opsTable.td}>
+                    <StatusChip tone={tempTone(lead.temperature)}>{tempLabel(lead.temperature)}</StatusChip>
                   </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium ${stageBadge(lead.stage)}`}
-                    >
-                      {stageLabel(lead.stage)}
-                    </span>
+                  <td className={opsTable.td}>
+                    <StatusChip tone={stageTone(lead.stage)}>{stageLabel(lead.stage)}</StatusChip>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={opsTable.td}>
                     {lead.saleCount > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-400">
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-ops-green/15 text-ops-green">
                         <BadgeDollarSign className="h-3 w-3" />
                         {lead.saleTotalAmount
                           ? formatMoney(lead.saleTotalAmount, lead.saleCurrency ?? "USD")
@@ -619,35 +619,35 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                         )}
                       </span>
                     ) : (
-                      <span className="text-zinc-600 text-xs">—</span>
+                      <span className="text-ops-tx3 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs max-w-[160px] truncate">
+                  <td className={cn(opsTable.td, "text-xs max-w-[160px] truncate")}>
                     {lead.metaAdsetName
-                      ? <span className="text-indigo-400/80">{lead.metaAdsetName}</span>
-                      : <span className="text-zinc-600">—</span>}
+                      ? <span className="text-ops-blue-t/80">{lead.metaAdsetName}</span>
+                      : <span className="text-ops-tx3">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs max-w-[160px] truncate">
+                  <td className={cn(opsTable.td, "text-xs max-w-[160px] truncate")}>
                     {lead.metaAdName
-                      ? <span className="text-zinc-300">{lead.metaAdName}</span>
-                      : <span className="text-zinc-600">—</span>}
+                      ? <span className="text-ops-tx">{lead.metaAdName}</span>
+                      : <span className="text-ops-tx3">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-xs max-w-[120px] truncate">
+                  <td className={cn(opsTable.td, "text-xs max-w-[120px] truncate")}>
                     {lead.assignedTo
-                      ? <span className="text-zinc-300">{lead.assignedTo}</span>
-                      : <span className="text-zinc-600">—</span>}
+                      ? <span className="text-ops-tx">{lead.assignedTo}</span>
+                      : <span className="text-ops-tx3">—</span>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={opsTable.td}>
                     <ActivityBadges activity={lead.activity} hasPendingCapi={lead.hasPendingCapi} />
                   </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
+                  <td className={cn(opsTable.td, "text-ops-tx3 text-xs whitespace-nowrap")}>
                     {formatDate(lead.createdAt)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Panel>
       )}
 
       <LeadDrawer
@@ -661,6 +661,9 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
         clientId={campaign.clientId ?? undefined}
         salesReps={salesReps}
       />
-    </div>
+      <p className="text-xs text-ops-tx3">
+        Abrir WhatsApp abre la conversación; no envía ningún mensaje por ti.
+      </p>
+    </PageShell>
   )
 }

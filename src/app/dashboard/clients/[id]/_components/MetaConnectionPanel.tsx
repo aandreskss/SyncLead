@@ -18,10 +18,10 @@ interface Props {
 
 function StatusBadge({ status }: { status: MetaConnectionPublic["status"] }) {
   const map = {
-    active: { label: "Activo", cls: "text-emerald-400 bg-emerald-400/10", dot: "bg-emerald-400" },
-    error: { label: "Error", cls: "text-red-400 bg-red-400/10", dot: "bg-red-400" },
-    expired: { label: "Expirado", cls: "text-amber-400 bg-amber-400/10", dot: "bg-amber-400" },
-    pending: { label: "Pendiente", cls: "text-zinc-400 bg-zinc-700/50", dot: "bg-zinc-500" },
+    active: { label: "Activo", cls: "text-ops-green bg-emerald-400/10", dot: "bg-emerald-400" },
+    error: { label: "Error", cls: "text-ops-coral bg-red-400/10", dot: "bg-red-400" },
+    expired: { label: "Expirado", cls: "text-ops-amber bg-amber-400/10", dot: "bg-amber-400" },
+    pending: { label: "Pendiente", cls: "text-ops-tx2 bg-ops-sel/50", dot: "bg-zinc-500" },
   }
   const s = map[status] ?? map.pending
   return (
@@ -113,27 +113,27 @@ function ConnectionCard({
   }
 
   return (
-    <div className="border border-zinc-800 rounded-xl p-4 space-y-3">
+    <div className="border border-ops-line rounded-lg p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-sm text-zinc-200">{conn.pixelId ?? "—"}</span>
+            <span className="font-mono text-sm text-ops-tx">{conn.pixelId ?? "—"}</span>
             <StatusBadge status={conn.status} />
           </div>
           {conn.datasetId && (
-            <p className="text-xs text-zinc-500">Dataset: {conn.datasetId}</p>
+            <p className="text-xs text-ops-tx3">Dataset: {conn.datasetId}</p>
           )}
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-ops-tx3">
             API: {conn.graphApiVersion} · Verificado: {formatTs(conn.lastVerifiedAt)}
           </p>
           {conn.lastError && (
-            <p className="text-xs text-red-400 flex items-center gap-1">
+            <p className="text-xs text-ops-coral flex items-center gap-1">
               <AlertCircle className="h-3 w-3 shrink-0" />
               {translateTestError(conn.lastError)}
             </p>
           )}
           {conn.scopes.length > 0 && (
-            <p className="text-xs text-zinc-600">
+            <p className="text-xs text-ops-tx3">
               Permisos: {conn.scopes.join(", ")}
             </p>
           )}
@@ -141,7 +141,7 @@ function ConnectionCard({
       </div>
 
       {testResult && (
-        <p className={`text-xs px-2 py-1 rounded ${testResult.startsWith("ok:") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
+        <p className={`text-xs px-2 py-1 rounded ${testResult.startsWith("ok:") ? "text-ops-green bg-emerald-400/10" : "text-ops-coral bg-red-400/10"}`}>
           {testResult.startsWith("ok:") ? testResult.slice(3) : testResult.startsWith("err:") ? testResult.slice(4) : testResult}
         </p>
       )}
@@ -150,7 +150,7 @@ function ConnectionCard({
         <button
           onClick={handleTest}
           disabled={testPending || disconnectPending}
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-ops-sel text-ops-tx transition-colors disabled:opacity-50"
         >
           {testPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           Probar conexión
@@ -169,7 +169,7 @@ function ConnectionCard({
             <button
               onClick={() => setConfirmDisconnect(false)}
               disabled={disconnectPending}
-              className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+              className="text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-ops-sel text-ops-tx2 transition-colors"
             >
               Cancelar
             </button>
@@ -178,7 +178,7 @@ function ConnectionCard({
           <button
             onClick={() => setConfirmDisconnect(true)}
             disabled={testPending || disconnectPending}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-red-900/30 hover:text-red-400 text-zinc-500 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-red-900/30 hover:text-ops-coral text-ops-tx3 transition-colors disabled:opacity-50"
           >
             <Unplug className="h-3.5 w-3.5" />
             Desconectar
@@ -187,8 +187,8 @@ function ConnectionCard({
       </div>
 
       {/* Auto-event config */}
-      <div className="border-t border-zinc-800 pt-3 space-y-2">
-        <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Eventos automáticos</p>
+      <div className="border-t border-ops-line pt-3 space-y-2">
+        <p className="text-xs text-ops-tx3 font-medium uppercase tracking-wider">Eventos automáticos</p>
         <label className={`flex items-center gap-2.5 cursor-pointer ${configPending ? "opacity-60" : ""}`}>
           <input
             type="checkbox"
@@ -197,7 +197,7 @@ function ConnectionCard({
             disabled={configPending}
             className="h-3.5 w-3.5 rounded accent-indigo-500"
           />
-          <span className="text-xs text-zinc-300">Enviar evento &ldquo;Lead&rdquo; al crear un lead</span>
+          <span className="text-xs text-ops-tx2">Enviar evento &ldquo;Lead&rdquo; al crear un lead</span>
         </label>
         <label className={`flex items-center gap-2.5 cursor-pointer ${configPending ? "opacity-60" : ""}`}>
           <input
@@ -207,7 +207,7 @@ function ConnectionCard({
             disabled={configPending}
             className="h-3.5 w-3.5 rounded accent-indigo-500"
           />
-          <span className="text-xs text-zinc-300">Enviar evento &ldquo;Contact&rdquo; al contactar un lead</span>
+          <span className="text-xs text-ops-tx2">Enviar evento &ldquo;Contact&rdquo; al contactar un lead</span>
         </label>
       </div>
     </div>
@@ -249,7 +249,7 @@ function AddConnectionForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+        className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-ops-blue hover:bg-ops-blue/90 text-white transition-colors"
       >
         <Plug className="h-4 w-4" />
         Conectar Meta Pixel
@@ -258,35 +258,35 @@ function AddConnectionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border border-zinc-800 rounded-xl p-4 space-y-3">
-      <p className="text-sm font-medium text-zinc-200">Nueva conexión Meta</p>
+    <form onSubmit={handleSubmit} className="border border-ops-line rounded-lg p-4 space-y-3">
+      <p className="text-sm font-medium text-ops-tx">Nueva conexión Meta</p>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label className="text-xs text-zinc-400">Pixel ID *</label>
+          <label className="text-xs text-ops-tx2">Pixel ID *</label>
           <input
             type="text"
             value={pixelId}
             onChange={(e) => setPixelId(e.target.value)}
             placeholder="123456789012345"
             required
-            className="w-full text-sm bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full text-sm bg-ops-s1 border border-ops-bd rounded-lg px-3 py-2 text-ops-tx placeholder-ops-tx3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-zinc-400">Dataset ID (opcional)</label>
+          <label className="text-xs text-ops-tx2">Dataset ID (opcional)</label>
           <input
             type="text"
             value={datasetId}
             onChange={(e) => setDatasetId(e.target.value)}
             placeholder="Mismo que Pixel ID"
-            className="w-full text-sm bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full text-sm bg-ops-s1 border border-ops-bd rounded-lg px-3 py-2 text-ops-tx placeholder-ops-tx3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs text-zinc-400">Access Token *</label>
+        <label className="text-xs text-ops-tx2">Access Token *</label>
         <input
           type="password"
           value={accessToken}
@@ -294,15 +294,15 @@ function AddConnectionForm({
           placeholder="EAABcde..."
           required
           autoComplete="off"
-          className="w-full text-sm bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full text-sm bg-ops-s1 border border-ops-bd rounded-lg px-3 py-2 text-ops-tx placeholder-ops-tx3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
-        <p className="text-xs text-zinc-600">
+        <p className="text-xs text-ops-tx3">
           El token se verifica y se almacena cifrado. Nunca se muestra de nuevo.
         </p>
       </div>
 
       {error && (
-        <p className="text-xs text-red-400 flex items-center gap-1">
+        <p className="text-xs text-ops-coral flex items-center gap-1">
           <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
           {error}
         </p>
@@ -312,7 +312,7 @@ function AddConnectionForm({
         <button
           type="submit"
           disabled={pending}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-ops-blue hover:bg-ops-blue/90 text-white transition-colors disabled:opacity-50"
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
           {pending ? "Verificando…" : "Guardar y verificar"}
@@ -321,7 +321,7 @@ function AddConnectionForm({
           type="button"
           onClick={() => { setOpen(false); setError(null) }}
           disabled={pending}
-          className="text-sm px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+          className="text-sm px-4 py-2 rounded-lg bg-ops-s2 hover:bg-ops-sel text-ops-tx2 transition-colors"
         >
           Cancelar
         </button>
@@ -342,18 +342,18 @@ export function MetaConnectionPanel({ clientId, connections: initial }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">Meta Conversions API</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
+          <h2 className="text-base font-semibold text-ops-tx">Meta Conversions API</h2>
+          <p className="text-xs text-ops-tx3 mt-0.5">
             Las credenciales se almacenan cifradas (AES-256-GCM). El token nunca se muestra tras guardar.
           </p>
         </div>
       </div>
 
       {connections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-zinc-800 rounded-xl">
-          <Clock className="h-8 w-8 text-zinc-600 mb-3" />
-          <p className="text-zinc-400 text-sm font-medium">Sin conexión Meta</p>
-          <p className="text-zinc-600 text-xs mt-1">
+        <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-ops-line rounded-lg">
+          <Clock className="h-8 w-8 text-ops-tx3 mb-3" />
+          <p className="text-ops-tx2 text-sm font-medium">Sin conexión Meta</p>
+          <p className="text-ops-tx3 text-xs mt-1">
             Conecta un Pixel para enviar eventos de conversión.
           </p>
         </div>

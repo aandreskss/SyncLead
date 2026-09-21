@@ -10,8 +10,8 @@ const POLL_INTERVAL_MS = 4000
 const SOURCE_CONFIG = {
   browser_pixel: { label: "Pixel", icon: Globe, cls: "text-blue-400 bg-blue-400/10 border-blue-800" },
   server_capi: { label: "CAPI", icon: Monitor, cls: "text-purple-400 bg-purple-400/10 border-purple-800" },
-  diagnostic_collector: { label: "Simulado", icon: Zap, cls: "text-amber-400 bg-amber-400/10 border-amber-800" },
-  scan: { label: "Scan", icon: Radio, cls: "text-zinc-400 bg-zinc-800 border-zinc-700" },
+  diagnostic_collector: { label: "Simulado", icon: Zap, cls: "text-ops-amber bg-amber-400/10 border-amber-800" },
+  scan: { label: "Scan", icon: Radio, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" },
 }
 
 function formatRelative(date: Date): string {
@@ -41,44 +41,44 @@ function EventRow({ event, isNew }: { event: LiveEvent; isNew: boolean }) {
   return (
     <li
       className={`flex items-start gap-3 px-4 py-3 transition-colors duration-1000 ${
-        isNew ? "bg-zinc-800/80" : "hover:bg-zinc-800/30"
+        isNew ? "bg-ops-s2/80" : "hover:bg-ops-s2/30"
       }`}
     >
       <div className="mt-0.5 shrink-0">
         {event.allParamsOk ? (
           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
         ) : (
-          <AlertCircle className="h-4 w-4 text-amber-400" />
+          <AlertCircle className="h-4 w-4 text-ops-amber" />
         )}
       </div>
 
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-zinc-100 truncate">
+          <span className="text-sm font-medium text-ops-tx truncate">
             {event.definitionDisplayName ?? event.eventName}
           </span>
-          <span className="text-xs text-zinc-500 font-mono">{event.eventName}</span>
+          <span className="text-xs text-ops-tx3 font-mono">{event.eventName}</span>
           <SourceBadge source={event.source} />
           {event.environment !== "production" && (
-            <Badge className="text-xs bg-zinc-800 text-zinc-400 border-zinc-700">
+            <Badge className="text-xs bg-ops-s2 text-ops-tx2 border-ops-bd">
               {event.environment}
             </Badge>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-ops-tx3">
           {event.pageUrl && (
             <span className="truncate max-w-[240px]">{event.pageUrl}</span>
           )}
           {event.missingParams.length > 0 && (
-            <span className="text-amber-400">
+            <span className="text-ops-amber">
               Faltan: {event.missingParams.join(", ")}
             </span>
           )}
         </div>
       </div>
 
-      <span className="shrink-0 text-xs text-zinc-600 tabular-nums">
+      <span className="shrink-0 text-xs text-ops-tx3 tabular-nums">
         {formatRelative(event.observedAt)}
       </span>
     </li>
@@ -126,48 +126,49 @@ export function LiveEventFeed({ clientId }: Props) {
   }, [clientId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvents()
     const interval = setInterval(fetchEvents, POLL_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [fetchEvents])
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900">
-      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
-        <Radio className="h-4 w-4 text-zinc-400" />
-        <h3 className="text-sm font-medium text-zinc-200">Feed de eventos</h3>
+    <div className="rounded-lg border border-ops-line bg-ops-s1">
+      <div className="flex items-center gap-2 border-b border-ops-line px-4 py-3">
+        <Radio className="h-4 w-4 text-ops-tx2" />
+        <h3 className="text-sm font-medium text-ops-tx">Feed de eventos</h3>
         <div className="ml-auto flex items-center gap-2">
           {connected ? (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+            <span className="flex items-center gap-1.5 text-xs text-ops-green">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
               En vivo
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs text-red-400">
+            <span className="flex items-center gap-1.5 text-xs text-ops-coral">
               <WifiOff className="h-3.5 w-3.5" />
               Sin conexión
             </span>
           )}
-          <span className="text-xs text-zinc-600">
+          <span className="text-xs text-ops-tx3">
             {connected && <Wifi className="h-3.5 w-3.5 inline" />}
           </span>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-10 text-sm text-zinc-500">
+        <div className="flex items-center justify-center py-10 text-sm text-ops-tx3">
           Cargando eventos...
         </div>
       ) : events.length === 0 ? (
         <div className="px-4 py-10 text-center">
-          <Radio className="h-6 w-6 text-zinc-600 mx-auto mb-2" />
-          <p className="text-sm text-zinc-500">Sin eventos aún</p>
-          <p className="text-xs text-zinc-600 mt-1">
-            Usa <span className="text-zinc-400">⚡ Simular</span> o dispara un evento desde tu sitio
+          <Radio className="h-6 w-6 text-ops-tx3 mx-auto mb-2" />
+          <p className="text-sm text-ops-tx3">Sin eventos aún</p>
+          <p className="text-xs text-ops-tx3 mt-1">
+            Usa <span className="text-ops-tx2">⚡ Simular</span> o dispara un evento desde tu sitio
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-zinc-800/50 max-h-[480px] overflow-y-auto">
+        <ul className="divide-y divide-ops-line/50 max-h-[480px] overflow-y-auto">
           {events.map((event) => (
             <EventRow
               key={event.id}
@@ -178,9 +179,9 @@ export function LiveEventFeed({ clientId }: Props) {
         </ul>
       )}
 
-      <div className="border-t border-zinc-800 px-4 py-2 flex items-center justify-between">
-        <span className="text-xs text-zinc-600">{events.length} evento{events.length !== 1 ? "s" : ""} · últimos 90 días</span>
-        <span className="text-xs text-zinc-700">Actualiza cada {POLL_INTERVAL_MS / 1000}s</span>
+      <div className="border-t border-ops-line px-4 py-2 flex items-center justify-between">
+        <span className="text-xs text-ops-tx3">{events.length} evento{events.length !== 1 ? "s" : ""} · últimos 90 días</span>
+        <span className="text-xs text-ops-tx3">Actualiza cada {POLL_INTERVAL_MS / 1000}s</span>
       </div>
     </div>
   )

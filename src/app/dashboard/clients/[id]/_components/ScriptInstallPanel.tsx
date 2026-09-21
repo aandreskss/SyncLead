@@ -133,21 +133,21 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
   }
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden">
+    <div className="rounded-lg border border-ops-line bg-ops-s1 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800">
-        <Code2 className="h-4 w-4 text-zinc-400 shrink-0" />
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-ops-line">
+        <Code2 className="h-4 w-4 text-ops-tx2 shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-zinc-200 truncate">{site.name}</p>
-          <p className="text-xs text-zinc-500 font-mono truncate">{site.domain}</p>
+          <p className="text-sm font-medium text-ops-tx truncate">{site.name}</p>
+          <p className="text-xs text-ops-tx3 font-mono truncate">{site.domain}</p>
         </div>
         {token && (
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 rounded border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 transition-colors shrink-0"
+            className="flex items-center gap-1.5 rounded border border-ops-bd bg-ops-s2 px-2.5 py-1.5 text-xs text-ops-tx2 hover:bg-ops-sel transition-colors shrink-0"
           >
             {copied ? (
-              <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />Copiado</>
+              <><CheckCircle2 className="h-3.5 w-3.5 text-ops-green" />Copiado</>
             ) : (
               <><Copy className="h-3.5 w-3.5" />Copiar script</>
             )}
@@ -158,7 +158,7 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
       <div className="p-4 space-y-4">
         {/* Fixes checklist */}
         <div>
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <Shield className="h-3.5 w-3.5" />
             Fixes aplicados
           </p>
@@ -167,8 +167,8 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
               <div key={fix.label} className="flex items-start gap-2">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-px" />
                 <div>
-                  <span className="text-xs text-zinc-300">{fix.label}</span>
-                  <span className="text-xs text-zinc-600 ml-1.5">{fix.detail}</span>
+                  <span className="text-xs text-ops-tx2">{fix.label}</span>
+                  <span className="text-xs text-ops-tx3 ml-1.5">{fix.detail}</span>
                 </div>
               </div>
             ))}
@@ -178,29 +178,29 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
         {/* Script block or generate button */}
         {token ? (
           <div>
-            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5 text-amber-400" />
+            <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5 text-ops-amber" />
               Script — pegar antes del cierre{" "}
-              <code className="text-zinc-400">&lt;/body&gt;</code>
+              <code className="text-ops-tx2">&lt;/body&gt;</code>
             </p>
-            <pre className="rounded bg-zinc-950 border border-zinc-800 p-3 text-xs text-zinc-400 font-mono overflow-x-auto whitespace-pre-wrap break-all select-all max-h-48 overflow-y-auto">
+            <pre className="rounded bg-ops-bg border border-ops-line p-3 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre-wrap break-all select-all max-h-48 overflow-y-auto">
               {script}
             </pre>
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-ops-tx3">
               Este sitio aún no tiene un token de colección permanente.
             </p>
             {err && (
-              <p className="text-xs text-red-400 flex items-center gap-1">
+              <p className="text-xs text-ops-coral flex items-center gap-1">
                 <AlertCircle className="h-3.5 w-3.5" />{err}
               </p>
             )}
             <button
               onClick={handleGenerate}
               disabled={isPending}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-ops-blue hover:bg-ops-blue/90 text-white transition-colors disabled:opacity-50"
             >
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
               {isPending ? "Generando…" : "Generar token permanente"}
@@ -220,18 +220,18 @@ export function ScriptInstallPanel({ sites }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-medium text-zinc-200">Script de instalación</h3>
-        <p className="text-xs text-zinc-500 mt-0.5">
+        <h3 className="text-sm font-medium text-ops-tx">Script de instalación</h3>
+        <p className="text-xs text-ops-tx3 mt-0.5">
           Pegar este script en el sitio web del cliente para que SyncLead reciba todos los eventos del pixel en tiempo real. El token es permanente — no expira.
         </p>
       </div>
 
       {sites.length === 0 ? (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-6 text-center">
-          <Code2 className="h-6 w-6 text-zinc-600 mx-auto mb-2" />
-          <p className="text-sm text-zinc-500">No hay sitios de seguimiento configurados.</p>
-          <p className="text-xs text-zinc-600 mt-1">
-            Crea un sitio en la tab <span className="text-zinc-400">Diagnóstico</span> primero.
+        <div className="rounded-lg border border-ops-line bg-ops-s1 px-4 py-6 text-center">
+          <Code2 className="h-6 w-6 text-ops-tx3 mx-auto mb-2" />
+          <p className="text-sm text-ops-tx3">No hay sitios de seguimiento configurados.</p>
+          <p className="text-xs text-ops-tx3 mt-1">
+            Crea un sitio en la tab <span className="text-ops-tx2">Diagnóstico</span> primero.
           </p>
         </div>
       ) : (

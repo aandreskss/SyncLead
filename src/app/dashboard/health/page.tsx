@@ -6,6 +6,7 @@ import {
   getCapiQueueStatsByClient,
 } from "@/domains/health/repository"
 import { getClientsByOrgId } from "@/domains/clients/repository"
+import { PageShell } from "@/components/app/ops"
 import HealthDashboard from "./_components/HealthDashboard"
 
 export const dynamic = "force-dynamic"
@@ -49,18 +50,12 @@ export default async function HealthPage({ searchParams }: Props) {
     : snapshot.activeImports
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-zinc-100">Salud del sistema</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Visión general de jobs, integraciones y cola CAPI — solo para administradores.
-        </p>
-      </div>
+    <PageShell>
       <HealthDashboard
         snapshot={{ ...snapshot, capiQueue, metaConnections, activeImports }}
         clients={clientsList.map((c) => ({ id: c.id, name: c.name }))}
         selectedClientId={clientId}
       />
-    </div>
+    </PageShell>
   )
 }

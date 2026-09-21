@@ -6,6 +6,7 @@ import { getClientsByOrgId } from "@/domains/clients/repository"
 import { parseDateRange, formatRangeLabel } from "@/lib/date-range"
 import { getPerformanceTable } from "@/domains/analytics/repository"
 import { DateRangeSelector } from "../_components/DateRangeSelector"
+import { PageShell, PageHeader } from "@/components/app/ops"
 import { SummaryCards } from "./_components/SummaryCards"
 import { PerformanceView } from "./_components/PerformanceView"
 
@@ -41,26 +42,27 @@ export default async function PerformancePage({
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Rendimiento de anuncios</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            {formatRangeLabel(range.from, range.to)} · {selectedClient?.name ?? orgName}
-          </p>
-        </div>
-        <DateRangeSelector
-          currentPreset={range.preset}
-          customFrom={sp.from}
-          customTo={sp.to}
-          basePath="/dashboard/performance"
-          clients={clients.map((c) => ({ id: c.id, name: c.name }))}
-          currentClientId={clientId}
-        />
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Rendimiento"
+        subtitle="Resultados por campaña, conjunto y anuncio."
+        actions={
+          <DateRangeSelector
+            currentPreset={range.preset}
+            customFrom={sp.from}
+            customTo={sp.to}
+            basePath="/dashboard/performance"
+            clients={clients.map((c) => ({ id: c.id, name: c.name }))}
+            currentClientId={clientId}
+          />
+        }
+      />
+      <p className="-mt-3 text-xs text-ops-tx3">
+        {formatRangeLabel(range.from, range.to)} · {selectedClient?.name ?? orgName}
+      </p>
 
       <SummaryCards rows={rows} />
       <PerformanceView rows={rows} prevRows={prevRows} />
-    </div>
+    </PageShell>
   )
 }

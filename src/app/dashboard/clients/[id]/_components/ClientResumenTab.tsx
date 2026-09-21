@@ -2,6 +2,7 @@ import Link from "next/link"
 import type { CampaignWithCounts } from "@/domains/campaigns/repository"
 import type { Client } from "@/lib/db/schema"
 import { CheckCircle2, Circle } from "lucide-react"
+import { Panel, StatusChip, opsTable } from "@/components/app/ops"
 
 interface Props {
   client: Client
@@ -15,120 +16,93 @@ export function ClientResumenTab({ client, campaigns, hasMetaConnection, hasSale
   const totalSales = campaigns.reduce((sum, c) => sum + c.saleCount, 0)
   const activeCampaigns = campaigns.filter((c) => c.active).length
 
-  return (
-    <div className="space-y-8">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Total leads</p>
-          <p className="text-2xl font-bold text-zinc-100">{totalLeads}</p>
-        </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Campañas</p>
-          <p className="text-2xl font-bold text-zinc-100">{campaigns.length}</p>
-          {activeCampaigns !== campaigns.length && (
-            <p className="text-xs text-zinc-600 mt-0.5">{activeCampaigns} activas</p>
-          )}
-        </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">Ventas confirmadas</p>
-          <p className="text-2xl font-bold text-emerald-400">{totalSales}</p>
-        </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs text-zinc-500 mb-1">WhatsApp</p>
-          <p className="text-2xl font-bold text-zinc-100">{(client.whatsappNumbers ?? []).length}</p>
-          <p className="text-xs text-zinc-600 mt-0.5">números</p>
-        </div>
-      </div>
+  const kpis: { label: string; value: number; sub?: string; tone?: string }[] = [
+    { label: "Total leads", value: totalLeads },
+    { label: "Campañas", value: campaigns.length, sub: activeCampaigns !== campaigns.length ? `${activeCampaigns} activas` : undefined },
+    { label: "Ventas confirmadas", value: totalSales, tone: "text-ops-green" },
+    { label: "WhatsApp", value: (client.whatsappNumbers ?? []).length, sub: "números" },
+  ]
+  const checks = [
+    { ok: hasMetaConnection, title: "CAPI activo", text: "Conexión Meta Conversions API" },
+    { ok: hasSalesReps, title: "Vendedores asignados", text: "Equipo de ventas configurado" },
+  ]
 
-      {/* Campaigns Table */}
+  return (
+    <div className="space-y-6">
+      <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-ops-line bg-ops-s1 sm:grid-cols-4">
+        {kpis.map((k, i) => (
+          <div
+            key={k.label}
+            className={`p-4 ${i % 2 === 1 ? "border-l border-ops-line" : ""} ${i > 1 ? "border-t border-ops-line sm:border-t-0" : ""} ${i > 0 ? "sm:border-l sm:border-ops-line" : ""}`}
+          >
+            <dt className="text-xs text-ops-tx3">{k.label}</dt>
+            <dd className={`mt-1 font-plex text-[26px] font-medium leading-tight tabular-nums ${k.tone ?? "text-ops-tx"}`}>{k.value}</dd>
+            {k.sub && <p className="mt-0.5 text-xs text-ops-tx3">{k.sub}</p>}
+          </div>
+        ))}
+      </dl>
+
       {campaigns.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-zinc-400">Campañas</h2>
-          <div className="border border-zinc-800 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+        <Panel title="Campañas">
+          <div className={opsTable.wrap}>
+            <table className={`${opsTable.table} min-w-[480px]`}>
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                  <th className="px-4 py-3 text-left font-medium text-zinc-400">Nombre</th>
-                  <th className="px-4 py-3 text-center font-medium text-zinc-400">Leads</th>
-                  <th className="px-4 py-3 text-center font-medium text-zinc-400">Ventas</th>
-                  <th className="px-4 py-3 text-right font-medium text-zinc-400">Estado</th>
+                <tr>
+                  <th className={opsTable.th}>Nombre</th>
+                  <th className={opsTable.thRight}>Leads</th>
+                  <th className={opsTable.thRight}>Ventas</th>
+                  <th className={opsTable.thRight}>Estado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800">
+              <tbody>
                 {campaigns.map((c) => (
-                  <tr key={c.id} className="hover:bg-zinc-800/30 transition-colors">
-                    <td className="px-4 py-3">
+                  <tr key={c.id} className={opsTable.row}>
+                    <td className={opsTable.td}>
                       <Link
                         href={`/dashboard/campaigns/${c.id}/leads`}
-                        className="font-medium text-zinc-100 hover:text-indigo-400 transition-colors"
+                        className="font-medium text-ops-tx hover:text-ops-blue-t focus-visible:outline-2 focus-visible:outline-ops-blue"
                       >
                         {c.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-center text-zinc-300">{c.leadCount}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={c.saleCount > 0 ? "text-emerald-400 font-medium" : "text-zinc-600"}>
-                        {c.saleCount}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                        c.active ? "text-emerald-400 bg-emerald-400/10" : "text-zinc-500 bg-zinc-700/50"
-                      }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${c.active ? "bg-emerald-400" : "bg-zinc-500"}`} />
-                        {c.active ? "Activa" : "Inactiva"}
-                      </span>
+                    <td className={`${opsTable.tdRight} ${opsTable.mono}`}>{c.leadCount}</td>
+                    <td className={`${opsTable.tdRight} ${opsTable.mono} ${c.saleCount > 0 ? "text-ops-green" : "text-ops-tx3"}`}>{c.saleCount}</td>
+                    <td className={opsTable.tdRight}>
+                      <StatusChip tone={c.active ? "green" : "amber"}>{c.active ? "Activa" : "Inactiva"}</StatusChip>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </Panel>
       )}
 
       {campaigns.length === 0 && (
-        <div className="rounded-xl border border-dashed border-zinc-700 p-8 text-center">
-          <p className="text-zinc-500 text-sm">Sin campañas todavía.</p>
-          <p className="text-zinc-600 text-xs mt-1">
-            Las campañas capturan leads y los asignan a este cliente.
-          </p>
+        <div className="rounded-lg border border-dashed border-ops-bd p-8 text-center">
+          <p className="text-sm text-ops-tx2">Sin campañas todavía.</p>
+          <p className="mt-1 text-xs text-ops-tx3">Las campañas capturan leads y los asignan a este cliente.</p>
         </div>
       )}
 
-      {/* Status checklist */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-medium text-zinc-400">Estado de configuración</h2>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
-          <div className="flex items-center gap-3 px-4 py-3">
-            {hasMetaConnection ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-            ) : (
-              <Circle className="h-4 w-4 text-zinc-600 flex-shrink-0" />
-            )}
-            <div>
-              <p className={`text-sm font-medium ${hasMetaConnection ? "text-zinc-200" : "text-zinc-500"}`}>
-                CAPI activo
-              </p>
-              <p className="text-xs text-zinc-600">Conexión Meta Conversions API</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 px-4 py-3">
-            {hasSalesReps ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-            ) : (
-              <Circle className="h-4 w-4 text-zinc-600 flex-shrink-0" />
-            )}
-            <div>
-              <p className={`text-sm font-medium ${hasSalesReps ? "text-zinc-200" : "text-zinc-500"}`}>
-                Vendedores asignados
-              </p>
-              <p className="text-xs text-zinc-600">Equipo de ventas configurado</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Panel title="Estado de configuración">
+        <ul className="divide-y divide-ops-line border-t border-ops-line">
+          {checks.map((c) => (
+            <li key={c.title} className="flex items-center gap-3 px-4 py-3">
+              {c.ok ? (
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-ops-green" aria-hidden />
+              ) : (
+                <Circle className="h-4 w-4 flex-shrink-0 text-ops-tx3" aria-hidden />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm font-medium ${c.ok ? "text-ops-tx" : "text-ops-tx2"}`}>{c.title}</p>
+                <p className="text-xs text-ops-tx3">{c.text}</p>
+              </div>
+              <StatusChip tone={c.ok ? "green" : "amber"}>{c.ok ? "Configurado" : "Pendiente"}</StatusChip>
+            </li>
+          ))}
+        </ul>
+      </Panel>
     </div>
   )
 }

@@ -222,13 +222,13 @@ export function UrlParamBuilderModal({ open, onOpenChange }: Props) {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Link2 className="h-4 w-4 text-indigo-400" />
+            <Link2 className="h-4 w-4 text-ops-blue-t" />
             Generador de parámetros de URL
           </DialogTitle>
           <DialogDescription>
             Selecciona los parámetros que quieres trackear. Pega el resultado en el campo{" "}
-            <strong className="text-zinc-300">URL parameters</strong> de cada anuncio en Meta Ads Manager.
-            Meta reemplaza los valores <code className="text-indigo-400 bg-indigo-400/10 px-1 rounded">{"{{...}}"}</code> dinámicamente.
+            <strong className="text-ops-tx">URL parameters</strong> de cada anuncio en Meta Ads Manager.
+            Meta reemplaza los valores <code className="text-ops-blue-t bg-ops-blue/10 px-1 rounded">{"{{...}}"}</code> dinámicamente.
           </DialogDescription>
         </DialogHeader>
 
@@ -238,7 +238,7 @@ export function UrlParamBuilderModal({ open, onOpenChange }: Props) {
             const groupParams = PARAMS.filter((p) => p.group === group)
             return (
               <div key={group} className="space-y-2">
-                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                <p className="text-xs font-semibold text-ops-tx2 uppercase tracking-wider">
                   {GROUP_LABELS[group]}
                 </p>
                 <div className="space-y-1.5">
@@ -249,7 +249,7 @@ export function UrlParamBuilderModal({ open, onOpenChange }: Props) {
                       <div
                         key={param.id}
                         className={`rounded-lg border transition-colors ${
-                          isEnabled ? "border-indigo-500/40 bg-indigo-500/5" : "border-zinc-800 bg-zinc-900"
+                          isEnabled ? "border-ops-blue/40 bg-ops-blue/5" : "border-ops-line bg-ops-s1"
                         }`}
                       >
                         <div
@@ -258,22 +258,22 @@ export function UrlParamBuilderModal({ open, onOpenChange }: Props) {
                         >
                           {/* Checkbox */}
                           <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                            isEnabled ? "bg-indigo-600 border-indigo-600" : "border-zinc-600"
+                            isEnabled ? "bg-ops-blue border-ops-blue" : "border-ops-bd2"
                           }`}>
                             {isEnabled && <Check className="h-2.5 w-2.5 text-white" />}
                           </div>
 
                           {/* Label */}
                           <div className="flex-1 min-w-0">
-                            <span className="text-sm font-mono text-zinc-200">{param.key}</span>
+                            <span className="text-sm font-mono text-ops-tx">{param.key}</span>
                             {param.hint && (
-                              <span className="text-xs text-zinc-500 ml-2">{param.hint}</span>
+                              <span className="text-xs text-ops-tx3 ml-2">{param.hint}</span>
                             )}
                           </div>
 
                           {/* Value preview (non-editable) */}
                           {!param.editable && (
-                            <span className="text-xs font-mono text-indigo-400 flex-shrink-0">
+                            <span className="text-xs font-mono text-ops-blue-t flex-shrink-0">
                               {val}
                             </span>
                           )}
@@ -282,15 +282,15 @@ export function UrlParamBuilderModal({ open, onOpenChange }: Props) {
                         {/* Editable value input */}
                         {isEnabled && param.editable && (
                           <div className="px-3 pb-2.5" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center rounded-md border border-zinc-700 bg-zinc-900 overflow-hidden focus-within:border-indigo-500 transition-colors">
-                              <span className="px-2.5 py-1.5 text-xs text-zinc-500 bg-zinc-800 border-r border-zinc-700 font-mono select-none whitespace-nowrap">
+                            <div className="flex items-center rounded-md border border-ops-bd bg-ops-s1 overflow-hidden focus-within:border-ops-blue transition-colors">
+                              <span className="px-2.5 py-1.5 text-xs text-ops-tx3 bg-ops-s2 border-r border-ops-bd font-mono select-none whitespace-nowrap">
                                 {param.key}=
                               </span>
                               <input
                                 type="text"
                                 value={val}
                                 onChange={(e) => setValue(param.id, e.target.value)}
-                                className="flex-1 px-2.5 py-1.5 text-xs font-mono text-zinc-100 bg-transparent focus:outline-none"
+                                className="flex-1 px-2.5 py-1.5 text-xs font-mono text-ops-tx bg-transparent focus:outline-none"
                               />
                             </div>
                           </div>
@@ -305,36 +305,36 @@ export function UrlParamBuilderModal({ open, onOpenChange }: Props) {
 
           {/* Base URL (optional) */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">URL de destino (opcional)</p>
-            <div className="flex items-center rounded-lg border border-zinc-700 bg-zinc-900 overflow-hidden focus-within:border-indigo-500 transition-colors">
+            <p className="text-xs font-semibold text-ops-tx2 uppercase tracking-wider">URL de destino (opcional)</p>
+            <div className="flex items-center rounded-lg border border-ops-bd bg-ops-s1 overflow-hidden focus-within:border-ops-blue transition-colors">
               <input
                 type="text"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder="https://mi-tienda.com/producto"
-                className="flex-1 px-3 py-2 text-xs font-mono text-zinc-100 bg-transparent focus:outline-none placeholder-zinc-600"
+                className="flex-1 px-3 py-2 text-xs font-mono text-ops-tx bg-transparent focus:outline-none placeholder-ops-tx3"
               />
             </div>
-            <p className="text-xs text-zinc-600">Si la completas, se genera la URL final con todos los parámetros incluidos.</p>
+            <p className="text-xs text-ops-tx3">Si la completas, se genera la URL final con todos los parámetros incluidos.</p>
           </div>
 
           {/* Output */}
           {paramString && (
-            <div className="space-y-3 border-t border-zinc-800 pt-4">
+            <div className="space-y-3 border-t border-ops-line pt-4">
               {/* Params string */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">Parámetros de URL — pegar en Meta Ads Manager</span>
+                  <span className="text-xs text-ops-tx3">Parámetros de URL — pegar en Meta Ads Manager</span>
                   <button
                     onClick={copyParams}
-                    className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+                    className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-ops-s2 text-ops-tx2 hover:text-ops-tx hover:bg-ops-sel transition-colors"
                   >
-                    {copiedParams ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                    {copiedParams ? <Check className="h-3 w-3 text-ops-green" /> : <Copy className="h-3 w-3" />}
                     {copiedParams ? "Copiado" : "Copiar"}
                   </button>
                 </div>
-                <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-3">
-                  <pre className="text-xs text-indigo-300 font-mono whitespace-pre-wrap break-all leading-relaxed">
+                <div className="rounded-lg border border-ops-bd bg-ops-bg p-3">
+                  <pre className="text-xs text-ops-blue-t font-mono whitespace-pre-wrap break-all leading-relaxed">
                     {paramString}
                   </pre>
                 </div>
@@ -344,17 +344,17 @@ export function UrlParamBuilderModal({ open, onOpenChange }: Props) {
               {fullUrl && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">URL completa</span>
+                    <span className="text-xs text-ops-tx3">URL completa</span>
                     <button
                       onClick={copyFull}
-                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+                      className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-ops-s2 text-ops-tx2 hover:text-ops-tx hover:bg-ops-sel transition-colors"
                     >
-                      {copiedFull ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                      {copiedFull ? <Check className="h-3 w-3 text-ops-green" /> : <Copy className="h-3 w-3" />}
                       {copiedFull ? "Copiado" : "Copiar"}
                     </button>
                   </div>
-                  <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-3">
-                    <pre className="text-xs text-zinc-400 font-mono whitespace-pre-wrap break-all leading-relaxed">
+                  <div className="rounded-lg border border-ops-bd bg-ops-bg p-3">
+                    <pre className="text-xs text-ops-tx2 font-mono whitespace-pre-wrap break-all leading-relaxed">
                       {fullUrl}
                     </pre>
                   </div>
@@ -362,8 +362,8 @@ export function UrlParamBuilderModal({ open, onOpenChange }: Props) {
               )}
 
               {/* Meta hint */}
-              <p className="text-xs text-zinc-600 bg-zinc-900 rounded-lg px-3 py-2 border border-zinc-800">
-                En Meta Ads Manager: abre el anuncio → <strong className="text-zinc-500">URL de destino</strong> → <strong className="text-zinc-500">Parámetros de URL</strong> → pega el string de arriba. Meta reemplaza los valores <code className="text-indigo-400">{"{{...}}"}</code> automáticamente al servir el anuncio.
+              <p className="text-xs text-ops-tx3 bg-ops-s1 rounded-lg px-3 py-2 border border-ops-line">
+                En Meta Ads Manager: abre el anuncio → <strong className="text-ops-tx3">URL de destino</strong> → <strong className="text-ops-tx3">Parámetros de URL</strong> → pega el string de arriba. Meta reemplaza los valores <code className="text-ops-blue-t">{"{{...}}"}</code> automáticamente al servir el anuncio.
               </p>
             </div>
           )}

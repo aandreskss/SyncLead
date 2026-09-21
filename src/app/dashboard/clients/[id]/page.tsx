@@ -33,6 +33,7 @@ import { ScriptInstallPanel } from "./_components/ScriptInstallPanel"
 import { TrackingDashboard } from "./tracking/_components/TrackingDashboard"
 import { CapiLogPanel } from "./_components/CapiLogPanel"
 import { ArrowLeft, Building2 } from "lucide-react"
+import { PageShell, StatusChip } from "@/components/app/ops"
 import Link from "next/link"
 import type { LeadStage, Temperature } from "@/lib/db/schema"
 
@@ -199,19 +200,19 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     tabContent = (
       <div className="space-y-6">
         <MetaConnectionPanel clientId={client.id} connections={publicConnections} />
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-ops-line" />
         <CapiStatusCard clientId={client.id} stats={capiStats} />
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-ops-line" />
         <MetaInsightsPanel clientId={client.id} initialConnections={publicInsightsConnections} />
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-ops-line" />
         <QualificationProfilesPanel clientId={client.id} orgId={ctx.orgId} />
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-ops-line" />
         <SalesTeamPanel clientId={client.id} initialReps={salesRepsData} />
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-ops-line" />
         <WhatsAppConfigPanel clientId={client.id} initial={waConfig} />
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-ops-line" />
         <MessageTemplatesPanel clientId={client.id} initialTemplates={templates} />
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-ops-line" />
         <ScriptInstallPanel
           sites={trackingSitesData.map((s) => ({
             id: s.id,
@@ -239,47 +240,38 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
           issues={issuesResult.data ?? []}
           metaConnections={metaConns}
         />
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-ops-line" />
         <CapiLogPanel clientId={id} />
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl">
+    <PageShell className="max-w-7xl space-y-6">
       <Link
         href="/dashboard/clients"
-        className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-ops-tx2 hover:text-ops-tx transition-colors focus-visible:outline-2 focus-visible:outline-ops-blue"
       >
         <ArrowLeft className="h-4 w-4" />
         Clientes
       </Link>
 
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0">
-          <Building2 className="h-5 w-5 text-zinc-400" />
+        <div className="h-10 w-10 rounded-lg border border-ops-line bg-ops-s2 flex items-center justify-center flex-shrink-0">
+          <Building2 className="h-5 w-5 text-ops-tx2" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">{client.name}</h1>
-          {client.industry && <p className="text-sm text-zinc-500">{client.industry}</p>}
+          <h1 className="text-xl font-semibold text-ops-tx">{client.name}</h1>
+          {client.industry && <p className="text-sm text-ops-tx2">{client.industry}</p>}
         </div>
-        <span
-          className={`ml-auto inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${
-            client.active
-              ? "text-emerald-400 bg-emerald-400/10"
-              : "text-zinc-500 bg-zinc-700/50"
-          }`}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${client.active ? "bg-emerald-400" : "bg-zinc-500"}`}
-          />
-          {client.active ? "Activo" : "Inactivo"}
+        <span className="ml-auto">
+          <StatusChip tone={client.active ? "green" : "amber"}>{client.active ? "Activo" : "Inactivo"}</StatusChip>
         </span>
       </div>
 
       <ClientHubTabs clientId={id} currentTab={tab} />
 
       <div>{tabContent}</div>
-    </div>
+    </PageShell>
   )
 }

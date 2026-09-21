@@ -17,15 +17,15 @@ type Props = {
 const STATUS_CONFIG: Record<DiagConversionStatus, { label: string; className: string }> = {
   not_configured: {
     label: "Sin configurar",
-    className: "bg-zinc-800 text-zinc-400 border-zinc-700",
+    className: "bg-ops-s2 text-ops-tx2 border-ops-bd",
   },
   unknown: {
     label: "Desconocido",
-    className: "bg-zinc-800 text-zinc-400 border-zinc-700",
+    className: "bg-ops-s2 text-ops-tx2 border-ops-bd",
   },
   code_not_detected: {
     label: "Código no detectado",
-    className: "bg-red-900 text-red-300 border-red-800",
+    className: "bg-red-900 text-ops-coral border-red-800",
   },
   code_detected: {
     label: "Código detectado",
@@ -45,23 +45,23 @@ const STATUS_CONFIG: Record<DiagConversionStatus, { label: string; className: st
   },
   observed_both: {
     label: "Pixel + CAPI",
-    className: "bg-emerald-900 text-emerald-300 border-emerald-800",
+    className: "bg-emerald-900 text-ops-green border-emerald-800",
   },
   accepted_by_meta: {
     label: "Aceptado por Meta",
-    className: "bg-emerald-900 text-emerald-300 border-emerald-800",
+    className: "bg-emerald-900 text-ops-green border-emerald-800",
   },
   misconfigured: {
     label: "Mal configurado",
-    className: "bg-red-900 text-red-300 border-red-800",
+    className: "bg-red-900 text-ops-coral border-red-800",
   },
   duplicate_risk: {
     label: "Riesgo de duplicado",
-    className: "bg-red-900 text-red-300 border-red-800",
+    className: "bg-red-900 text-ops-coral border-red-800",
   },
   failed: {
     label: "Error",
-    className: "bg-red-900 text-red-300 border-red-800",
+    className: "bg-red-900 text-ops-coral border-red-800",
   },
   stale: {
     label: "Sin actividad reciente",
@@ -87,7 +87,7 @@ function SourceBadge({ source }: { source: "browser" | "server" | "both" }) {
     both: "Pixel + CAPI",
   }
   return (
-    <span className="text-xs text-zinc-500">{labels[source]}</span>
+    <span className="text-xs text-ops-tx3">{labels[source]}</span>
   )
 }
 
@@ -119,7 +119,7 @@ function SimulateButton({ def, clientId }: { def: ConversionDefinitionPublic; cl
         onClick={handleSimulate}
         disabled={isPending}
         title="Simula el evento directamente desde el servidor, sin necesidad de instalar código"
-        className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 text-xs"
+        className="border-ops-bd bg-ops-s2 text-ops-tx2 hover:bg-ops-sel hover:text-ops-tx text-xs"
       >
         {isPending
           ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -128,7 +128,7 @@ function SimulateButton({ def, clientId }: { def: ConversionDefinitionPublic; cl
         Simular
       </Button>
       {result && (
-        <span className={`flex items-center gap-1 text-xs ${result.status === "ok" ? "text-emerald-400" : "text-red-400"}`}>
+        <span className={`flex items-center gap-1 text-xs ${result.status === "ok" ? "text-ops-green" : "text-ops-coral"}`}>
           {result.status === "ok"
             ? <><CheckCircle2 className="h-3 w-3" /> {result.eventName} registrado</>
             : <><AlertCircle className="h-3 w-3" /> {result.message}</>
@@ -145,7 +145,7 @@ export function ConversionList({ definitions, clientId }: Props) {
 
   if (definitions.length === 0) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-zinc-500">
+      <div className="px-4 py-8 text-center text-sm text-ops-tx3">
         No hay conversiones configuradas para este sitio.
       </div>
     )
@@ -153,7 +153,7 @@ export function ConversionList({ definitions, clientId }: Props) {
 
   return (
     <>
-      <ul className="divide-y divide-zinc-800">
+      <ul className="divide-y divide-ops-line">
         {definitions.map((def) => {
           const statusCfg = STATUS_CONFIG[def.diagStatus] ?? STATUS_CONFIG.unknown
 
@@ -161,16 +161,16 @@ export function ConversionList({ definitions, clientId }: Props) {
             <li key={def.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-zinc-100 truncate">{def.displayName}</span>
+                  <span className="font-medium text-ops-tx truncate">{def.displayName}</span>
                   <Badge className={`text-xs ${statusCfg.className}`}>
                     {statusCfg.label}
                   </Badge>
                   {def.criticality === "critical" && (
-                    <Badge className="text-xs bg-red-950 text-red-400 border-red-900">Crítico</Badge>
+                    <Badge className="text-xs bg-red-950 text-ops-coral border-red-900">Crítico</Badge>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
-                  <span>Meta: <span className="text-zinc-400">{def.providerEventName}</span></span>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-ops-tx3">
+                  <span>Meta: <span className="text-ops-tx2">{def.providerEventName}</span></span>
                   <SourceBadge source={def.expectedSource} />
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
@@ -185,7 +185,7 @@ export function ConversionList({ definitions, clientId }: Props) {
                   variant="outline"
                   size="sm"
                   onClick={() => setTestWizardDef(def)}
-                  className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 text-xs"
+                  className="border-ops-bd bg-ops-s2 text-ops-tx2 hover:bg-ops-sel hover:text-ops-tx text-xs"
                 >
                   <Beaker className="h-3.5 w-3.5 mr-1.5" />
                   Probar en vivo
@@ -194,7 +194,7 @@ export function ConversionList({ definitions, clientId }: Props) {
                   variant="outline"
                   size="sm"
                   onClick={() => setInstallDrawerDef(def)}
-                  className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 text-xs"
+                  className="border-ops-bd bg-ops-s2 text-ops-tx2 hover:bg-ops-sel hover:text-ops-tx text-xs"
                 >
                   <BookOpen className="h-3.5 w-3.5 mr-1.5" />
                   Cómo instalar

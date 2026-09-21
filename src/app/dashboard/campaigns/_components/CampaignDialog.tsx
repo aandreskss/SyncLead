@@ -23,7 +23,7 @@ interface Props {
 }
 
 const inputClass =
-  "w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
+  "w-full rounded-md border border-ops-bd bg-ops-s2 px-3 py-2 text-sm text-ops-tx placeholder:text-ops-tx3 focus:outline-none focus:ring-2 focus-visible:ring-ops-blue focus:border-transparent disabled:opacity-50"
 
 export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props) {
   const router = useRouter()
@@ -66,8 +66,8 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
           {isEdit && <input type="hidden" name="campaignId" value={campaign.id} />}
 
           <div className="space-y-1.5">
-            <Label htmlFor="cp-name" className="text-zinc-300">
-              Nombre de la campaña <span className="text-red-500">*</span>
+            <Label htmlFor="cp-name" className="text-ops-tx">
+              Nombre de la campaña <span className="text-ops-coral">*</span>
             </Label>
             <input
               id="cp-name"
@@ -84,11 +84,11 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
 
           {!isEdit && (
             <div className="space-y-1.5">
-              <Label htmlFor="cp-client" className="text-zinc-300">
-                Cliente <span className="text-red-500">*</span>
+              <Label htmlFor="cp-client" className="text-ops-tx">
+                Cliente <span className="text-ops-coral">*</span>
               </Label>
               {clients.length === 0 ? (
-                <p className="text-sm text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-md px-3 py-2">
+                <p className="text-sm text-ops-amber bg-ops-amber/10 border border-ops-amber/20 rounded-md px-3 py-2">
                   No tienes clientes todavía. Crea uno primero en la sección de Clientes.
                 </p>
               ) : (
@@ -112,15 +112,15 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
 
           {isEdit && (
             <div className="space-y-1.5">
-              <Label className="text-zinc-300">Cliente</Label>
-              <p className="text-sm text-zinc-500 bg-zinc-800/50 border border-zinc-700 rounded-md px-3 py-2">
+              <Label className="text-ops-tx">Cliente</Label>
+              <p className="text-sm text-ops-tx3 bg-ops-s2/50 border border-ops-bd rounded-md px-3 py-2">
                 El cliente no se puede cambiar después de crear la campaña.
               </p>
             </div>
           )}
 
           {error && (
-            <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-md px-3 py-2">
+            <p className="text-sm text-ops-coral bg-ops-coral/10 border border-ops-coral/20 rounded-md px-3 py-2">
               {error}
             </p>
           )}
@@ -129,7 +129,7 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
             <Button
               type="button"
               variant="ghost"
-              className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+              className="text-ops-tx2 hover:text-ops-tx hover:bg-ops-s2"
               onClick={() => onOpenChange(false)}
               disabled={pending}
             >
@@ -137,7 +137,7 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
             </Button>
             <Button
               type="submit"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="bg-ops-blue hover:bg-ops-blue text-white"
               disabled={pending || (clients.length === 0 && !isEdit)}
             >
               {pending ? "Guardando…" : isEdit ? "Guardar" : "Crear campaña"}

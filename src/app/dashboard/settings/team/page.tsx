@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { requireOrganizationMembership } from "@/lib/auth/server"
 import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import { listMembers } from "@/domains/members/repository"
+import { PageShell } from "@/components/app/ops"
 import TeamView from "./_components/TeamView"
 
 export const dynamic = "force-dynamic"
@@ -21,18 +22,12 @@ export default async function TeamPage() {
   const members = await listMembers(ctx.orgId)
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-zinc-100">Equipo</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Gestiona los miembros de tu organización y sus permisos de acceso.
-        </p>
-      </div>
+    <PageShell>
       <TeamView
         members={members}
         currentUserId={ctx.userId}
         currentUserRole={ctx.role}
       />
-    </div>
+    </PageShell>
   )
 }

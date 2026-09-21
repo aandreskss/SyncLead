@@ -1,5 +1,7 @@
 "use client"
 
+import { cn } from "@/lib/utils"
+import { Panel, StatusChip, opsTable } from "@/components/app/ops"
 import type { ImportRowResult } from "@/domains/import/types"
 
 interface Props {
@@ -8,12 +10,12 @@ interface Props {
   isPending: boolean
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  imported:  "text-emerald-400",
-  warning:   "text-amber-400",
-  duplicate: "text-blue-400",
-  skipped:   "text-zinc-500",
-  failed:    "text-red-400",
+const STATUS_TONES: Record<string, "green" | "amber" | "blue" | "neutral" | "coral"> = {
+  imported:  "green",
+  warning:   "amber",
+  duplicate: "blue",
+  skipped:   "neutral",
+  failed:    "coral",
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -35,19 +37,20 @@ export function ImportProgress({ results, onDownloadReport, isPending }: Props) 
   const skipped = (counts.skipped ?? 0) + (counts.duplicate ?? 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Result banner */}
-      <div className={`rounded-xl border p-6 text-center ${
-        failed > 0 ? "border-amber-800 bg-amber-950/20" : "border-emerald-800 bg-emerald-950/20"
-      }`}>
-        <p className={`text-3xl font-bold ${failed > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+      <div role="status" className={cn(
+        "rounded-lg border bg-ops-s1 p-5 text-center",
+        failed > 0 ? "border-ops-amber/40" : "border-ops-green/40"
+      )}>
+        <p className={cn("font-plex text-3xl font-semibold tabular-nums", failed > 0 ? "text-ops-amber" : "text-ops-green")}>
           {imported}
         </p>
-        <p className="text-zinc-300 mt-1 font-medium">leads importados</p>
-        <div className="flex items-center justify-center gap-6 mt-3 text-xs text-zinc-500">
+        <p className="text-ops-tx mt-1 font-medium">leads importados</p>
+        <div className="flex items-center justify-center gap-6 mt-3 text-xs text-ops-tx2">
           {skipped > 0 && <span>{skipped} omitidos</span>}
-          {counts.warning && <span className="text-amber-400">{counts.warning} con advertencia</span>}
-          {failed > 0 && <span className="text-red-400">{failed} fallaron</span>}
+          {counts.warning && <span className="text-ops-amber">{counts.warning} con advertencia</span>}
+          {failed > 0 && <span className="text-ops-coral">{failed} fallaron</span>}
         </div>
       </div>
 
@@ -56,51 +59,44 @@ export function ImportProgress({ results, onDownloadReport, isPending }: Props) 
         <button
           onClick={onDownloadReport}
           disabled={isPending}
-          className="px-4 py-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-medium transition-colors"
+          className="inline-flex h-9 items-center rounded-md border border-ops-bd px-4 text-[13px] font-medium text-ops-tx2 transition-colors hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
         >
           {isPending ? "Generando..." : "Descargar reporte CSV"}
         </button>
         <a
           href="/dashboard"
-          className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
+          className="inline-flex h-9 items-center rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue"
         >
-          Ir al dashboard →
+          Ir al dashboard
         </a>
       </div>
 
       {/* Row detail */}
       {results.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs text-zinc-400 uppercase tracking-wide">Detalle por fila</h3>
-          <div className="rounded-lg border border-zinc-800 overflow-hidden">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-950">
-                  <th className="text-left px-3 py-2 text-zinc-500 w-16">Fila</th>
-                  <th className="text-left px-3 py-2 text-zinc-500">Nombre</th>
-                  <th className="text-left px-3 py-2 text-zinc-500 w-28">Estado</th>
-                  <th className="text-left px-3 py-2 text-zinc-500">Nota</th>
+        <Panel title="Detalle por fila" bodyClassName={opsTable.wrap}>
+          <table className={cn(opsTable.table, "min-w-[560px]")}>
+            <thead>
+              <tr>
+                <th className={cn(opsTable.thRight, "w-16")}>Fila</th>
+                <th className={opsTable.th}>Nombre</th>
+                <th className={cn(opsTable.th, "w-36")}>Estado</th>
+                <th className={opsTable.th}>Nota</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((r) => (
+                <tr key={r.rowIndex} className={opsTable.row}>
+                  <td className={cn(opsTable.tdRight, opsTable.mono, "py-2 text-ops-tx3")}>{r.rowIndex + 1}</td>
+                  <td className={cn(opsTable.td, "max-w-[180px] truncate py-2")}>{r.name ?? "(sin nombre)"}</td>
+                  <td className={cn(opsTable.td, "py-2")}>
+                    <StatusChip tone={STATUS_TONES[r.status] ?? "neutral"}>{STATUS_LABELS[r.status] ?? r.status}</StatusChip>
+                  </td>
+                  <td className={cn(opsTable.td, "max-w-[240px] truncate py-2 text-ops-tx2")}>{r.warning ?? r.error ?? ""}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {results.map((r) => (
-                  <tr key={r.rowIndex} className="bg-zinc-900 hover:bg-zinc-800/50">
-                    <td className="px-3 py-2 text-zinc-600 font-mono">{r.rowIndex + 1}</td>
-                    <td className="px-3 py-2 text-zinc-300 truncate max-w-[180px]">
-                      {r.name ?? "(sin nombre)"}
-                    </td>
-                    <td className={`px-3 py-2 font-medium ${STATUS_COLORS[r.status] ?? ""}`}>
-                      {STATUS_LABELS[r.status] ?? r.status}
-                    </td>
-                    <td className="px-3 py-2 text-zinc-500 truncate max-w-[240px]">
-                      {r.warning ?? r.error ?? ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
       )}
     </div>
   )

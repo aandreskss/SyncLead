@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -14,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { addMemberAction } from "@/domains/members/actions"
 import type { AddMemberState } from "@/domains/members/actions"
+import { opsField } from "@/components/app/ops"
 import type { MemberRole } from "@/lib/db/schema"
 
 const ROLES_BY_ACTOR: Record<string, { value: MemberRole; label: string; description: string }[]> = {
@@ -67,39 +70,40 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm">+ Agregar miembro</Button>
+        <Button>Agregar miembro</Button>
       </DialogTrigger>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Agregar miembro</DialogTitle>
+          <DialogTitle>Agregar miembro</DialogTitle>
+          <DialogDescription>Crea el acceso de un nuevo integrante y asígnale un rol.</DialogDescription>
         </DialogHeader>
 
         {isSuccess ? (
           <div className="space-y-4">
             {result.tempPassword ? (
               <div className="space-y-3">
-                <div className="bg-amber-900/30 border border-amber-800 rounded-lg p-4 space-y-2">
-                  <p className="text-sm font-medium text-amber-300">Cuenta nueva creada</p>
-                  <p className="text-sm text-amber-200/80">
+                <div className="bg-ops-amber/10 border border-ops-amber/30 rounded-md p-4 space-y-2">
+                  <p className="text-sm font-medium text-ops-amber">Cuenta nueva creada</p>
+                  <p className="text-sm text-ops-tx">
                     Se creó la cuenta para <strong>{result.email}</strong> con esta contraseña:
                   </p>
-                  <div className="bg-zinc-900 border border-zinc-700 rounded px-3 py-2 font-mono text-sm text-zinc-100 select-all">
+                  <div className="bg-ops-s1 border border-ops-bd rounded-md px-3 py-2 font-plex tabular-nums text-sm text-ops-tx select-all">
                     {result.tempPassword}
                   </div>
-                  <p className="text-xs text-amber-200/60">
+                  <p className="text-xs text-ops-tx2">
                     Comparte estas credenciales con el usuario para que pueda iniciar sesión.
                   </p>
                 </div>
-                <Button className="w-full" onClick={() => handleOpenChange(false)}>
+                <Button onClick={() => handleOpenChange(false)}>
                   Listo
                 </Button>
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-emerald-400">
+                <p className="text-sm text-ops-green">
                   Miembro agregado correctamente.
                 </p>
-                <Button className="w-full" onClick={() => handleOpenChange(false)}>
+                <Button onClick={() => handleOpenChange(false)}>
                   Cerrar
                 </Button>
               </div>
@@ -108,7 +112,7 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
         ) : (
           <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="invite-email" className="text-zinc-300 text-sm">
+              <Label htmlFor="invite-email" className="text-sm text-ops-tx">
                 Email
               </Label>
               <Input
@@ -118,12 +122,12 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
                 placeholder="usuario@ejemplo.com"
                 required
                 disabled={isPending}
-                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-0 focus:border-zinc-500"
+               
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="invite-role" className="text-zinc-300 text-sm">
+              <Label htmlFor="invite-role" className="text-sm text-ops-tx">
                 Rol
               </Label>
               <select
@@ -131,7 +135,7 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
                 name="role"
                 disabled={isPending}
                 defaultValue={roles[0]?.value}
-                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-md px-3 py-2 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
+                className={`${opsField} w-full disabled:opacity-50`}
               >
                 {roles.map((r) => (
                   <option key={r.value} value={r.value}>
@@ -142,8 +146,8 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor={pwId} className="text-zinc-300 text-sm">
-                Contraseña <span className="text-zinc-500 font-normal">(min. 8 caracteres)</span>
+              <Label htmlFor={pwId} className="text-sm text-ops-tx">
+                Contraseña <span className="text-ops-tx3 font-normal">(min. 8 caracteres)</span>
               </Label>
               <div className="relative">
                 <Input
@@ -153,28 +157,33 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
                   placeholder="Escribe la contraseña del usuario"
                   minLength={8}
                   disabled={isPending}
-                  className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-0 focus:border-zinc-500 pr-16"
+                  className="pr-16"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-200 px-1"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-ops-tx2 hover:text-ops-tx px-1 rounded focus-visible:outline-2 focus-visible:outline-ops-blue"
                 >
                   {showPassword ? "Ocultar" : "Ver"}
                 </button>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-ops-tx2">
                 Si lo dejas vacío se genera una contraseña automáticamente.
               </p>
             </div>
 
             {result?.error && (
-              <p className="text-sm text-red-400">{result.error}</p>
+              <p className="text-sm text-ops-coral">{result.error}</p>
             )}
 
-            <Button type="submit" disabled={isPending} className="w-full">
-              {isPending ? "Agregando..." : "Agregar"}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)} disabled={isPending}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Agregando..." : "Agregar"}
+              </Button>
+            </DialogFooter>
           </form>
         )}
       </DialogContent>

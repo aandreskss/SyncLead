@@ -27,11 +27,11 @@ function CopyButton({ text, copyKey }: { text: string; copyKey: string }) {
   return (
     <button
       onClick={() => copy(text, copyKey)}
-      className="flex-shrink-0 p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+      className="flex-shrink-0 p-1.5 rounded hover:bg-ops-sel text-ops-tx2 hover:text-ops-tx transition-colors"
       title="Copiar"
     >
       {copied === copyKey ? (
-        <Check className="h-4 w-4 text-emerald-400" />
+        <Check className="h-4 w-4 text-ops-green" />
       ) : (
         <Copy className="h-4 w-4" />
       )}
@@ -41,8 +41,8 @@ function CopyButton({ text, copyKey }: { text: string; copyKey: string }) {
 
 function CodeBlock({ value, copyKey }: { value: string; copyKey: string }) {
   return (
-    <div className="flex items-center gap-2 bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 font-mono text-sm">
-      <span className="text-zinc-300 break-all flex-1">{value}</span>
+    <div className="flex items-center gap-2 bg-ops-bg border border-ops-bd rounded-lg px-3 py-2 font-mono text-sm">
+      <span className="text-ops-tx2 break-all flex-1">{value}</span>
       <CopyButton text={value} copyKey={copyKey} />
     </div>
   )
@@ -93,17 +93,17 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
       {/* ─── Section 1: Meta Lead Ads ───────────────────────────────── */}
       <div className="space-y-4">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-            <Zap className="h-4 w-4 text-indigo-400" />
+          <div className="mt-0.5 h-8 w-8 rounded-lg bg-ops-blue/10 flex items-center justify-center flex-shrink-0">
+            <Zap className="h-4 w-4 text-ops-blue-t" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-zinc-100">Meta Lead Ads</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <h3 className="text-sm font-semibold text-ops-tx">Meta Lead Ads</h3>
+            <p className="text-xs text-ops-tx3 mt-0.5">
               Recibe leads de formularios nativos de Facebook e Instagram automáticamente, sin instalar nada en tu sitio.
             </p>
           </div>
           {leadAdsEnabled && (
-            <span className="ml-auto flex-shrink-0 flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium text-emerald-400 bg-emerald-400/10">
+            <span className="ml-auto flex-shrink-0 flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium text-ops-green bg-emerald-400/10">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               Activo
             </span>
@@ -113,23 +113,23 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
         {leadAdsEnabled && metaPageId && webhookVerifyToken ? (
           <div className="ml-11 space-y-4">
             <div className="space-y-2">
-              <label className="text-xs font-medium text-zinc-400">URL del webhook</label>
+              <label className="text-xs font-medium text-ops-tx2">URL del webhook</label>
               <CodeBlock value={webhookUrl} copyKey="webhook-url" />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-zinc-400">Token de verificacion</label>
+              <label className="text-xs font-medium text-ops-tx2">Token de verificacion</label>
               <CodeBlock value={webhookVerifyToken} copyKey="verify-token" />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-zinc-400">Facebook Page ID configurado</label>
-              <div className="text-xs text-zinc-400 bg-zinc-800/50 rounded px-3 py-2 border border-zinc-700">
+              <label className="text-xs font-medium text-ops-tx2">Facebook Page ID configurado</label>
+              <div className="text-xs text-ops-tx2 bg-ops-s2/50 rounded px-3 py-2 border border-ops-bd">
                 {metaPageId}
               </div>
             </div>
 
             {/* Setup steps guide */}
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800/30 p-4 space-y-3">
-              <p className="text-xs font-semibold text-zinc-300">Pasos para configurar el webhook en Meta:</p>
+            <div className="rounded-lg border border-ops-bd bg-ops-s2/30 p-4 space-y-3">
+              <p className="text-xs font-semibold text-ops-tx2">Pasos para configurar el webhook en Meta:</p>
               <ol className="space-y-1.5 list-decimal list-inside">
                 {[
                   "Copia la URL del webhook de arriba.",
@@ -137,7 +137,7 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
                   "Pega la URL y el token de verificacion.",
                   'Activa la casilla "leadgen" y guarda.',
                 ].map((step, i) => (
-                  <li key={i} className="text-xs text-zinc-400">
+                  <li key={i} className="text-xs text-ops-tx2">
                     {step}
                   </li>
                 ))}
@@ -147,7 +147,7 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
             <button
               onClick={handleDisable}
               disabled={isPending}
-              className="text-xs text-zinc-500 hover:text-red-400 transition-colors disabled:opacity-50"
+              className="text-xs text-ops-tx3 hover:text-ops-coral transition-colors disabled:opacity-50"
             >
               Desactivar Lead Ads
             </button>
@@ -155,7 +155,7 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
         ) : (
           <div className="ml-11 space-y-4">
             {!conn && (
-              <div className="flex items-start gap-2 text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2 border border-amber-400/20">
+              <div className="flex items-start gap-2 text-xs text-ops-amber bg-amber-400/10 rounded-lg px-3 py-2 border border-amber-400/20">
                 <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>Primero conecta una cuenta de Meta Ads en el panel de Configuracion.</span>
               </div>
@@ -167,34 +167,34 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
                 onChange={(e) => setPageIdInput(e.target.value)}
                 placeholder="Facebook Page ID (ej: 123456789)"
                 disabled={!conn || isPending}
-                className="flex-1 rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
+                className="flex-1 rounded-lg bg-ops-s2 border border-ops-bd px-3 py-2 text-sm text-ops-tx placeholder:text-ops-tx3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
               />
               <button
                 onClick={handleEnable}
                 disabled={!conn || !pageIdInput.trim() || isPending}
-                className="flex-shrink-0 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-shrink-0 px-4 py-2 rounded-lg bg-ops-blue hover:bg-ops-blue text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isPending ? "Activando..." : "Activar"}
               </button>
             </div>
             {error && (
-              <p className="text-xs text-red-400">{error}</p>
+              <p className="text-xs text-ops-coral">{error}</p>
             )}
           </div>
         )}
       </div>
 
-      <div className="border-t border-zinc-800" />
+      <div className="border-t border-ops-line" />
 
       {/* ─── Section 2: Capture script ──────────────────────────────── */}
       <div className="space-y-4">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-            <Globe className="h-4 w-4 text-emerald-400" />
+            <Globe className="h-4 w-4 text-ops-green" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-zinc-100">Formularios del sitio web</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <h3 className="text-sm font-semibold text-ops-tx">Formularios del sitio web</h3>
+            <p className="text-xs text-ops-tx3 mt-0.5">
               Captura leads cuando alguien llena un formulario en el sitio web del cliente. Solo funciona si el visitante viene de un anuncio de Meta.
             </p>
           </div>
@@ -203,7 +203,7 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
         <div className="ml-11 space-y-4">
           {/* Preset selector */}
           <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-400">Campos que captura el script</label>
+            <label className="text-xs font-medium text-ops-tx2">Campos que captura el script</label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {([
                 {
@@ -230,37 +230,37 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
                   onClick={() => setCapturePreset(key)}
                   className={`flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors ${
                     capturePreset === key
-                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                      : "border-zinc-700 bg-zinc-800/30 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-800"
+                      ? "border-ops-blue bg-ops-blue/10 text-ops-blue-t"
+                      : "border-ops-bd bg-ops-s2/30 text-ops-tx2 hover:border-ops-bd hover:bg-ops-s2"
                   }`}
                 >
                   <span className="flex items-center gap-1.5 text-xs font-semibold">
                     <Icon className="h-3.5 w-3.5" />
                     {label}
                   </span>
-                  <span className="text-[10px] leading-relaxed opacity-80">{fields}</span>
+                  <span className="text-xs leading-relaxed opacity-80">{fields}</span>
                 </button>
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-400">Script de captura</label>
+            <label className="text-xs font-medium text-ops-tx2">Script de captura</label>
             <CodeBlock
               value={`<script src="${captureScriptSrc}" defer></script>`}
               copyKey="capture-script"
             />
           </div>
-          <div className="flex items-start gap-2 text-xs text-zinc-500 bg-zinc-800/30 rounded-lg px-3 py-2 border border-zinc-700">
-            <Info className="h-4 w-4 flex-shrink-0 mt-0.5 text-zinc-400" />
+          <div className="flex items-start gap-2 text-xs text-ops-tx3 bg-ops-s2/30 rounded-lg px-3 py-2 border border-ops-bd">
+            <Info className="h-4 w-4 flex-shrink-0 mt-0.5 text-ops-tx2" />
             <span>
               Pega este script en el{" "}
-              <code className="text-zinc-300 bg-zinc-700/50 px-1 rounded">&lt;head&gt;</code>{" "}
+              <code className="text-ops-tx2 bg-ops-sel/50 px-1 rounded">&lt;head&gt;</code>{" "}
               de cada pagina con formulario. El script se activa solo si el visitante viene de un anuncio de Meta.
             </span>
           </div>
           {!captureScriptKey && (
-            <div className="flex items-start gap-2 text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2 border border-amber-400/20">
+            <div className="flex items-start gap-2 text-xs text-ops-amber bg-amber-400/10 rounded-lg px-3 py-2 border border-amber-400/20">
               <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <span>Activa Meta Lead Ads primero para habilitar el script de captura.</span>
             </div>
@@ -268,7 +268,7 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
         </div>
       </div>
 
-      <div className="border-t border-zinc-800" />
+      <div className="border-t border-ops-line" />
 
       {/* ─── Section 3: UTM guide (collapsible) ─────────────────────── */}
       <div className="space-y-3">
@@ -277,33 +277,33 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
           className="flex w-full items-center justify-between text-left"
         >
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-100">
+            <span className="text-sm font-semibold text-ops-tx">
               Configura los parametros UTM en tus anuncios
             </span>
           </div>
           {utmOpen ? (
-            <ChevronUp className="h-4 w-4 text-zinc-400 flex-shrink-0" />
+            <ChevronUp className="h-4 w-4 text-ops-tx2 flex-shrink-0" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-zinc-400 flex-shrink-0" />
+            <ChevronDown className="h-4 w-4 text-ops-tx2 flex-shrink-0" />
           )}
         </button>
 
         {utmOpen && (
           <div className="space-y-4 pl-0">
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-ops-tx2">
               Para que SyncLead pueda rastrear que anuncio genero cada lead, configura estos parametros en cada anuncio de Meta:
             </p>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium text-zinc-400">Parametros UTM</label>
+              <label className="text-xs font-medium text-ops-tx2">Parametros UTM</label>
               <CodeBlock
                 value="utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}"
                 copyKey="utm-params"
               />
             </div>
 
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800/30 p-4 space-y-3">
-              <p className="text-xs font-semibold text-zinc-300">Pasos en Meta Ads Manager:</p>
+            <div className="rounded-lg border border-ops-bd bg-ops-s2/30 p-4 space-y-3">
+              <p className="text-xs font-semibold text-ops-tx2">Pasos en Meta Ads Manager:</p>
               <ol className="space-y-1.5 list-decimal list-inside">
                 {[
                   "Ve al anuncio en Meta Ads Manager.",
@@ -311,14 +311,14 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
                   "Pega los parametros de arriba.",
                   'Meta rellenara automaticamente {{campaign.name}}, {{ad.name}} y {{adset.name}}.',
                 ].map((step, i) => (
-                  <li key={i} className="text-xs text-zinc-400">
+                  <li key={i} className="text-xs text-ops-tx2">
                     {step}
                   </li>
                 ))}
               </ol>
             </div>
 
-            <div className="flex items-start gap-2 text-xs text-indigo-400 bg-indigo-400/10 rounded-lg px-3 py-2 border border-indigo-400/20">
+            <div className="flex items-start gap-2 text-xs text-ops-blue-t bg-indigo-400/10 rounded-lg px-3 py-2 border border-ops-blue/20">
               <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <span>
                 <strong>Si usas formularios nativos de Meta (Lead Ads)</strong>, no necesitas UTMs —{" "}

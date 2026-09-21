@@ -176,7 +176,7 @@ export function parsePhone(value: unknown): string | null {
   if (!str) return null
 
   // Keep only digits, +, spaces, dashes, parentheses
-  let cleaned = str.replace(/[^\d+\s\-()]/g, "").trim()
+  const cleaned = str.replace(/[^\d+\s\-()]/g, "").trim()
   if (!cleaned) return null
 
   // Remove spaces/dashes for storage

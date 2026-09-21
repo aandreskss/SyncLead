@@ -25,6 +25,8 @@ import {
   Upload,
   Link as LinkIcon,
 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Panel } from "@/components/app/ops"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -41,12 +43,12 @@ function Avatar({ name, image, email }: { name: string | null; image: string | n
         src={image}
         alt={name ?? "avatar"}
         onError={() => setImgError(true)}
-        className="h-20 w-20 rounded-full object-cover bg-zinc-800 ring-2 ring-zinc-700"
+        className="h-14 w-14 rounded-full object-cover bg-ops-s2 ring-1 ring-ops-bd"
       />
     )
   }
   return (
-    <div className="h-20 w-20 rounded-full bg-indigo-600/20 border-2 border-indigo-500/30 flex items-center justify-center text-2xl font-semibold text-indigo-300 select-none">
+    <div className="h-14 w-14 rounded-full bg-ops-blue/15 border border-ops-bd flex items-center justify-center text-lg font-semibold text-ops-blue-t select-none">
       {initials(name, email)}
     </div>
   )
@@ -62,20 +64,24 @@ function SectionCard({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-4">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-zinc-500" />
-        <h2 className="text-sm font-semibold text-zinc-300">{title}</h2>
-      </div>
+    <Panel
+      title={
+        <span className="flex items-center gap-2">
+          <Icon className="h-4 w-4 text-ops-tx2" />
+          {title}
+        </span>
+      }
+      bodyClassName="space-y-4 border-t border-ops-line p-4"
+    >
       {children}
-    </div>
+    </Panel>
   )
 }
 
 function Feedback({ saved, error }: { saved: boolean; error: string | null }) {
   if (error) {
     return (
-      <p className="text-xs text-red-400 flex items-center gap-1.5">
+      <p className="text-xs text-ops-coral flex items-center gap-1.5">
         <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
         {error}
       </p>
@@ -83,7 +89,7 @@ function Feedback({ saved, error }: { saved: boolean; error: string | null }) {
   }
   if (saved) {
     return (
-      <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+      <p className="text-xs text-ops-green flex items-center gap-1.5">
         <CheckCircle2 className="h-3.5 w-3.5" />
         Guardado correctamente
       </p>
@@ -93,10 +99,12 @@ function Feedback({ saved, error }: { saved: boolean; error: string | null }) {
 }
 
 function PasswordInput({
+  id,
   value,
   onChange,
   placeholder,
 }: {
+  id: string
   value: string
   onChange: (v: string) => void
   placeholder: string
@@ -104,17 +112,19 @@ function PasswordInput({
   const [show, setShow] = useState(false)
   return (
     <div className="relative">
-      <input
+      <Input
+        id={id}
         type={show ? "text" : "password"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors pr-10"
+        className="pr-10"
       />
       <button
         type="button"
         onClick={() => setShow((s) => !s)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+        aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
+        className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-ops-tx2 transition-colors hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
       >
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
@@ -215,42 +225,42 @@ function AvatarEditor({
         {!selectedFile ? (
           <button
             onClick={() => fileRef.current?.click()}
-            className="w-full flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-lg border-2 border-dashed border-zinc-700 hover:border-indigo-500/60 hover:bg-indigo-500/5 text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="w-full flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-md border border-dashed border-ops-bd hover:border-ops-blue hover:bg-ops-hover text-ops-tx2 hover:text-ops-tx transition-colors"
           >
             <Upload className="h-6 w-6" />
             <span className="text-xs">Haz clic para seleccionar una imagen</span>
-            <span className="text-xs text-zinc-600">JPG, PNG, WebP · máx. 4 MB</span>
+            <span className="text-xs text-ops-tx3">JPG, PNG, WebP · máx. 4 MB</span>
           </button>
         ) : (
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-800/60 border border-zinc-700/60">
+          <div className="flex items-center gap-3 p-3 rounded-md bg-ops-s2 border border-ops-bd">
             <img
               src={localPreview!}
               alt="preview"
               className="h-12 w-12 rounded-full object-cover flex-shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-zinc-300 truncate">{selectedFile.name}</p>
-              <p className="text-xs text-zinc-500">{(selectedFile.size / 1024).toFixed(0)} KB</p>
+              <p className="text-xs text-ops-tx truncate">{selectedFile.name}</p>
+              <p className="text-xs text-ops-tx2">{(selectedFile.size / 1024).toFixed(0)} KB</p>
             </div>
             <button
               onClick={() => { setSelectedFile(null); if (localPreview) URL.revokeObjectURL(localPreview); setLocalPreview(null) }}
-              className="text-zinc-500 hover:text-zinc-300 flex-shrink-0"
+              className="text-ops-tx2 hover:text-ops-tx flex-shrink-0"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         )}
         <Feedback saved={false} error={error} />
-        <div className="flex gap-2">
+        <div className="-mx-4 -mb-4 mt-4 flex flex-row-reverse justify-start gap-2 border-t border-ops-line px-4 py-3">
           <button
             onClick={handleUploadFile}
             disabled={pending || !selectedFile}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-40"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
           >
             {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
             {pending ? "Subiendo…" : "Subir foto"}
           </button>
-          <button onClick={resetState} disabled={pending} className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors">
+          <button onClick={resetState} disabled={pending} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50">
             Cancelar
           </button>
         </div>
@@ -262,34 +272,34 @@ function AvatarEditor({
     return (
       <div className="space-y-3">
         <div>
-          <label className="text-xs text-zinc-500 block mb-1">URL de la imagen</label>
-          <input
+          <label htmlFor="acc-avatar-url" className="mb-1.5 block text-xs font-medium text-ops-tx2">URL de la imagen</label>
+          <Input
+            id="acc-avatar-url"
             type="url"
             value={urlValue}
             onChange={(e) => setUrlValue(e.target.value)}
             placeholder="https://ejemplo.com/mi-foto.jpg"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
           />
         </div>
         {urlValue && (
           <img
             src={urlValue}
             alt="preview"
-            className="h-12 w-12 rounded-full object-cover bg-zinc-800"
+            className="h-12 w-12 rounded-full object-cover bg-ops-s2"
             onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.2" }}
           />
         )}
         <Feedback saved={false} error={error} />
-        <div className="flex gap-2">
+        <div className="-mx-4 -mb-4 mt-4 flex flex-row-reverse justify-start gap-2 border-t border-ops-line px-4 py-3">
           <button
             onClick={handleSaveUrl}
             disabled={pending || !urlValue.trim()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-40"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
           >
             {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Guardar URL
           </button>
-          <button onClick={resetState} disabled={pending} className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors">
+          <button onClick={resetState} disabled={pending} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50">
             Cancelar
           </button>
         </div>
@@ -302,14 +312,14 @@ function AvatarEditor({
     <div className="flex flex-wrap gap-2">
       <button
         onClick={() => setMode("file")}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 transition-colors"
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
       >
         <Upload className="h-3.5 w-3.5" />
         Subir imagen
       </button>
       <button
         onClick={() => setMode("url")}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
       >
         <LinkIcon className="h-3.5 w-3.5" />
         Usar URL
@@ -325,12 +335,13 @@ function AvatarEditor({
             })
           }}
           disabled={pending}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-zinc-600 hover:text-red-400 hover:bg-zinc-800 border border-transparent hover:border-zinc-700 transition-colors disabled:opacity-40"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-[13px] text-ops-tx2 transition-colors hover:bg-ops-hover hover:text-ops-coral focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
         >
           <X className="h-3.5 w-3.5" />
           Quitar foto
         </button>
       )}
+      <span className="self-center text-xs text-ops-tx3">JPG, PNG, WebP · máx. 4 MB</span>
       {error && <Feedback saved={false} error={error} />}
     </div>
   )
@@ -438,12 +449,12 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
     <div className="space-y-4">
 
       {/* ── Foto de perfil ─────────────────────────────────────────────── */}
-      <SectionCard title="Foto de perfil" icon={ImageIcon}>
+      <SectionCard title="Perfil" icon={ImageIcon}>
         <div className="flex items-center gap-4">
           <Avatar name={profile.name} image={savedImage || null} email={profile.email} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-zinc-200 truncate">{profile.name ?? "Sin nombre"}</p>
-            <p className="text-xs text-zinc-500 truncate">{profile.email}</p>
+            <p className="text-sm font-medium text-ops-tx truncate">{profile.name ?? "Sin nombre"}</p>
+            <p className="text-xs text-ops-tx2 truncate">{profile.email}</p>
           </div>
         </div>
         <AvatarEditor profile={{ ...profile, image: savedImage || null }} onSaved={handleAvatarSaved} />
@@ -451,23 +462,24 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
       </SectionCard>
 
       {/* ── Nombre ──────────────────────────────────────────────────────── */}
-      <SectionCard title="Nombre de perfil" icon={User}>
+      <SectionCard title="Nombre" icon={User}>
         {nameEditing ? (
           <div className="space-y-3">
-            <input
+            <label htmlFor="acc-name" className="block text-xs font-medium text-ops-tx2">Nombre completo</label>
+            <Input
+              id="acc-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Tu nombre completo"
               maxLength={100}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
             />
             <Feedback saved={nameSaved} error={nameError} />
-            <div className="flex gap-2">
+            <div className="-mx-4 -mb-4 mt-4 flex flex-row-reverse justify-start gap-2 border-t border-ops-line px-4 py-3">
               <button
                 onClick={handleSaveName}
                 disabled={namePending}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
               >
                 {namePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 Guardar
@@ -475,7 +487,7 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
               <button
                 onClick={() => { setNameEditing(false); setName(profile.name ?? ""); setNameError(null) }}
                 disabled={namePending}
-                className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -483,12 +495,12 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
           </div>
         ) : (
           <div className="flex items-center justify-between">
-            <p className="text-sm text-zinc-200">
-              {profile.name ?? <span className="text-zinc-500 italic">Sin nombre</span>}
+            <p className="text-sm text-ops-tx">
+              {profile.name ?? <span className="text-ops-tx2 italic">Sin nombre</span>}
             </p>
             <button
               onClick={() => setNameEditing(true)}
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              className="rounded text-[13px] font-medium text-ops-blue-t transition-colors hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue"
             >
               Editar
             </button>
@@ -502,29 +514,30 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
         {emailEditing ? (
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-zinc-500 block mb-1">Nuevo correo</label>
-              <input
+              <label htmlFor="acc-email" className="mb-1.5 block text-xs font-medium text-ops-tx2">Nuevo correo</label>
+              <Input
+                id="acc-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nuevo@correo.com"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-500 block mb-1">Contraseña actual (para confirmar)</label>
+              <label htmlFor="acc-email-pw" className="mb-1.5 block text-xs font-medium text-ops-tx2">Contraseña actual (para confirmar)</label>
               <PasswordInput
+                id="acc-email-pw"
                 value={emailCurrentPassword}
                 onChange={setEmailCurrentPassword}
                 placeholder="Tu contraseña actual"
               />
             </div>
             <Feedback saved={emailSaved} error={emailError} />
-            <div className="flex gap-2">
+            <div className="-mx-4 -mb-4 mt-4 flex flex-row-reverse justify-start gap-2 border-t border-ops-line px-4 py-3">
               <button
                 onClick={handleSaveEmail}
                 disabled={emailPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
               >
                 {emailPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 Guardar
@@ -532,7 +545,7 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
               <button
                 onClick={() => { setEmailEditing(false); setEmail(profile.email ?? ""); setEmailCurrentPassword(""); setEmailError(null) }}
                 disabled={emailPending}
-                className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -540,11 +553,11 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
           </div>
         ) : (
           <div className="flex items-center justify-between">
-            <p className="text-sm text-zinc-200">{profile.email}</p>
+            <p className="text-sm text-ops-tx">{profile.email}</p>
             {profile.hasPassword && (
               <button
                 onClick={() => setEmailEditing(true)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="rounded text-[13px] font-medium text-ops-blue-t transition-colors hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue"
               >
                 Cambiar
               </button>
@@ -554,11 +567,11 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
         {!emailEditing && emailSaved && (
           <div className="space-y-1">
             <Feedback saved={emailSaved} error={null} />
-            <p className="text-xs text-zinc-500">Vuelve a iniciar sesión para ver el email actualizado.</p>
+            <p className="text-xs text-ops-tx2">Vuelve a iniciar sesión para ver el email actualizado.</p>
           </div>
         )}
         {!profile.hasPassword && (
-          <p className="text-xs text-zinc-600">Tu cuenta usa Google — el email lo gestiona Google.</p>
+          <p className="text-xs text-ops-tx3">Tu cuenta usa Google — el email lo gestiona Google.</p>
         )}
       </SectionCard>
 
@@ -568,35 +581,38 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
           {passwordEditing ? (
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Contraseña actual</label>
+                <label htmlFor="acc-pw-cur" className="mb-1.5 block text-xs font-medium text-ops-tx2">Contraseña actual</label>
                 <PasswordInput
+                  id="acc-pw-cur"
                   value={currentPassword}
                   onChange={setCurrentPassword}
                   placeholder="Contraseña actual"
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Nueva contraseña</label>
+                <label htmlFor="acc-pw-new" className="mb-1.5 block text-xs font-medium text-ops-tx2">Nueva contraseña</label>
                 <PasswordInput
+                  id="acc-pw-new"
                   value={newPassword}
                   onChange={setNewPassword}
                   placeholder="Mínimo 8 caracteres"
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500 block mb-1">Confirmar nueva contraseña</label>
+                <label htmlFor="acc-pw-conf" className="mb-1.5 block text-xs font-medium text-ops-tx2">Confirmar nueva contraseña</label>
                 <PasswordInput
+                  id="acc-pw-conf"
                   value={confirmPassword}
                   onChange={setConfirmPassword}
                   placeholder="Repite la nueva contraseña"
                 />
               </div>
               <Feedback saved={passwordSaved} error={passwordError} />
-              <div className="flex gap-2">
+              <div className="-mx-4 -mb-4 mt-4 flex flex-row-reverse justify-start gap-2 border-t border-ops-line px-4 py-3">
                 <button
                   onClick={handleSavePassword}
                   disabled={passwordPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
                 >
                   {passwordPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                   Cambiar contraseña
@@ -610,7 +626,7 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
                     setPasswordError(null)
                   }}
                   disabled={passwordPending}
-                  className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -618,10 +634,10 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
             </div>
           ) : (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-zinc-500">••••••••</p>
+              <p className="text-sm text-ops-tx2">••••••••</p>
               <button
                 onClick={() => setPasswordEditing(true)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="rounded text-[13px] font-medium text-ops-blue-t transition-colors hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue"
               >
                 Cambiar
               </button>
