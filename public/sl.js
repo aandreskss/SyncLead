@@ -93,7 +93,6 @@
     for (var k in data) {
       if (Object.prototype.hasOwnProperty.call(data, k)) payload[k] = data[k];
     }
-    payload._key = key;
     if (!payload.landing_url) payload.landing_url = location.href;
     if (!payload.event_id) {
       try { payload.event_id = crypto.randomUUID(); } catch (e) {
@@ -101,22 +100,20 @@
       }
     }
 
-    // keepalive guarantees delivery even if the page navigates away immediately.
-    // Prefer fetch+keepalive over sendBeacon: same guarantee, correct CORS preflight,
-    // and traceable errors. sendBeacon with application/json silently fails in some
-    // browser/CSP combinations.
+    // keepalive: true guarantees delivery even if the page navigates away immediately (e.g. SPA router.push).
+    // Key goes in the header — the original approach confirmed working in production.
     return fetch(host + '/api/leads/ingest', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Campaign-Key': key },
       body:    JSON.stringify(payload),
       keepalive: true,
-    }).then(function () { return { queued: true }; }).catch(function () {
-      // keepalive can fail if payload exceeds 64 KB budget — plain fetch as last resort
+    }).then(function (r) { return r.json(); }).catch(function () {
+      // keepalive fails if payload > 64 KB — plain fetch as last resort
       return fetch(host + '/api/leads/ingest', {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Campaign-Key': key },
         body:    JSON.stringify(payload),
-      }).then(function () { return { queued: true }; });
+      }).then(function (r) { return r.json(); });
     });
   }
 
