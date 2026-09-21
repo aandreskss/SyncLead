@@ -187,6 +187,27 @@
 }
 
 @theme inline {
+  /* Consola de datos (dashboard principal) */
+  --color-ops-bg: #0b0f14;
+  --color-ops-side: #0e1319;
+  --color-ops-s1: #121821;
+  --color-ops-s2: #161d27;
+  --color-ops-raised: #1b2431;
+  --color-ops-sel: #1e2836;
+  --color-ops-hover: #151d28;
+  --color-ops-line: #1e2834;
+  --color-ops-bd: #273140;
+  --color-ops-bd2: #3a475a;
+  --color-ops-tx: #f2f5f8;
+  --color-ops-tx2: #98a4b3;
+  --color-ops-tx3: #7b8898;
+  --color-ops-blue: #4c7dff;
+  --color-ops-blue-t: #6e95ff;
+  --color-ops-green: #37c790;
+  --color-ops-amber: #e7a84b;
+  --color-ops-coral: #f06f65;
+  --color-ops-cold: #6bb7e8;
+  --font-plex: var(--font-plex-mono), ui-monospace, monospace;
   --color-sg-bg: var(--sg-bg);
   --color-sg-s1: var(--sg-s1);
   --color-sg-s2: var(--sg-s2);

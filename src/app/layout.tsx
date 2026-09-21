@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Geist, Geist_Mono, IBM_Plex_Mono } from "next/font/google"
 import { SessionProvider } from "next-auth/react"
 import { auth } from "@/auth"
 import { headers } from "next/headers"
@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 })
 
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+})
+
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://synclead.app"
 
 export const metadata: Metadata = {
@@ -28,7 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = hdrs.get("x-nonce") ?? ""
 
   return (
-    <html lang="es" className={`${geist.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="es" className={`${geist.variable} ${geistMono.variable} ${plexMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
         <SessionProvider session={session} basePath="/api/auth">
           {children}
