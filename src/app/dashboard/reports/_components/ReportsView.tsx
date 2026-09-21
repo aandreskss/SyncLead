@@ -70,7 +70,7 @@ export function ReportsView({ clients, selectedClientId, month, reportData, mont
   }
 
   const previewUrl = selectedClientId
-    ? `/dashboard/reports/preview?clientId=${selectedClientId}&month=${month}`
+    ? `/api/reports/preview?clientId=${selectedClientId}&month=${month}`
     : null
 
   const r = reportData
