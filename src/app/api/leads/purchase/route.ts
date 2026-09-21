@@ -29,7 +29,10 @@ const PurchaseSchema = z.object({
     .regex(/^[A-Z]{3}$/, "Moneda debe ser código ISO 4217 (ej. USD, EUR, VES)"),
   order_id: z.string().min(1).max(255).optional(),
   lead_id: z.string().uuid().optional().nullable(),
-  email: z.string().email().max(255).optional().nullable(),
+  email: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().email().max(255).optional().nullable()
+  ),
   phone: z.string().max(30).optional().nullable(),
   name: z.string().max(255).optional().nullable(),
   event_id: z.string().max(255).optional(),
