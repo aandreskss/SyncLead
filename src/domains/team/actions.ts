@@ -197,3 +197,47 @@ export async function getLeadAssignmentHistoryAction(leadId: string) {
   try { ctx = await requireOrganizationMembership() } catch { return [] }
   return getAssignmentHistory(leadId, ctx.orgId)
 }
+
+export async function sendAssignmentEmailAction(leadId: string) {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+
+  const [lead] = await db
+    .select({
+      id: leads.id,
+      campaignId: leads.campaignId,
+      name: leads.name,
+      phone: leads.phone,
+      email: leads.email,
+      metaCampaignName: leads.metaCampaignName,
+    })
+    .from(leads)
+    .where(and(eq(leads.id, leadId), eq(leads.orgId, ctx.orgId)))
+    .limit(1)
+  if (!lead) return { error: "Lead no encontrado" }
+
+  const assignment = await getCurrentAssignment(leadId, ctx.orgId)
+  if (!assignment?.salesRepId) return { error: "El lead no tiene un vendedor asignado" }
+
+  const rep = await getSalesRep(assignment.salesRepId, ctx.orgId)
+  if (!rep?.email) return { error: "El vendedor no tiene email configurado" }
+
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
+    const leadUrl = `${appUrl}/dashboard/campaigns/${lead.campaignId}/leads?open=${lead.id}`
+    await sendLeadAssignmentEmail({
+      to: rep.email,
+      repName: rep.displayName,
+      lead: {
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        metaCampaignName: lead.metaCampaignName,
+      },
+      dashboardUrl: leadUrl,
+    })
+    return { success: true }
+  } catch {
+    return { error: "Error al enviar el email" }
+  }
+}

@@ -27,6 +27,7 @@ import {
 import {
   assignLeadAction,
   getLeadAssignmentAction,
+  sendAssignmentEmailAction,
 } from "@/domains/team/actions"
 import type { AssignmentWithRep } from "@/domains/team/types"
 import {
@@ -639,10 +640,15 @@ function AssignmentPanel({
   const [selectedRepId, setSelectedRepId] = useState<string>(savedRepId)
   const [error, setError] = useState<string | null>(null)
   const [isPending, start] = useTransition()
+  const [emailPending, startEmail] = useTransition()
+  const [emailSent, setEmailSent] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
 
   // Sync dropdown when parent refreshes currentAssignment
   useEffect(() => {
     setSelectedRepId(currentAssignment?.salesRepId ?? "")
+    setEmailSent(false)
+    setEmailError(null)
   }, [currentAssignment?.salesRepId])
 
   function handleAssign() {
@@ -661,12 +667,35 @@ function AssignmentPanel({
     })
   }
 
+  function handleSendEmail() {
+    setEmailError(null)
+    setEmailSent(false)
+    startEmail(async () => {
+      try {
+        const result = await sendAssignmentEmailAction(leadId)
+        if (result && "error" in result) {
+          setEmailError(result.error ?? "Error al enviar")
+          return
+        }
+        setEmailSent(true)
+        setTimeout(() => setEmailSent(false), 3000)
+      } catch {
+        setEmailError("Error inesperado al enviar el email")
+      }
+    })
+  }
+
   const activeReps = salesReps.filter((r) => r.active)
 
   // Resolve current rep: prefer DB join result, fall back to salesReps list
   const currentRepId = currentAssignment?.salesRepId
   const assignedRep = currentAssignment?.salesRep
     ?? (currentRepId ? (salesReps.find((r) => r.id === currentRepId) ?? null) : null)
+
+  // Email from salesReps list (AssignmentWithRep.salesRep doesn't carry email)
+  const assignedRepEmail = currentRepId
+    ? (salesReps.find((r) => r.id === currentRepId)?.email ?? null)
+    : null
 
   const hasChanged = selectedRepId !== savedRepId
 
@@ -693,6 +722,25 @@ function AssignmentPanel({
               <MessageCircle className="h-3 w-3" />
               Notificar por WhatsApp
             </a>
+          )}
+          {assignedRepEmail && (
+            <button
+              onClick={handleSendEmail}
+              disabled={emailPending || isPending}
+              className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 transition-colors w-full disabled:opacity-50"
+            >
+              {emailPending
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : emailSent
+                  ? <Check className="h-3 w-3 text-emerald-400" />
+                  : <Mail className="h-3 w-3" />}
+              {emailSent ? "Email enviado" : "Notificar por email"}
+            </button>
+          )}
+          {emailError && (
+            <p className="text-xs text-red-400 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />{emailError}
+            </p>
           )}
         </div>
       ) : (
