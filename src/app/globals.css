@@ -220,27 +220,119 @@
   --cold: 217.2 91.2% 59.8%;
 }
 
+/* ─── ops-* tokens: valores por defecto (oscuro) ─────────────────────────── */
+.sg-app {
+  --ops-bg: #0b0f14;
+  --ops-side: #0e1319;
+  --ops-s1: #121821;
+  --ops-s2: #161d27;
+  --ops-raised: #1b2431;
+  --ops-sel: #1e2836;
+  --ops-hover: #151d28;
+  --ops-line: #1e2834;
+  --ops-bd: #273140;
+  --ops-bd2: #3a475a;
+  --ops-tx: #f2f5f8;
+  --ops-tx2: #98a4b3;
+  --ops-tx3: #7b8898;
+  --ops-blue: #4c7dff;
+  --ops-blue-t: #6e95ff;
+  --ops-green: #37c790;
+  --ops-amber: #e7a84b;
+  --ops-coral: #f06f65;
+  --ops-cold: #6bb7e8;
+  --ops-ws-badge: #1a2740;
+}
+
+/* ─── ops-* tokens: modo claro ────────────────────────────────────────────── */
+html.light .sg-app {
+  --ops-bg: #f0f2f5;
+  --ops-side: #ffffff;
+  --ops-s1: #ffffff;
+  --ops-s2: #f4f7fa;
+  --ops-raised: #ffffff;
+  --ops-sel: #eef3ff;
+  --ops-hover: #f0f4ff;
+  --ops-line: #e3e9f2;
+  --ops-bd: #d5dde9;
+  --ops-bd2: #adb8cc;
+  --ops-tx: #0d1520;
+  --ops-tx2: #48566c;
+  --ops-tx3: #677285;
+  --ops-blue: #3b6dff;
+  --ops-blue-t: #2255e5;
+  --ops-green: #0e9b6b;
+  --ops-amber: #b07800;
+  --ops-coral: #d63030;
+  --ops-cold: #2563eb;
+  --ops-ws-badge: #eef3ff;
+
+  /* Revertir remapeo zinc/indigo a valores estándar de Tailwind */
+  --color-zinc-50: #f9fafb;
+  --color-zinc-100: #f3f4f6;
+  --color-zinc-200: #e5e7eb;
+  --color-zinc-300: #d1d5db;
+  --color-zinc-400: #9ca3af;
+  --color-zinc-500: #6b7280;
+  --color-zinc-600: #4b5563;
+  --color-zinc-700: #374151;
+  --color-zinc-800: #1f2937;
+  --color-zinc-900: #111827;
+  --color-zinc-950: #030712;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-amber-400: #fbbf24;
+  --color-blue-400: #60a5fa;
+
+  /* Revertir variables shadcn/ui al tema claro */
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 240 10% 3.9%;
+  color-scheme: light;
+}
+
 @theme inline {
-  /* Consola de datos (dashboard principal) */
-  --color-ops-bg: #0b0f14;
-  --color-ops-side: #0e1319;
-  --color-ops-s1: #121821;
-  --color-ops-s2: #161d27;
-  --color-ops-raised: #1b2431;
-  --color-ops-sel: #1e2836;
-  --color-ops-hover: #151d28;
-  --color-ops-line: #1e2834;
-  --color-ops-bd: #273140;
-  --color-ops-bd2: #3a475a;
-  --color-ops-tx: #f2f5f8;
-  --color-ops-tx2: #98a4b3;
-  --color-ops-tx3: #7b8898;
-  --color-ops-blue: #4c7dff;
-  --color-ops-blue-t: #6e95ff;
-  --color-ops-green: #37c790;
-  --color-ops-amber: #e7a84b;
-  --color-ops-coral: #f06f65;
-  --color-ops-cold: #6bb7e8;
+  /* Consola de datos (dashboard principal) — referencian las CSS vars arriba */
+  --color-ops-bg: var(--ops-bg, #0b0f14);
+  --color-ops-side: var(--ops-side, #0e1319);
+  --color-ops-s1: var(--ops-s1, #121821);
+  --color-ops-s2: var(--ops-s2, #161d27);
+  --color-ops-raised: var(--ops-raised, #1b2431);
+  --color-ops-sel: var(--ops-sel, #1e2836);
+  --color-ops-hover: var(--ops-hover, #151d28);
+  --color-ops-line: var(--ops-line, #1e2834);
+  --color-ops-bd: var(--ops-bd, #273140);
+  --color-ops-bd2: var(--ops-bd2, #3a475a);
+  --color-ops-tx: var(--ops-tx, #f2f5f8);
+  --color-ops-tx2: var(--ops-tx2, #98a4b3);
+  --color-ops-tx3: var(--ops-tx3, #7b8898);
+  --color-ops-blue: var(--ops-blue, #4c7dff);
+  --color-ops-blue-t: var(--ops-blue-t, #6e95ff);
+  --color-ops-green: var(--ops-green, #37c790);
+  --color-ops-amber: var(--ops-amber, #e7a84b);
+  --color-ops-coral: var(--ops-coral, #f06f65);
+  --color-ops-cold: var(--ops-cold, #6bb7e8);
   --font-plex: var(--font-plex-mono), ui-monospace, monospace;
   --color-sg-bg: var(--sg-bg);
   --color-sg-s1: var(--sg-s1);

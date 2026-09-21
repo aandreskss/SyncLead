@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react"
 import { PanelLeft, PanelLeftClose, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { NAV_GROUPS, isActive } from "./DashboardNav"
+import { ThemeToggle } from "./ThemeToggle"
 
 const KEY = "synclead:sidebar-collapsed"
 const EVENT = "synclead:sidebar"
@@ -82,7 +83,7 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
             collapsed ? "h-10 w-10 justify-center" : "h-11 px-2.5"
           )}
         >
-          <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#1a2740] text-[11px] font-semibold text-ops-blue-t">
+          <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--ops-ws-badge)] text-[11px] font-semibold text-ops-blue-t">
             {initials(orgName)}
           </span>
           {!collapsed && <span className="min-w-0 flex-1 truncate text-sm font-medium text-ops-tx">{orgName}</span>}
@@ -115,7 +116,7 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
                     className={cn(
                       "relative mx-2 flex h-10 items-center rounded-md text-sm font-medium transition-colors duration-150",
                       collapsed ? "justify-center" : "gap-3 px-3.5",
-                      active ? "bg-ops-s2 text-ops-tx" : "text-ops-tx2 hover:bg-[#131a23] hover:text-ops-tx"
+                      active ? "bg-ops-s2 text-ops-tx" : "text-ops-tx2 hover:bg-ops-hover hover:text-ops-tx"
                     )}
                   >
                     {active && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-[3px] rounded-r bg-ops-blue" />}
@@ -150,6 +151,7 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
             <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
             {collapsed ? <span className="sr-only">Mi cuenta</span> : "Mi cuenta"}
           </Link>
+          <ThemeToggle collapsed={collapsed} />
           <button
             type="button"
             onClick={toggleCollapsed}
