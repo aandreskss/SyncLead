@@ -45,6 +45,14 @@ export const JOB_REGISTRY: Record<string, JobMeta> = {
     timeBudgetMs: 50_000,
     minIntervalMin: 60,
   },
+  "monthly-reports": {
+    name: "monthly-reports",
+    description: "Send monthly report emails to org owners with the previous month's data",
+    schedule: "1st of month 08:00 UTC",
+    maxDurationSec: 60,
+    timeBudgetMs: 50_000,
+    minIntervalMin: 43_200,
+  },
 } as const
 
 export type JobName = keyof typeof JOB_REGISTRY

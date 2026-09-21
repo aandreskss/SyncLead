@@ -6,6 +6,7 @@ import {
   Activity,
   Building,
   ChartColumn,
+  FileBarChart2,
   Funnel,
   LayoutDashboard,
   Megaphone,
@@ -37,6 +38,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/dashboard/performance", label: "Rendimiento", icon: ChartColumn },
       { href: "/dashboard/funnels", label: "Embudos", icon: Funnel },
+      { href: "/dashboard/reports", label: "Reportes", icon: FileBarChart2 },
       { href: "/dashboard/health", label: "Salud del tracking", icon: Activity, adminOnly: true },
     ],
   },
