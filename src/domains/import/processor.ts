@@ -219,6 +219,7 @@ async function processImportRow(
       negocioRaw,
       negocioNormalized,
       cityCanonical,
+      leadSource: "imported",
       temperature,
       utmSource: p.utmSource ?? null,
       utmMedium: p.utmMedium ?? null,

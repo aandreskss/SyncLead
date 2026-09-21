@@ -14,7 +14,7 @@ export default async function LeadsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ search?: string; temperature?: string; stage?: string; assignment?: string; repId?: string; activity?: string }>
+  searchParams: Promise<{ search?: string; temperature?: string; stage?: string; assignment?: string; repId?: string; activity?: string; source?: string }>
 }) {
   let ctx: Awaited<ReturnType<typeof requireOrganizationMembership>>
   try {
@@ -38,6 +38,7 @@ export default async function LeadsPage({
     temperature: (sp.temperature as Temperature) || undefined,
     stage: (sp.stage as LeadStage) || undefined,
     activity: (sp.activity as LeadFilters["activity"]) || undefined,
+    source: (sp.source as LeadFilters["source"]) || undefined,
   }
 
   const [leads, salesReps] = await Promise.all([

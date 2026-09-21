@@ -378,6 +378,9 @@ export const leads = pgTable(
     // Custom fields from external sources (e-commerce, CRM, etc.)
     customData: jsonb("custom_data").$type<Record<string, unknown>>().notNull().default({}),
 
+    // Source — how this lead entered the system
+    leadSource: text("lead_source").notNull().default("organic"),
+
     // Pipeline v1 — @deprecated: use currentStageId
     stage: text("stage").notNull().default("new"),
     temperature: text("temperature").notNull().default("cold"),
@@ -455,6 +458,7 @@ export const leads = pgTable(
     index("leads_current_stage_id_idx").on(t.currentStageId),
     index("leads_created_at_idx").on(t.createdAt),
     index("leads_converted_idx").on(t.converted),
+    index("leads_lead_source_idx").on(t.leadSource),
     index("leads_effective_qual_class_idx").on(t.effectiveQualClass),
     index("leads_ip_expires_at_idx").on(t.ipExpiresAt),
     index("leads_ua_expires_at_idx").on(t.uaExpiresAt),

@@ -82,6 +82,7 @@ export async function persistLead(input: PersistInput): Promise<PersistResult> {
         negocioRaw: lead.negocioRaw,
         negocioNormalized: lead.negocioNormalized,
         cityCanonical: lead.cityCanonical,
+        leadSource: (lead.fbclid || lead.metaCampaignName) ? "meta_ads" : "organic",
         temperature: lead.temperature,
         utmSource: lead.utmSource,
         utmMedium: lead.utmMedium,

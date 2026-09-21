@@ -13,7 +13,7 @@ import { requireOrganizationMembership } from "@/lib/auth/server"
 import { writeAuditLog } from "@/lib/audit"
 import { db } from "@/lib/db"
 import { leads, campaigns, metaConnections, metaEvents } from "@/lib/db/schema"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { sendMetaEventDirect } from "@/lib/meta-outbox/worker"
 
 export async function updateLeadTemperatureAction(leadId: string, temperature: Temperature) {
@@ -148,5 +148,66 @@ export async function updateLeadInfoAction(
     return { success: true }
   } catch {
     return { success: false, error: "Error al actualizar la información" }
+  }
+}
+
+export async function deleteLeadsAction(
+  leadIds: string[]
+): Promise<{ error?: string; deleted?: number }> {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+  if (!leadIds.length) return { deleted: 0 }
+  try {
+    const deleted = await db
+      .delete(leads)
+      .where(and(eq(leads.orgId, ctx.orgId), inArray(leads.id, leadIds)))
+      .returning({ id: leads.id })
+    return { deleted: deleted.length }
+  } catch {
+    return { error: "Error al eliminar los leads." }
+  }
+}
+
+export async function deleteLeadsByCampaignAction(
+  campaignId: string
+): Promise<{ error?: string; deleted?: number }> {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+  const camp = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.orgId, ctx.orgId)))
+    .limit(1)
+  if (!camp.length) return { error: "Campaña no encontrada." }
+  try {
+    const deleted = await db
+      .delete(leads)
+      .where(and(eq(leads.campaignId, campaignId), eq(leads.orgId, ctx.orgId)))
+      .returning({ id: leads.id })
+    return { deleted: deleted.length }
+  } catch {
+    return { error: "Error al eliminar los leads." }
+  }
+}
+
+export async function deleteLeadsByClientAction(
+  clientId: string
+): Promise<{ error?: string; deleted?: number }> {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+  const clientCampaigns = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.clientId, clientId), eq(campaigns.orgId, ctx.orgId)))
+  if (!clientCampaigns.length) return { deleted: 0 }
+  const campaignIds = clientCampaigns.map((c) => c.id)
+  try {
+    const deleted = await db
+      .delete(leads)
+      .where(and(eq(leads.orgId, ctx.orgId), inArray(leads.campaignId, campaignIds)))
+      .returning({ id: leads.id })
+    return { deleted: deleted.length }
+  } catch {
+    return { error: "Error al eliminar los leads." }
   }
 }

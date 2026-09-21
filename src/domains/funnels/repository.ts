@@ -114,6 +114,7 @@ export async function getLeadsForKanban(
       saleCount: sale.count,
       saleTotalAmount: sale.totalAmount,
       saleCurrency: sale.currency,
+      hasPendingCapi: false,
       activity: emptyActivity(),
     }
   })

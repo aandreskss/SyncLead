@@ -84,6 +84,8 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`leadStageHistoryRelations` es obligatoria en schema.ts**: `leadsRelations` tiene `stageHistory: many(leadStageHistory)`. Drizzle requiere que exista `leadStageHistoryRelations` con `lead: one(leads, ...)` en la otra punta, o lanza "There is not enough information to infer relation 'leads.stageHistory'" en tiempo de ejecución.
 - **`meta_connections.send_lead_events` / `send_contact_events`**: Booleanos (default false) que controlan si se disparan auto-eventos Lead (al ingestar) y Contact (al cambiar stage a "contacted"). Agregados como columnas en Neon via SQL directo (`ALTER TABLE meta_connections ADD COLUMN IF NOT EXISTS ...`) porque `drizzle-kit push` bloqueó por prompt TTY interactivo en el ambiente CI/no-TTY.
 - **`LeadWithActivity` agrega TODAS las ventas confirmadas**: `saleCount` = total de conversiones confirmadas; `saleTotalAmount` = suma si moneda uniforme, `null` si mixta; `saleCurrency` = moneda si uniforme. Reemplazó los campos anteriores `saleAmount / saleStatus / saleConvertedAt` (que solo reflejaban la primera conversión). El filtro `has_sale` usa `saleCount > 0`.
+- **`LeadWithActivity.hasPendingCapi`**: booleano cargado en TODAS las consultas (4ª query paralela en `getLeadsByCampaignWithActivity`). Indica que el lead tiene al menos un `meta_event` con `status = 'pending' OR 'retrying'`. Activa el icono ⚡ en `ActivityBadges` y el filtro `pending_capi`. En `getLeadsByClientWithActivity` y `funnels/repository.ts` siempre se devuelve como `false` (no se cargan eventos CAPI en esas vistas).
+- **Eliminar leads**: tres acciones multi-tenant en `leads/actions.ts` — `deleteLeadsAction(ids[])` (por selección), `deleteLeadsByCampaignAction(campaignId)`, `deleteLeadsByClientAction(clientId)`. Todas validan pertenencia a `ctx.orgId` antes de borrar. La DB hace cascade en `lead_stage_history`, `conversions`, `lead_qualifications`, etc.; `meta_events.leadId` queda en `NULL` (set null) para no perder el historial CAPI.
 - **`drizzle-kit push` puede bloquearse por prompts TTY**: cuando la CLI detecta cambios que podrían ser destructivos (ej. añadir UNIQUE constraint a tabla con datos), pide confirmación interactiva. En entornos no-TTY usar SQL directo via `neon()` client. Para agregar columnas simples con DEFAULT, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` siempre es seguro.
 
 ## Arquitectura multi-tenant
@@ -187,8 +189,8 @@ src/
     campaigns/      repository.ts, actions.ts, types.ts
     leads/
       normalize.ts  ← normalizePhone, calculateTemperature, normalizeCity
-      repository.ts ← getLeadsByCampaign, getLeadsByCampaignWithActivity (3 queries: leads+conversions+behavior), getLeadDetail, updateLeadTemperature/Stage/Notes/assign; LeadWithActivity: saleCount/saleTotalAmount/saleCurrency/activity
-      actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }
+      repository.ts ← getLeadsByCampaign, getLeadsByCampaignWithActivity (4 queries: leads+conversions+behavior+metaEvents pending/retrying), getLeadDetail, updateLeadTemperature/Stage/Notes/assign; LeadWithActivity: saleCount/saleTotalAmount/saleCurrency/hasPendingCapi/activity
+      actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }; deleteLeadsAction(ids[]), deleteLeadsByCampaignAction(campaignId), deleteLeadsByClientAction(clientId)
     analytics/
       types.ts      ← Metric = number | null, DashboardKPIs, PerformanceRow
       repository.ts ← getKPIMetrics() (converted_at), getPerformanceTable(), getLeadsByDay(), getLeadsByCampaignChart()
@@ -545,3 +547,20 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] `src/lib/db/schema.ts` — `leadStageHistoryRelations` agregada (resuelve "not enough information to infer relation 'leads.stageHistory'")
   - [x] Neon DB — `ALTER TABLE meta_connections ADD COLUMN send_lead_events / send_contact_events` aplicado via SQL directo (drizzle-kit push bloqueó por TTY interactivo)
 - [x] Fix crítico: `leadStageHistoryRelations` — `leadsRelations` declaraba `stageHistory: many(leadStageHistory)` sin el bloque inverso; Drizzle fallaba en runtime causando React error #441 en toda la página de detalle de cliente; fix en commit `49063ee`
+- [x] Gestión de equipo — contraseña y eliminación de miembros
+  - [x] `src/domains/members/actions.ts` — `addMemberAction` lee campo `password` del form (opcional; auto-genera si vacío, valida ≥8 chars); `resetMemberPasswordAction(memberId, newPassword)` con validación de rol
+  - [x] `src/app/dashboard/settings/team/_components/InviteMemberDialog.tsx` — campo contraseña opcional con show/hide
+  - [x] `src/app/dashboard/settings/team/_components/ChangePasswordDialog.tsx` — dialog para cambiar contraseña de miembro existente (llama `resetMemberPasswordAction`)
+  - [x] `src/app/dashboard/settings/team/_components/TeamView.tsx` — botón "Contraseña" junto a "Eliminar" para miembros editables
+- [x] Notificación por email al asignar lead
+  - [x] `src/lib/email.ts` — `sendLeadAssignmentEmail()` con Resend; fire-and-forget; null-safe si `RESEND_API_KEY` no está configurado
+  - [x] `src/domains/team/actions.ts` — `assignLeadAction` llama `sendLeadAssignmentEmail` tras asignación exitosa
+- [x] Onboarding eliminado — org se auto-crea al registrarse
+  - [x] `src/domains/auth/actions.ts` — `registerAction` crea org + inserta en `org_members` con `role: "owner"` + marca onboarding completo; redirige a `/dashboard`
+  - [x] `src/app/onboarding/page.tsx` — reemplazado por `redirect("/dashboard")`
+  - [x] `src/proxy.ts` — `/onboarding` removido de `isProtected`
+  - [x] Todos los `redirect("/onboarding")` en dashboard reemplazados por `redirect("/login")`; 4 páginas migradas de `getOrganizationByOwnerId` a `requireOrganizationMembership() + getOrganizationById()`
+- [x] Filtro CAPI pendiente y eliminación masiva de leads
+  - [x] `src/domains/leads/repository.ts` — `getLeadsByCampaignWithActivity()` ahora 4 queries (+ metaEvents pending/retrying); `LeadWithActivity.hasPendingCapi: boolean`; `LeadFilters.activity` incluye `"pending_capi"`; `getLeadsByClientWithActivity` y `funnels/repository.ts` devuelven `hasPendingCapi: false`
+  - [x] `src/domains/leads/actions.ts` — `deleteLeadsAction(ids[])`, `deleteLeadsByCampaignAction(campaignId)`, `deleteLeadsByClientAction(clientId)`; todas validan `ctx.orgId`; FK cascade limpia tablas relacionadas automáticamente; `meta_events.leadId` queda en NULL (set null)
+  - [x] `src/app/dashboard/campaigns/[id]/leads/_components/LeadsView.tsx` — checkboxes con indeterminate state, barra de selección masiva con confirmación inline, botones "Campaña" / "Cliente" en header con confirmación, opción "CAPI pendiente" en filtro de actividad, icono ⚡ (amber) en `ActivityBadges` cuando `hasPendingCapi`
