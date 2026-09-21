@@ -14,7 +14,7 @@ import {
   getEffectiveQualification,
 } from "./repository"
 import { db } from "@/lib/db"
-import { leads, campaigns } from "@/lib/db/schema"
+import { leads, campaigns, conversions } from "@/lib/db/schema"
 import { eq, and, ne } from "drizzle-orm"
 import type { QualificationClass } from "./types"
 import {
@@ -39,33 +39,71 @@ export async function autoQualifyLeadInternal(
   orgId: string,
   campaignId: string,
 ): Promise<void> {
-  // ── Step 1: Try profile-based evaluation (v2) ─────────────────────────────
-  const activeProfile = await getActiveProfileForCampaign(orgId, campaignId).catch(() => null)
+  try {
+    // ── Step 1: Try profile-based evaluation (v2) ───────────────────────────
+    const activeProfile = await getActiveProfileForCampaign(orgId, campaignId).catch(() => null)
 
-  if (activeProfile) {
-    // Load lead data
-    const [lead] = await db
-      .select({
-        name: leads.name,
-        city: leads.city,
-        negocioRaw: leads.negocioRaw,
-        negocioNormalized: leads.negocioNormalized,
-        cityCanonical: leads.cityCanonical,
-        utmSource: leads.utmSource,
-        utmMedium: leads.utmMedium,
-        utmCampaign: leads.utmCampaign,
-        platform: leads.platform,
-        device: leads.device,
-        fbclid: leads.fbclid,
-        customData: leads.customData,
-        campaignId: leads.campaignId,
-      })
-      .from(leads)
-      .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
-      .limit(1)
+    if (activeProfile) {
+      // Load lead data
+      const [lead] = await db
+        .select({
+          name: leads.name,
+          city: leads.city,
+          negocioRaw: leads.negocioRaw,
+          negocioNormalized: leads.negocioNormalized,
+          cityCanonical: leads.cityCanonical,
+          utmSource: leads.utmSource,
+          utmMedium: leads.utmMedium,
+          utmCampaign: leads.utmCampaign,
+          platform: leads.platform,
+          device: leads.device,
+          fbclid: leads.fbclid,
+          customData: leads.customData,
+          campaignId: leads.campaignId,
+        })
+        .from(leads)
+        .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
+        .limit(1)
 
-    if (!lead) return
+      if (!lead) return
 
+      const [campaign] = await db
+        .select({ clientId: campaigns.clientId })
+        .from(campaigns)
+        .where(and(eq(campaigns.id, campaignId), eq(campaigns.orgId, orgId)))
+        .limit(1)
+
+      if (!campaign) return
+
+      const fieldDefsMap = await getFieldDefsForOrg(orgId, campaign.clientId)
+      const fieldDefs = Object.values(fieldDefsMap)
+      const eventData = await getEventDataForLead(leadId, orgId).catch(() => ({}))
+
+      const evalContext = buildLeadContext(
+        {
+          name: lead.name,
+          city: lead.city,
+          cityCanonical: lead.cityCanonical,
+          negocioRaw: lead.negocioRaw,
+          negocioNormalized: lead.negocioNormalized,
+          utmSource: lead.utmSource,
+          utmMedium: lead.utmMedium,
+          utmCampaign: lead.utmCampaign,
+          platform: lead.platform,
+          device: lead.device,
+          fbclid: lead.fbclid,
+          customData: (lead.customData ?? {}) as Record<string, unknown>,
+        },
+        fieldDefs,
+        eventData,
+      )
+      const result = evaluateProfile(activeProfile.profile, activeProfile.rules, evalContext, fieldDefs)
+
+      await persistProfileEvaluation(leadId, orgId, activeProfile.profile.id, result, "ingest")
+      return
+    }
+
+    // ── Step 2: Fallback to rule-set engine (v1 / savaya_v1) ───────────────
     const [campaign] = await db
       .select({ clientId: campaigns.clientId })
       .from(campaigns)
@@ -74,99 +112,85 @@ export async function autoQualifyLeadInternal(
 
     if (!campaign) return
 
-    const fieldDefsMap = await getFieldDefsForOrg(orgId, campaign.clientId)
-    const fieldDefs = Object.values(fieldDefsMap)
-    const eventData = await getEventDataForLead(leadId, orgId).catch(() => ({}))
+    const ruleSet = await getActiveRuleSetByClientId(orgId, campaign.clientId)
 
-    const evalContext = buildLeadContext(
-      {
-        name: lead.name,
-        city: lead.city,
-        cityCanonical: lead.cityCanonical,
-        negocioRaw: lead.negocioRaw,
-        negocioNormalized: lead.negocioNormalized,
-        utmSource: lead.utmSource,
-        utmMedium: lead.utmMedium,
-        utmCampaign: lead.utmCampaign,
-        platform: lead.platform,
-        device: lead.device,
-        fbclid: lead.fbclid,
-        customData: (lead.customData ?? {}) as Record<string, unknown>,
-      },
-      fieldDefs,
-      eventData,
-    )
-    const result = evaluateProfile(activeProfile.profile, activeProfile.rules, evalContext, fieldDefs)
+    if (ruleSet && isSavayaRulesV1(ruleSet.rules)) {
+      const [lead] = await db
+        .select({
+          negocioRaw: leads.negocioRaw,
+          cityRaw: leads.city,
+        })
+        .from(leads)
+        .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
+        .limit(1)
 
-    await persistProfileEvaluation(leadId, orgId, activeProfile.profile.id, result, "ingest")
-    return
-  }
+      if (!lead) return
 
-  // ── Step 2: Fallback to rule-set engine (v1 / savaya_v1) ─────────────────
-  const [campaign] = await db
-    .select({ clientId: campaigns.clientId })
-    .from(campaigns)
-    .where(and(eq(campaigns.id, campaignId), eq(campaigns.orgId, orgId)))
-    .limit(1)
+      const evaluation = evaluateLead(
+        { negocioRaw: lead.negocioRaw, cityRaw: lead.cityRaw },
+        ruleSet.rules,
+      )
 
-  if (!campaign) return
-
-  const ruleSet = await getActiveRuleSetByClientId(orgId, campaign.clientId)
-
-  if (ruleSet && isSavayaRulesV1(ruleSet.rules)) {
-    const [lead] = await db
-      .select({
-        negocioRaw: leads.negocioRaw,
-        cityRaw: leads.city,
+      await createQualification({
+        leadId,
+        orgId,
+        ruleSetId: ruleSet.id,
+        ruleSetVersion: ruleSet.version,
+        qualClass: evaluation.class,
+        qualType: "automatic",
+        reasons: evaluation.reasons,
+        inputs: evaluation.inputs,
       })
-      .from(leads)
-      .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
+      return
+    }
+
+    // ── Step 3: Behavior-based fallback (no profile, no rule set configured) ─
+    // purchase → hot (never downgrade); engagement signals → warm if still cold.
+    const eventData = await getEventDataForLead(leadId, orgId).catch((): Record<string, unknown> => ({}))
+
+    if (eventData.ecom_purchased) {
+      await db
+        .update(leads)
+        .set({ temperature: "hot", updatedAt: new Date() })
+        .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), ne(leads.temperature, "hot")))
+        .catch(() => undefined)
+      return
+    }
+
+    const hasEngagement =
+      eventData.ecom_form_submitted ||
+      eventData.ecom_checkout_started ||
+      eventData.ecom_cart_abandoned
+
+    if (hasEngagement) {
+      await db
+        .update(leads)
+        .set({ temperature: "warm", updatedAt: new Date() })
+        .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), eq(leads.temperature, "cold")))
+        .catch(() => undefined)
+    }
+  } finally {
+    // Safety net: a confirmed sale always wins — qualification can never undo it.
+    const [confirmedSale] = await db
+      .select({ id: conversions.id })
+      .from(conversions)
+      .where(
+        and(
+          eq(conversions.leadId, leadId),
+          eq(conversions.orgId, orgId),
+          eq(conversions.status, "confirmed"),
+        ),
+      )
       .limit(1)
+      .catch(() => [] as { id: string }[])
 
-    if (!lead) return
-
-    const evaluation = evaluateLead(
-      { negocioRaw: lead.negocioRaw, cityRaw: lead.cityRaw },
-      ruleSet.rules,
-    )
-
-    await createQualification({
-      leadId,
-      orgId,
-      ruleSetId: ruleSet.id,
-      ruleSetVersion: ruleSet.version,
-      qualClass: evaluation.class,
-      qualType: "automatic",
-      reasons: evaluation.reasons,
-      inputs: evaluation.inputs,
-    })
-    return
-  }
-
-  // ── Step 3: Behavior-based fallback (no profile, no rule set configured) ──
-  // purchase → hot (never downgrade); engagement signals → warm if still cold.
-  const eventData = await getEventDataForLead(leadId, orgId).catch((): Record<string, unknown> => ({}))
-
-  if (eventData.ecom_purchased) {
-    await db
-      .update(leads)
-      .set({ temperature: "hot", updatedAt: new Date() })
-      .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), ne(leads.temperature, "hot")))
-      .catch(() => undefined)
-    return
-  }
-
-  const hasEngagement =
-    eventData.ecom_form_submitted ||
-    eventData.ecom_checkout_started ||
-    eventData.ecom_cart_abandoned
-
-  if (hasEngagement) {
-    await db
-      .update(leads)
-      .set({ temperature: "warm", updatedAt: new Date() })
-      .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), eq(leads.temperature, "cold")))
-      .catch(() => undefined)
+    if (confirmedSale) {
+      await db
+        .update(leads)
+        .set({ temperature: "hot", updatedAt: new Date() })
+        .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), ne(leads.temperature, "hot")))
+        .catch(() => undefined)
+    }
   }
 }
 

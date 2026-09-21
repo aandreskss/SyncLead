@@ -12,7 +12,8 @@ import { z } from "zod"
 import { db } from "@/lib/db"
 import { campaigns, leads, webhookEvents } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
-import { normalizePhone, calculateTemperature, normalizeCity } from "@/domains/leads/normalize"
+import { normalizePhone, normalizeCity } from "@/domains/leads/normalize"
+import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
 
@@ -119,7 +120,6 @@ export async function POST(req: NextRequest) {
     body.negocio === true || body.negocio === "true" || body.negocio === 1 || body.negocio === "1"
   const phone = body.phone ? normalizePhone(body.phone) : null
   const city = normalizeCity(body.city ?? "")
-  const temperature = calculateTemperature(isNegocio, city)
   const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? null
 
   const [event] = await db
@@ -161,11 +161,13 @@ export async function POST(req: NextRequest) {
         userAgent: body.user_agent ?? req.headers.get("user-agent") ?? null,
         externalEventId: eventId,
         eventId,
-        temperature,
+        temperature: "cold",
       })
       .returning()
 
     await db.update(webhookEvents).set({ processed: true }).where(eq(webhookEvents.id, event.id))
+
+    autoQualifyLeadInternal(lead.id, campaign.orgId, campaign.id).catch(() => undefined)
 
     return NextResponse.json({ success: true, leadId: lead.id }, { status: 201, headers: CORS })
   } catch (err) {
