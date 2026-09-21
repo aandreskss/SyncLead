@@ -4,7 +4,7 @@
 import { db } from "@/lib/db"
 import { leads, conversions, salesReps, leadAssignments, leadActivities } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
-import { normalizePhone, calculateTemperature, normalizeCity } from "@/domains/leads/normalize"
+import { normalizePhone, normalizeCity } from "@/domains/leads/normalize"
 import { normalizeYesNo, normalizeCityCanonical } from "@/domains/qualification/normalize"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 import type { ImportRow } from "@/lib/db/schema"
@@ -205,7 +205,6 @@ async function processImportRow(
     const negocioNormalized = normalizeYesNo(negocioRaw)
     const negocio = negocioNormalized === "si"
     const cityCanonical = normalizeCityCanonical(p.city ?? null)
-    const temperature = calculateTemperature(negocio, city)
 
     // ── Insert lead ────────────────────────────────────────────────────────────
     const [lead] = await db.insert(leads).values({
@@ -220,7 +219,7 @@ async function processImportRow(
       negocioNormalized,
       cityCanonical,
       leadSource: "imported",
-      temperature,
+      temperature: "cold",
       utmSource: p.utmSource ?? null,
       utmMedium: p.utmMedium ?? null,
       utmCampaign: p.utmCampaign ?? null,

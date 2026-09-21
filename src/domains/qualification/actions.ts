@@ -112,36 +112,53 @@ export async function autoQualifyLeadInternal(
   if (!campaign) return
 
   const ruleSet = await getActiveRuleSetByClientId(orgId, campaign.clientId)
-  if (!ruleSet) return
-  if (!isSavayaRulesV1(ruleSet.rules)) return
 
-  // Load current lead data for inputs
-  const [lead] = await db
-    .select({
-      negocioRaw: leads.negocioRaw,
-      cityRaw: leads.city,
+  if (ruleSet && isSavayaRulesV1(ruleSet.rules)) {
+    const [lead] = await db
+      .select({
+        negocioRaw: leads.negocioRaw,
+        cityRaw: leads.city,
+      })
+      .from(leads)
+      .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
+      .limit(1)
+
+    if (!lead) return
+
+    const evaluation = evaluateLead(
+      { negocioRaw: lead.negocioRaw, cityRaw: lead.cityRaw },
+      ruleSet.rules,
+    )
+
+    await createQualification({
+      leadId,
+      orgId,
+      ruleSetId: ruleSet.id,
+      ruleSetVersion: ruleSet.version,
+      qualClass: evaluation.class,
+      qualType: "automatic",
+      reasons: evaluation.reasons,
+      inputs: evaluation.inputs,
     })
-    .from(leads)
-    .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
-    .limit(1)
+    return
+  }
 
-  if (!lead) return
+  // ── Step 3: Behavior-based fallback (no profile, no rule set configured) ──
+  // If a lead showed engagement intent (form submit, checkout start, or cart
+  // abandoned) but nothing promoted them, nudge to warm — never downgrade hot.
+  const eventData = await getEventDataForLead(leadId, orgId).catch((): Record<string, unknown> => ({}))
+  const hasEngagement =
+    eventData.ecom_form_submitted ||
+    eventData.ecom_checkout_started ||
+    eventData.ecom_cart_abandoned
 
-  const evaluation = evaluateLead(
-    { negocioRaw: lead.negocioRaw, cityRaw: lead.cityRaw },
-    ruleSet.rules,
-  )
-
-  await createQualification({
-    leadId,
-    orgId,
-    ruleSetId: ruleSet.id,
-    ruleSetVersion: ruleSet.version,
-    qualClass: evaluation.class,
-    qualType: "automatic",
-    reasons: evaluation.reasons,
-    inputs: evaluation.inputs,
-  })
+  if (hasEngagement) {
+    await db
+      .update(leads)
+      .set({ temperature: "warm", updatedAt: new Date() })
+      .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), eq(leads.temperature, "cold")))
+      .catch(() => undefined)
+  }
 }
 
 // ─── Manual override ──────────────────────────────────────────────────────────
