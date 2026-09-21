@@ -437,6 +437,13 @@ export async function listRuleSetsAction() {
   return listRuleSetsByOrg(ctx.orgId)
 }
 
+export async function deactivateClientRuleSetsAction(clientId: string) {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+  await deactivateRuleSetsByClient(ctx.orgId, clientId)
+  return { success: true }
+}
+
 export async function getLeadQualificationsAction(leadId: string) {
   let ctx
   try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
