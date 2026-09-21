@@ -117,7 +117,7 @@ export function FunnelDialog({ open, onOpenChange, funnel, onSuccess }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Pipeline de ventas"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"
+              className="w-full h-9 bg-ops-s1 border border-ops-bd rounded-md px-3 text-[13px] text-ops-tx placeholder:text-ops-tx3 outline-none focus-visible:border-ops-blue focus-visible:ring-2 focus-visible:ring-ops-blue/40"
             />
           </div>
 
@@ -128,7 +128,7 @@ export function FunnelDialog({ open, onOpenChange, funnel, onSuccess }: Props) {
               {stages.map((s) => (
                 <div
                   key={s.stageKey}
-                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                  className={`flex items-center gap-3 p-3 rounded-md border transition-colors ${
                     s.selected ? "border-zinc-700 bg-zinc-800" : "border-zinc-800 bg-zinc-900/50 opacity-50"
                   }`}
                 >
@@ -161,7 +161,7 @@ export function FunnelDialog({ open, onOpenChange, funnel, onSuccess }: Props) {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-zinc-600 mt-1.5">
+            <p className="text-xs text-ops-tx3 mt-1.5">
               Selecciona las etapas que aparecerán como columnas en el kanban.
             </p>
           </div>
@@ -173,14 +173,14 @@ export function FunnelDialog({ open, onOpenChange, funnel, onSuccess }: Props) {
           <button
             onClick={() => onOpenChange(false)}
             disabled={isPending}
-            className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors"
+            className="h-9 px-4 text-[13px] text-ops-tx2 hover:text-ops-tx border border-ops-bd rounded-md focus-visible:outline-2 focus-visible:outline-ops-blue transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
             disabled={isPending || !name.trim()}
-            className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-40"
+            className="h-9 px-4 text-[13px] font-medium bg-ops-blue hover:bg-ops-blue/90 text-white rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue transition-colors disabled:opacity-40"
           >
             {isPending ? "Guardando…" : funnel ? "Guardar cambios" : "Crear embudo"}
           </button>

@@ -13,8 +13,8 @@ import type { MemberRole } from "@/lib/auth/server"
 // ─── Mock setup ───────────────────────────────────────────────────────────────
 
 let mockRole: MemberRole = "viewer"
-let mockUserId = "user-test-123"
-let mockOrgId  = "org-test-456"
+const mockUserId = "user-test-123"
+const mockOrgId  = "org-test-456"
 
 vi.mock("@/auth", () => ({
   auth: vi.fn(async () => ({ user: { id: mockUserId } })),

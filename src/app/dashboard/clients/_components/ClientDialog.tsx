@@ -23,7 +23,7 @@ interface Props {
 }
 
 const inputClass =
-  "w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
+  "w-full rounded-md border border-ops-bd bg-ops-s2 px-3 py-2 text-sm text-ops-tx placeholder:text-ops-tx3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
 
 export function ClientDialog({ open, onOpenChange, client }: Props) {
   const router = useRouter()
@@ -66,7 +66,7 @@ export function ClientDialog({ open, onOpenChange, client }: Props) {
           {isEdit && <input type="hidden" name="clientId" value={client.id} />}
 
           <div className="space-y-1.5">
-            <Label htmlFor="cl-name" className="text-zinc-300">
+            <Label htmlFor="cl-name" className="text-ops-tx2">
               Nombre del cliente <span className="text-red-500">*</span>
             </Label>
             <input
@@ -84,7 +84,7 @@ export function ClientDialog({ open, onOpenChange, client }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="cl-pixel" className="text-zinc-300">
+              <Label htmlFor="cl-pixel" className="text-ops-tx2">
                 Meta Pixel ID
               </Label>
               <input
@@ -98,7 +98,7 @@ export function ClientDialog({ open, onOpenChange, client }: Props) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cl-dataset" className="text-zinc-300">
+              <Label htmlFor="cl-dataset" className="text-ops-tx2">
                 Dataset ID (CAPI)
               </Label>
               <input
@@ -114,7 +114,7 @@ export function ClientDialog({ open, onOpenChange, client }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cl-token" className="text-zinc-300">
+            <Label htmlFor="cl-token" className="text-ops-tx2">
               Access Token — Conversions API
             </Label>
             <input
@@ -124,13 +124,13 @@ export function ClientDialog({ open, onOpenChange, client }: Props) {
               placeholder={isEdit ? "Dejar vacío para mantener el actual" : "EAABwz…"}
               className={inputClass}
             />
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-ops-tx3">
               Cifrado con AES-256-GCM. Nunca se muestra en claro.
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cl-wa" className="text-zinc-300">
+            <Label htmlFor="cl-wa" className="text-ops-tx2">
               Números de WhatsApp
             </Label>
             <Textarea
@@ -140,11 +140,11 @@ export function ClientDialog({ open, onOpenChange, client }: Props) {
               defaultValue={(client?.whatsappNumbers ?? []).join("\n")}
               placeholder={"584141100100\n584241234567"}
             />
-            <p className="text-xs text-zinc-500">Un número por línea, con código de país (sin +).</p>
+            <p className="text-xs text-ops-tx3">Un número por línea, con código de país (sin +).</p>
           </div>
 
           {error && (
-            <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-md px-3 py-2">
+            <p className="text-sm text-ops-coral bg-red-400/10 border border-red-400/20 rounded-md px-3 py-2">
               {error}
             </p>
           )}
@@ -153,7 +153,7 @@ export function ClientDialog({ open, onOpenChange, client }: Props) {
             <Button
               type="button"
               variant="ghost"
-              className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+              className="text-ops-tx2 hover:text-ops-tx hover:bg-ops-s2"
               onClick={() => onOpenChange(false)}
               disabled={pending}
             >
@@ -161,7 +161,7 @@ export function ClientDialog({ open, onOpenChange, client }: Props) {
             </Button>
             <Button
               type="submit"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="bg-ops-blue hover:bg-ops-blue/90 text-white"
               disabled={pending}
             >
               {pending ? "Guardando…" : isEdit ? "Guardar cambios" : "Crear cliente"}

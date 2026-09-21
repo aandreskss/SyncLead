@@ -1,6 +1,8 @@
 "use client"
 
 import type { ColumnMapping } from "@/domains/import/types"
+import { cn } from "@/lib/utils"
+import { opsTable, opsField } from "@/components/app/ops"
 
 interface Props {
   columns: string[]
@@ -22,34 +24,33 @@ export function ColumnMapper({ columns, mapping, onChange, fieldLabels }: Props)
   }
 
   return (
-    <div className="rounded-lg border border-zinc-800 overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="overflow-hidden rounded-lg border border-ops-line">
+      <div className={opsTable.wrap}>
+      <table className={cn(opsTable.table, "min-w-[480px]")}>
         <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-950">
-            <th className="text-left px-4 py-2.5 text-xs text-zinc-400 font-medium w-1/2">
+          <tr>
+            <th className={cn(opsTable.th, "w-1/2")}>
               Columna en el archivo
             </th>
-            <th className="text-left px-4 py-2.5 text-xs text-zinc-400 font-medium w-1/2">
+            <th className={cn(opsTable.th, "w-1/2")}>
               Campo de SyncLead
             </th>
           </tr>
         </thead>
         <tbody>
-          {columns.map((col, i) => (
-            <tr
-              key={col}
-              className={`border-b border-zinc-800 last:border-b-0 ${i % 2 === 0 ? "bg-zinc-900" : "bg-zinc-900/50"}`}
-            >
-              <td className="px-4 py-2.5 text-zinc-200 font-mono text-xs">{col}</td>
-              <td className="px-4 py-2.5">
+          {columns.map((col) => (
+            <tr key={col} className={opsTable.row}>
+              <td className={cn(opsTable.td, "py-2 font-plex text-xs")}>{col}</td>
+              <td className={cn(opsTable.td, "py-2")}>
                 <select
                   value={mapping[col] ?? "__skip"}
                   onChange={(e) => handleChange(col, e.target.value)}
-                  className={`w-full rounded border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${
-                    mapping[col] === "__skip"
-                      ? "border-zinc-700 bg-zinc-800 text-zinc-500"
-                      : "border-indigo-700/50 bg-indigo-950/30 text-indigo-300"
-                  }`}
+                  aria-label={`Campo para la columna ${col}`}
+                  className={cn(
+                    opsField,
+                    "w-full",
+                    mapping[col] === "__skip" ? "text-ops-tx3" : "border-ops-blue/50 text-ops-blue-t"
+                  )}
                 >
                   {fieldOptions.map(([key, label]) => (
                     <option key={key} value={key}>{label}</option>
@@ -60,6 +61,7 @@ export function ColumnMapper({ columns, mapping, onChange, fieldLabels }: Props)
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

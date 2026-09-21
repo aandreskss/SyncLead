@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Plus, Pencil, Trash2, GitMerge } from "lucide-react"
 import { deleteFunnelAction } from "@/domains/funnels/actions"
+import { PageShell, PageHeader, Panel, EmptyState, opsField, opsIconBtn } from "@/components/app/ops"
 import { FunnelDialog } from "./FunnelDialog"
 import { KanbanBoard } from "./KanbanBoard"
 import type { Funnel, SalesRep } from "@/lib/db/schema"
@@ -90,34 +91,30 @@ export function FunnelsView({
   // ── Empty state ───────────────────────────────────────────────────────────────
   if (funnels.length === 0) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-zinc-100">Embudos</h1>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Crear embudo
-          </button>
-        </div>
-
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="h-14 w-14 rounded-full bg-zinc-800 flex items-center justify-center mb-4">
-            <GitMerge className="h-7 w-7 text-zinc-500" />
-          </div>
-          <p className="text-zinc-300 font-medium">Sin embudos todavía</p>
-          <p className="text-zinc-500 text-sm mt-1 max-w-xs">
-            Crea un embudo para visualizar tus leads en un tablero kanban con las etapas que definas.
-          </p>
-          <button
-            onClick={openCreate}
-            className="mt-5 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Crear primer embudo
-          </button>
-        </div>
+      <PageShell>
+        <PageHeader
+          title="Funnels"
+          subtitle="Mueve cada lead por las etapas de tu proceso comercial."
+          actions={
+            <button onClick={openCreate} className="inline-flex h-9 items-center gap-2 rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue">
+              <Plus className="h-4 w-4" />
+              Crear embudo
+            </button>
+          }
+        />
+        <Panel>
+          <EmptyState
+            icon={<GitMerge className="h-5 w-5" />}
+            title="Sin embudos todavía"
+            text="Crea un embudo para visualizar tus leads en un tablero kanban con las etapas que definas."
+            action={
+              <button onClick={openCreate} className="mt-2 inline-flex h-9 items-center gap-2 rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue">
+                <Plus className="h-4 w-4" />
+                Crear primer embudo
+              </button>
+            }
+          />
+        </Panel>
 
         <FunnelDialog
           open={dialogOpen}
@@ -125,46 +122,46 @@ export function FunnelsView({
           funnel={editFunnel}
           onSuccess={handleDialogSuccess}
         />
-      </div>
+      </PageShell>
     )
   }
 
   // ── Main view ─────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 space-y-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold text-zinc-100">Embudos</h1>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Nuevo embudo
-        </button>
-      </div>
+    <PageShell className="space-y-4">
+      <PageHeader
+        title="Funnels"
+        subtitle="Mueve cada lead por las etapas de tu proceso comercial."
+        actions={
+          <button onClick={openCreate} className="inline-flex h-9 items-center gap-2 rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue">
+            <Plus className="h-4 w-4" />
+            Nuevo embudo
+          </button>
+        }
+      />
 
       {/* Funnel tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-ops-line pb-3">
         {funnels.map((f) => (
           <div key={f.id} className="relative flex items-center group">
             <button
               onClick={() => selectFunnel(f.id)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`h-8 rounded-md px-3 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ops-blue ${
                 selectedFunnel?.id === f.id
-                  ? "bg-indigo-600 text-white"
-                  : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                  ? "bg-ops-sel text-ops-tx shadow-[inset_0_-2px_0_var(--color-ops-blue)]"
+                  : "text-ops-tx2 hover:text-ops-tx hover:bg-ops-hover"
               }`}
             >
               {f.name}
             </button>
 
             {/* Edit / Delete actions visible on hover */}
-            <div className="ml-0.5 hidden group-hover:flex items-center gap-0.5">
+            <div className="ml-0.5 hidden group-hover:flex group-focus-within:flex items-center gap-0.5">
               <button
                 onClick={() => openEdit(f)}
-                className="p-1 rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                className={opsIconBtn}
                 title="Editar"
+                aria-label="Editar embudo"
               >
                 <Pencil className="h-3 w-3" />
               </button>
@@ -173,13 +170,13 @@ export function FunnelsView({
                   <button
                     onClick={() => handleDelete(f.id)}
                     disabled={deletePending}
-                    className="text-xs px-1.5 py-0.5 rounded bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    className="h-7 rounded-md bg-ops-coral px-2 text-xs font-medium text-ops-bg hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ops-blue"
                   >
                     {deletePending ? "…" : "Sí"}
                   </button>
                   <button
                     onClick={() => setConfirmDeleteId(null)}
-                    className="text-xs px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300 hover:bg-zinc-600 transition-colors"
+                    className="h-7 rounded-md border border-ops-bd px-2 text-xs text-ops-tx hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
                   >
                     No
                   </button>
@@ -187,8 +184,9 @@ export function FunnelsView({
               ) : (
                 <button
                   onClick={() => setConfirmDeleteId(f.id)}
-                  className="p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                  className={`${opsIconBtn} hover:text-ops-coral`}
                   title="Eliminar"
+                  aria-label="Eliminar embudo"
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -199,11 +197,12 @@ export function FunnelsView({
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <select
+          aria-label="Campaña"
           value={filters.campaignId}
           onChange={(e) => updateParam("campaignId", e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
+          className={opsField}
         >
           <option value="">Todas las campañas</option>
           {campaignOptions.map((c) => (
@@ -212,9 +211,10 @@ export function FunnelsView({
         </select>
 
         <select
+          aria-label="Temperatura"
           value={filters.temperature}
           onChange={(e) => updateParam("temperature", e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
+          className={opsField}
         >
           {TEMPS.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
@@ -223,9 +223,10 @@ export function FunnelsView({
 
         {assignees.length > 0 && (
           <select
+            aria-label="Asignado"
             value={filters.assignedTo}
             onChange={(e) => updateParam("assignedTo", e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
+            className={opsField}
           >
             <option value="">Todos los asignados</option>
             {assignees.map((a) => (
@@ -241,7 +242,7 @@ export function FunnelsView({
               if (selectedFunnel) params.set("funnelId", selectedFunnel.id)
               router.push(`?${params}`)
             }}
-            className="text-xs text-zinc-500 hover:text-zinc-300 px-2 transition-colors"
+            className="h-9 px-2 text-xs text-ops-tx2 hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
           >
             Limpiar filtros
           </button>
@@ -250,7 +251,7 @@ export function FunnelsView({
 
       {/* Lead count hint */}
       {leads.length === 500 && (
-        <p className="text-xs text-amber-400">
+        <p className="text-xs text-ops-amber">
           Mostrando los primeros 500 leads. Usa filtros para acotar la vista.
         </p>
       )}
@@ -265,7 +266,7 @@ export function FunnelsView({
           clientId={clientId}
         />
       ) : (
-        <div className="text-center py-12 text-zinc-600 text-sm">
+        <div className="py-12 text-center text-sm text-ops-tx3">
           Selecciona un embudo para ver el kanban.
         </div>
       )}
@@ -276,6 +277,6 @@ export function FunnelsView({
         funnel={editFunnel}
         onSuccess={handleDialogSuccess}
       />
-    </div>
+    </PageShell>
   )
 }

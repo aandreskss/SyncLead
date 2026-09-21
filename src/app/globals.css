@@ -74,53 +74,87 @@
   color: var(--sg-ink);
 }
 
+.sg-app {
+  --sg-bg: #0b0f14;
+  --sg-s1: #121821;
+  --sg-s2: #161d27;
+  --sg-s3: #1e2836;
+  --sg-s4: #273140;
+  --sg-elev: #121821;
+  --sg-glass: #121821;
+  --sg-border: #273140;
+  --sg-border-strong: #6b7a8f;
+  --sg-ink: #f2f5f8;
+  --sg-muted: #98a4b3;
+  --sg-subtle: #8492a3;
+  --sg-accent: #6e95ff;
+  --sg-on-accent: #0b0f14;
+  --sg-cyan: #6bb7e8;
+  --sg-green: #37c790;
+  --sg-hot: #f06f65;
+  --sg-warm: #e7a84b;
+  --sg-cold: #6bb7e8;
+  --sg-danger: #f06f65;
+  --sg-on-signal: #0b0f14;
+  --sg-focus: #9db6ff;
+  --sg-raise: none;
+  --sg-float: 0 12px 32px rgb(0 0 0 / 0.45);
+  --sg-glow: 0 0 0 1px #4c7dff;
+  --sg-glow-green: 0 0 0 1px #37c790;
+}
+
 /* ─── Ámbito de la app (dashboard, auth, onboarding) ──────────────────────────
    Re-mapea la paleta zinc/índigo/esmeralda/ámbar/azul de Tailwind a Signal Glass
    solo dentro de `.sg-app`, de modo que las páginas heredadas de marketing (fondo
    blanco) no cambian. Las utilidades de Tailwind v4 leen estas variables en
    tiempo de ejecución. */
 .sg-app {
-  --color-zinc-50: #f6f7fb;
-  --color-zinc-100: #eef1f8;
-  --color-zinc-200: #dde2ef;
-  --color-zinc-300: #c5cce0;
-  --color-zinc-400: #a3adc2;
-  --color-zinc-500: #8d97ad;
-  --color-zinc-600: #7a849c;
-  --color-zinc-700: #2a3142;
-  --color-zinc-800: #1e2432;
-  --color-zinc-900: #11151f;
-  --color-zinc-950: #0b0e17;
-  --color-emerald-300: #8af0c6;
-  --color-emerald-400: #57e8b0;
-  --color-amber-400: #f7be55;
-  --color-blue-400: #86b6ff;
+  --color-zinc-50: #f8fafc;
+  --color-zinc-100: #f2f5f8;
+  --color-zinc-200: #dde3ea;
+  --color-zinc-300: #c5cdd8;
+  --color-zinc-400: #98a4b3;
+  --color-zinc-500: #8492a3;
+  --color-zinc-600: #3a475a;
+  --color-zinc-700: #273140;
+  --color-zinc-800: #161d27;
+  --color-zinc-900: #121821;
+  --color-zinc-950: #0b0f14;
+  --color-indigo-300: #9db6ff;
+  --color-indigo-400: #6e95ff;
+  --color-indigo-500: #4c7dff;
+  --color-indigo-600: #4c7dff;
+  --color-indigo-700: #3d68e0;
+  --color-emerald-300: #7fdcb9;
+  --color-emerald-400: #37c790;
+  --color-amber-400: #e7a84b;
+  --color-blue-400: #6e95ff;
 
-  --background: 225 35.3% 6.7%;
-  --foreground: 222 41.7% 95.3%;
-  --card: 222.9 29.2% 9.4%;
-  --card-foreground: 222 41.7% 95.3%;
-  --popover: 222.4 27% 12.4%;
-  --popover-foreground: 222 41.7% 95.3%;
-  --primary: 234.5 89.5% 73.9%;
-  --primary-foreground: 225 35.3% 6.7%;
-  --secondary: 222.4 27% 12.4%;
-  --secondary-foreground: 222 41.7% 95.3%;
-  --muted: 222.4 27% 12.4%;
-  --muted-foreground: 220.6 20.3% 70%;
-  --accent: 223 26% 19%;
-  --accent-foreground: 222 41.7% 95.3%;
-  --destructive: 343.8 100% 71%;
-  --destructive-foreground: 208.2 54.8% 6.1%;
-  --border: 222.5 22.2% 21.2%;
-  --input: 223 15% 48%;
-  --ring: 233.6 100% 85.3%;
-  --radius: 0.75rem;
-  --brand: 234.5 89.5% 73.9%;
-  --brand-foreground: 225 35.3% 6.7%;
-  --hot: 7 100% 71.6%;
-  --warm: 38.9 91% 65.1%;
-  --cold: 216.2 100% 76.3%;
+  --background: 215 30% 6.5%;
+  --foreground: 210 30% 96%;
+  --card: 216 29% 11%;
+  --card-foreground: 210 30% 96%;
+  --popover: 214 26% 13%;
+  --popover-foreground: 210 30% 96%;
+  --primary: 223 100% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 26% 13%;
+  --secondary-foreground: 210 30% 96%;
+  --muted: 214 26% 13%;
+  --muted-foreground: 213 14% 64%;
+  --accent: 214 30% 16%;
+  --accent-foreground: 210 30% 96%;
+  --destructive: 4 82% 67%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 24% 20%;
+  --input: 214 22% 29%;
+  --ring: 223 100% 72%;
+  --radius: 0.5rem;
+  --brand: 223 100% 65%;
+  --brand-foreground: 0 0% 100%;
+  --hot: 4 82% 67%;
+  --warm: 37 76% 60%;
+  --cold: 205 74% 66%;
 
   color-scheme: dark;
 }

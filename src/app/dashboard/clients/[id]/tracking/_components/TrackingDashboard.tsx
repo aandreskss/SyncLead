@@ -76,22 +76,22 @@ function HealthSummary({
     <div className="space-y-3">
       {/* Conexión Meta — fuente de verdad */}
       {metaConnections.length > 0 && (
-        <div className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3">
-          <p className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wide">Conexión Meta configurada</p>
+        <div className="rounded-lg border border-ops-bd bg-ops-s1 px-4 py-3">
+          <p className="text-xs text-ops-tx3 mb-2 font-medium uppercase tracking-wide">Conexión Meta configurada</p>
           <div className="flex flex-wrap gap-3">
             {metaConnections.map((conn) => (
               <div key={conn.id} className="flex items-center gap-2">
                 {conn.status === "active" ? (
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
                 ) : conn.status === "error" ? (
-                  <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                  <XCircle className="h-3.5 w-3.5 text-ops-coral shrink-0" />
                 ) : (
-                  <CircleDot className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+                  <CircleDot className="h-3.5 w-3.5 text-ops-tx3 shrink-0" />
                 )}
-                <span className="text-sm text-zinc-200">
+                <span className="text-sm text-ops-tx">
                   {conn.pixelId ? (
                     <>
-                      Pixel <span className="font-mono text-zinc-400">{conn.pixelId}</span>
+                      Pixel <span className="font-mono text-ops-tx2">{conn.pixelId}</span>
                     </>
                   ) : (
                     "Sin Pixel ID"
@@ -102,14 +102,14 @@ function HealthSummary({
                     conn.status === "active"
                       ? "bg-green-900 text-green-300 border-green-800 text-xs"
                       : conn.status === "error"
-                      ? "bg-red-900 text-red-300 border-red-800 text-xs"
-                      : "bg-zinc-800 text-zinc-400 border-zinc-700 text-xs"
+                      ? "bg-red-900 text-ops-coral border-red-800 text-xs"
+                      : "bg-ops-s2 text-ops-tx2 border-ops-bd text-xs"
                   }
                 >
                   {conn.status === "active" ? "Activo" : conn.status === "error" ? "Error" : conn.status}
                 </Badge>
                 {conn.lastError && (
-                  <span className="text-xs text-red-400 truncate max-w-[200px]">{conn.lastError}</span>
+                  <span className="text-xs text-ops-coral truncate max-w-[200px]">{conn.lastError}</span>
                 )}
               </div>
             ))}
@@ -119,17 +119,17 @@ function HealthSummary({
 
       {/* Métricas de diagnóstico */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-          <p className="text-xs text-zinc-500 mb-1">Pixel base</p>
+        <div className="rounded-lg border border-ops-line bg-ops-s1 p-3">
+          <p className="text-xs text-ops-tx3 mb-1">Pixel base</p>
           <div className="flex items-center gap-2">
             {pixelStatus === "detectado" ? (
               <CheckCircle2 className="h-4 w-4 text-green-500" />
             ) : pixelStatus === "configurado" ? (
               <CircleDot className="h-4 w-4 text-amber-500" />
             ) : (
-              <CircleDot className="h-4 w-4 text-zinc-500" />
+              <CircleDot className="h-4 w-4 text-ops-tx3" />
             )}
-            <span className="text-sm font-medium text-zinc-200">
+            <span className="text-sm font-medium text-ops-tx">
               {pixelStatus === "detectado"
                 ? "Detectado"
                 : pixelStatus === "configurado"
@@ -139,17 +139,17 @@ function HealthSummary({
           </div>
         </div>
 
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-          <p className="text-xs text-zinc-500 mb-1">CAPI</p>
+        <div className="rounded-lg border border-ops-line bg-ops-s1 p-3">
+          <p className="text-xs text-ops-tx3 mb-1">CAPI</p>
           <div className="flex items-center gap-2">
             {capiStatus === "activo_con_señal" || capiStatus === "conectado" ? (
               <CheckCircle2 className={`h-4 w-4 ${capiStatus === "activo_con_señal" ? "text-green-500" : "text-emerald-600"}`} />
             ) : capiStatus === "error" ? (
-              <XCircle className="h-4 w-4 text-red-400" />
+              <XCircle className="h-4 w-4 text-ops-coral" />
             ) : (
-              <CircleDot className="h-4 w-4 text-zinc-500" />
+              <CircleDot className="h-4 w-4 text-ops-tx3" />
             )}
-            <span className="text-sm font-medium text-zinc-200">
+            <span className="text-sm font-medium text-ops-tx">
               {capiStatus === "activo_con_señal"
                 ? "Enviando"
                 : capiStatus === "conectado"
@@ -161,15 +161,15 @@ function HealthSummary({
           </div>
         </div>
 
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-          <p className="text-xs text-zinc-500 mb-1">Eventos configurados</p>
-          <span className="text-2xl font-bold text-zinc-100">{definitions.length}</span>
+        <div className="rounded-lg border border-ops-line bg-ops-s1 p-3">
+          <p className="text-xs text-ops-tx3 mb-1">Eventos configurados</p>
+          <span className="text-2xl font-bold text-ops-tx">{definitions.length}</span>
         </div>
 
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-          <p className="text-xs text-zinc-500 mb-1">Problemas críticos</p>
+        <div className="rounded-lg border border-ops-line bg-ops-s1 p-3">
+          <p className="text-xs text-ops-tx3 mb-1">Problemas críticos</p>
           <span
-            className={`text-2xl font-bold ${criticalCount > 0 ? "text-red-400" : "text-zinc-100"}`}
+            className={`text-2xl font-bold ${criticalCount > 0 ? "text-ops-coral" : "text-ops-tx"}`}
           >
             {criticalCount}
           </span>
@@ -180,7 +180,7 @@ function HealthSummary({
       {metaConnections.length === 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-800/50 bg-amber-900/10 px-4 py-3">
           <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-          <p className="text-sm text-amber-300">
+          <p className="text-sm text-ops-amber">
             Este cliente no tiene una conexión Meta (Pixel + token CAPI) configurada.{" "}
             <a
               href="../?tab=configuracion"
@@ -208,11 +208,11 @@ function SiteSelector({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-zinc-400">Sitio:</span>
+      <span className="text-sm text-ops-tx2">Sitio:</span>
       <select
         value={selectedId ?? ""}
         onChange={(e) => onSelect(e.target.value)}
-        className="rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+        className="rounded border border-ops-bd bg-ops-s2 px-3 py-1.5 text-sm text-ops-tx focus:outline-none focus:ring-1 focus:ring-zinc-500"
       >
         {sites.map((s) => (
           <option key={s.id} value={s.id}>
@@ -226,9 +226,9 @@ function SiteSelector({
 
 function EmptySites() {
   return (
-    <div className="rounded-lg border border-dashed border-zinc-700 bg-zinc-900 px-6 py-12 text-center">
-      <p className="text-zinc-400 mb-2">No hay sitios de tracking configurados</p>
-      <p className="text-sm text-zinc-500 mb-4">
+    <div className="rounded-lg border border-dashed border-ops-bd bg-ops-s1 px-6 py-12 text-center">
+      <p className="text-ops-tx2 mb-2">No hay sitios de tracking configurados</p>
+      <p className="text-sm text-ops-tx3 mb-4">
         Agrega tu primer sitio para comenzar el diagnóstico de conversiones.
       </p>
     </div>
@@ -239,15 +239,15 @@ function IssuesList({ issues }: { issues: ConversionIssuePublic[] }) {
   if (issues.length === 0) return null
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900">
-      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
-        <AlertCircle className="h-4 w-4 text-red-400" />
-        <h3 className="text-sm font-medium text-zinc-200">Problemas abiertos</h3>
+    <div className="rounded-lg border border-ops-line bg-ops-s1">
+      <div className="flex items-center gap-2 border-b border-ops-line px-4 py-3">
+        <AlertCircle className="h-4 w-4 text-ops-coral" />
+        <h3 className="text-sm font-medium text-ops-tx">Problemas abiertos</h3>
         <Badge className="ml-auto bg-red-700 text-white border-red-600 text-xs">
           {issues.length}
         </Badge>
       </div>
-      <ul className="divide-y divide-zinc-800">
+      <ul className="divide-y divide-ops-line">
         {issues.map((issue) => (
           <li key={issue.id} className="flex items-start gap-3 px-4 py-3">
             <span
@@ -260,15 +260,15 @@ function IssuesList({ issues }: { issues: ConversionIssuePublic[] }) {
               }`}
             />
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-zinc-300">{issue.issueCode}</p>
+              <p className="text-sm text-ops-tx2">{issue.issueCode}</p>
               {issue.explanation && (
-                <p className="text-xs text-zinc-500 mt-0.5">{issue.explanation}</p>
+                <p className="text-xs text-ops-tx3 mt-0.5">{issue.explanation}</p>
               )}
             </div>
             <Badge
               className={
                 issue.severity === "critical"
-                  ? "bg-red-900 text-red-300 border-red-800 text-xs"
+                  ? "bg-red-900 text-ops-coral border-red-800 text-xs"
                   : issue.severity === "high"
                   ? "bg-orange-900 text-orange-300 border-orange-800 text-xs"
                   : "bg-yellow-900 text-yellow-300 border-yellow-800 text-xs"
@@ -320,68 +320,68 @@ function AddSiteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-          <h2 className="text-sm font-semibold text-zinc-100">Agregar sitio</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
+      <div className="w-full max-w-md rounded-lg border border-ops-bd bg-ops-s1 ">
+        <div className="flex items-center justify-between border-b border-ops-line px-5 py-4">
+          <h2 className="text-sm font-semibold text-ops-tx">Agregar sitio</h2>
+          <button onClick={onClose} className="text-ops-tx3 hover:text-ops-tx2">
             <X className="h-4 w-4" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 p-5">
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400">Nombre del sitio</label>
+            <label className="text-xs text-ops-tx2">Nombre del sitio</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Mi sitio web"
               required
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-ops-bd bg-ops-s2 px-3 py-2 text-sm text-ops-tx placeholder-ops-tx3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400">URL del dominio</label>
+            <label className="text-xs text-ops-tx2">URL del dominio</label>
             <input
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
               placeholder="https://ejemplo.com"
               type="url"
               required
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-ops-bd bg-ops-s2 px-3 py-2 text-sm text-ops-tx placeholder-ops-tx3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400">
+            <label className="text-xs text-ops-tx2">
               Pixel ID de Meta{" "}
-              <span className="text-zinc-600">(opcional)</span>
+              <span className="text-ops-tx3">(opcional)</span>
             </label>
             <input
               value={pixelId}
               onChange={(e) => setPixelId(e.target.value)}
               placeholder="123456789012345"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-ops-bd bg-ops-s2 px-3 py-2 text-sm text-ops-tx placeholder-ops-tx3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-400">Entorno</label>
+            <label className="text-xs text-ops-tx2">Entorno</label>
             <select
               value={environment}
               onChange={(e) => setEnvironment(e.target.value as typeof environment)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-ops-bd bg-ops-s2 px-3 py-2 text-sm text-ops-tx focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="production">Producción</option>
               <option value="staging">Staging</option>
               <option value="development">Desarrollo</option>
             </select>
           </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-ops-coral">{error}</p>}
           <div className="flex justify-end gap-3 pt-1">
-            <button type="button" onClick={onClose} className="text-sm text-zinc-400 hover:text-zinc-200">
+            <button type="button" onClick={onClose} className="text-sm text-ops-tx2 hover:text-ops-tx">
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+              className="rounded-lg bg-ops-blue px-4 py-2 text-sm font-medium text-white hover:bg-ops-blue disabled:opacity-50"
             >
               {isPending ? "Creando..." : "Crear sitio"}
             </button>
@@ -431,23 +431,23 @@ function ApplyTemplateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-          <h2 className="text-sm font-semibold text-zinc-100">Aplicar plantilla de eventos</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
+      <div className="w-full max-w-md rounded-lg border border-ops-bd bg-ops-s1 ">
+        <div className="flex items-center justify-between border-b border-ops-line px-5 py-4">
+          <h2 className="text-sm font-semibold text-ops-tx">Aplicar plantilla de eventos</h2>
+          <button onClick={onClose} className="text-ops-tx3 hover:text-ops-tx2">
             <X className="h-4 w-4" />
           </button>
         </div>
         {result ? (
           <div className="p-5 text-center space-y-3">
             <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto" />
-            <p className="text-sm text-zinc-200">
+            <p className="text-sm text-ops-tx">
               {result.created} evento{result.created !== 1 ? "s" : ""} creado{result.created !== 1 ? "s" : ""}
               {result.skipped > 0 && `, ${result.skipped} ya existía${result.skipped !== 1 ? "n" : ""}`}
             </p>
             <button
               onClick={onApplied}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              className="w-full rounded-lg bg-ops-blue px-4 py-2 text-sm font-medium text-white hover:bg-ops-blue"
             >
               Listo
             </button>
@@ -456,11 +456,11 @@ function ApplyTemplateModal({
           <form onSubmit={handleApply} className="space-y-4 p-5">
             {sites.length > 0 && (
               <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400">Sitio</label>
+                <label className="text-xs text-ops-tx2">Sitio</label>
                 <select
                   value={siteId}
                   onChange={(e) => setSiteId(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-lg border border-ops-bd bg-ops-s2 px-3 py-2 text-sm text-ops-tx focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 >
                   <option value="">Sin sitio específico</option>
                   {sites.map((s) => (
@@ -470,14 +470,14 @@ function ApplyTemplateModal({
               </div>
             )}
             <div className="space-y-2">
-              <label className="text-xs text-zinc-400">Plantilla</label>
+              <label className="text-xs text-ops-tx2">Plantilla</label>
               {TEMPLATES.map((t) => (
                 <label
                   key={t.value}
                   className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
                     template === t.value
-                      ? "border-indigo-500 bg-indigo-500/10"
-                      : "border-zinc-700 hover:border-zinc-600"
+                      ? "border-ops-blue bg-ops-blue/10"
+                      : "border-ops-bd hover:border-ops-bd"
                   }`}
                 >
                   <input
@@ -489,21 +489,21 @@ function ApplyTemplateModal({
                     className="accent-indigo-500"
                   />
                   <div>
-                    <p className="text-sm font-medium text-zinc-200">{t.label}</p>
-                    <p className="text-xs text-zinc-500">{t.desc}</p>
+                    <p className="text-sm font-medium text-ops-tx">{t.label}</p>
+                    <p className="text-xs text-ops-tx3">{t.desc}</p>
                   </div>
                 </label>
               ))}
             </div>
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-ops-coral">{error}</p>}
             <div className="flex justify-end gap-3 pt-1">
-              <button type="button" onClick={onClose} className="text-sm text-zinc-400 hover:text-zinc-200">
+              <button type="button" onClick={onClose} className="text-sm text-ops-tx2 hover:text-ops-tx">
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={isPending}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                className="rounded-lg bg-ops-blue px-4 py-2 text-sm font-medium text-white hover:bg-ops-blue disabled:opacity-50"
               >
                 {isPending ? "Aplicando..." : "Aplicar plantilla"}
               </button>
@@ -557,8 +557,8 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Diagnóstico de conversiones</h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <h1 className="text-2xl font-bold text-ops-tx">Diagnóstico de conversiones</h1>
+          <p className="text-sm text-ops-tx2 mt-1">
             Verifica y prueba el estado de tus conversiones de Meta Pixel y CAPI
           </p>
         </div>
@@ -566,7 +566,7 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
           <Button
             variant="outline"
             size="sm"
-            className="border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+            className="border-ops-bd bg-ops-s2 text-ops-tx hover:bg-ops-sel"
             onClick={() => setShowTemplate(true)}
           >
             <Layout className="h-4 w-4 mr-1.5" />
@@ -574,7 +574,7 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
           </Button>
           <Button
             size="sm"
-            className="bg-zinc-700 hover:bg-zinc-600 text-zinc-100"
+            className="bg-ops-sel hover:bg-zinc-600 text-ops-tx"
             onClick={() => setShowAddSite(true)}
           >
             <Plus className="h-4 w-4 mr-1.5" />
@@ -596,9 +596,9 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
       )}
 
       {filteredDefinitions.length > 0 && (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900">
-          <div className="border-b border-zinc-800 px-4 py-3">
-            <h2 className="text-sm font-medium text-zinc-200">Conversiones configuradas</h2>
+        <div className="rounded-lg border border-ops-line bg-ops-s1">
+          <div className="border-b border-ops-line px-4 py-3">
+            <h2 className="text-sm font-medium text-ops-tx">Conversiones configuradas</h2>
           </div>
           <ConversionList definitions={filteredDefinitions} clientId={clientId} />
         </div>

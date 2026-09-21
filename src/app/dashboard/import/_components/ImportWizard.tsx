@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { Check, UploadCloud } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Panel, opsField } from "@/components/app/ops"
 import {
   uploadImportFileAction,
   saveColumnMappingAction,
@@ -24,41 +27,55 @@ type Step = "select" | "upload" | "mapping" | "dryrun" | "confirm" | "done"
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 
-const STEPS: { key: Step; label: string }[] = [
-  { key: "select",  label: "Campaña" },
-  { key: "upload",  label: "Archivo" },
-  { key: "mapping", label: "Mapeo" },
-  { key: "dryrun",  label: "Vista previa" },
-  { key: "confirm", label: "Importar" },
-  { key: "done",    label: "Listo" },
+const STEPS: { label: string }[] = [
+  { label: "Campaña destino" },
+  { label: "Sube tu archivo" },
+  { label: "Mapeo de columnas" },
+  { label: "Revisión e importación" },
 ]
 
+const STEP_INDEX: Record<Step, number> = { select: 0, upload: 1, mapping: 2, dryrun: 3, confirm: 3, done: 4 }
+
 function StepBar({ current }: { current: Step }) {
-  const idx = STEPS.findIndex((s) => s.key === current)
+  const idx = STEP_INDEX[current]
   return (
-    <div className="flex items-center gap-0">
-      {STEPS.map((s, i) => (
-        <div key={s.key} className="flex items-center">
-          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-            i < idx ? "text-indigo-400"
-            : i === idx ? "bg-indigo-500/20 text-indigo-300"
-            : "text-zinc-600"
-          }`}>
-            <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
-              i < idx ? "bg-indigo-500 text-white"
-              : i === idx ? "bg-indigo-500 text-white"
-              : "bg-zinc-800 text-zinc-500"
-            }`}>{i + 1}</span>
-            {s.label}
-          </div>
-          {i < STEPS.length - 1 && (
-            <div className={`h-px w-6 mx-1 ${i < idx ? "bg-indigo-500" : "bg-zinc-800"}`} />
-          )}
-        </div>
-      ))}
-    </div>
+    <ol className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Pasos de importación">
+      {STEPS.map((s, i) => {
+        const done = i < idx
+        const active = i === idx
+        return (
+          <li
+            key={s.label}
+            aria-current={active ? "step" : undefined}
+            className={cn(
+              "flex items-center gap-2.5 rounded-lg border px-3 py-2.5",
+              active ? "border-ops-blue/50 bg-ops-s1" : "border-ops-line bg-ops-s1"
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-plex text-xs font-semibold tabular-nums",
+                done ? "bg-ops-green text-ops-bg" : active ? "bg-ops-blue text-white" : "bg-ops-s2 text-ops-tx3"
+              )}
+            >
+              {done ? <Check aria-hidden className="h-3.5 w-3.5" /> : i + 1}
+            </span>
+            <span className={cn("text-[13px] font-medium", active ? "text-ops-tx" : done ? "text-ops-tx2" : "text-ops-tx3")}>
+              {s.label}
+              <span className="sr-only">{done ? " (completado)" : active ? " (paso actual)" : " (pendiente)"}</span>
+            </span>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
+
+const btnPrimary =
+  "inline-flex h-9 items-center justify-center rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:cursor-not-allowed disabled:opacity-50"
+const btnSecondary =
+  "inline-flex h-9 items-center justify-center rounded-md border border-ops-bd px-4 text-[13px] font-medium text-ops-tx2 transition-colors hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
+const footerBar = "flex items-center justify-between gap-3 border-t border-ops-line bg-ops-side px-4 py-3"
 
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
@@ -165,157 +182,158 @@ export function ImportWizard({ campaigns }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <StepBar current={step} />
 
       {error && (
-        <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-300">
+        <div role="alert" className="rounded-lg border border-ops-coral/40 bg-ops-coral/10 px-4 py-3 text-sm text-ops-coral">
           {error}
         </div>
       )}
 
       {/* ── Step 1: Select campaign ─────────────────────────────────────────── */}
       {step === "select" && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
-          <h2 className="font-medium text-zinc-100">Selecciona la campaña de destino</h2>
-          <p className="text-sm text-zinc-400">
-            Los leads importados se asignarán a esta campaña.
-          </p>
-          <div className="space-y-2">
-            <label className="text-xs text-zinc-400 uppercase tracking-wide">Campaña</label>
-            <select
-              value={campaignId}
-              onChange={(e) => setCampaignId(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              <option value="">— Seleccionar campaña —</option>
-              {campaigns.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.clientName} · {c.name}
-                </option>
-              ))}
-            </select>
+        <Panel>
+          <div className="space-y-4 p-5">
+            <div>
+              <h2 className="text-sm font-semibold text-ops-tx">Selecciona la campaña de destino</h2>
+              <p className="mt-0.5 text-sm text-ops-tx2">Los leads importados se asignarán a esta campaña.</p>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="import-campaign" className="text-xs font-medium text-ops-tx2">Campaña</label>
+              <select
+                id="import-campaign"
+                value={campaignId}
+                onChange={(e) => setCampaignId(e.target.value)}
+                className={cn(opsField, "w-full")}
+              >
+                <option value="">— Seleccionar campaña —</option>
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.clientName} · {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="flex justify-end">
-            <button
-              onClick={handleSelectCampaign}
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
-            >
+          <div className={footerBar}>
+            <span />
+            <button onClick={handleSelectCampaign} className={btnPrimary}>
               Continuar
             </button>
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* ── Step 2: Upload file ─────────────────────────────────────────────── */}
       {step === "upload" && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
-          <h2 className="font-medium text-zinc-100">Sube tu archivo</h2>
-          <p className="text-sm text-zinc-400">
-            Formatos aceptados: CSV, XLSX, XLS. Tamaño máximo: 5 MB.
-            Se usa la primera hoja del archivo XLSX.
-          </p>
+        <Panel>
+          <div className="space-y-4 p-5">
+            <div>
+              <h2 className="text-sm font-semibold text-ops-tx">Sube tu archivo</h2>
+              <p className="mt-0.5 text-sm text-ops-tx2">
+                Formatos aceptados: CSV, XLSX, XLS. Tamaño máximo: 5 MB. Se usa la primera hoja del archivo XLSX.
+              </p>
+            </div>
 
-          <div
-            className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-500/50 transition-colors"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault()
-              const f = e.dataTransfer.files[0]
-              if (f) setSelectedFile(f)
-            }}
-            onClick={() => document.getElementById("file-input")?.click()}
-          >
-            <input
-              id="file-input"
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Arrastra un archivo aquí o haz clic para seleccionar"
+              className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-ops-bd2 px-6 py-10 text-center transition-colors hover:border-ops-blue/60 hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                const f = e.dataTransfer.files[0]
                 if (f) setSelectedFile(f)
               }}
-            />
-            {selectedFile ? (
-              <div className="text-sm">
-                <p className="text-zinc-100 font-medium">{selectedFile.name}</p>
-                <p className="text-zinc-500 mt-1">{(selectedFile.size / 1024).toFixed(1)} KB</p>
-              </div>
-            ) : (
-              <div className="text-zinc-500 text-sm">
-                <p>Arrastra un archivo aquí o haz clic para seleccionar</p>
-                <p className="text-xs mt-1">.csv · .xlsx · .xls</p>
-              </div>
-            )}
+              onClick={() => document.getElementById("file-input")?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  document.getElementById("file-input")?.click()
+                }
+              }}
+            >
+              <input
+                id="file-input"
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                className="hidden"
+                tabIndex={-1}
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) setSelectedFile(f)
+                }}
+              />
+              <UploadCloud aria-hidden className="h-6 w-6 text-ops-tx2" />
+              {selectedFile ? (
+                <div className="text-sm">
+                  <p className="font-medium text-ops-tx">{selectedFile.name}</p>
+                  <p className="mt-1 font-plex tabular-nums text-ops-tx3">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                </div>
+              ) : (
+                <div className="text-sm text-ops-tx2">
+                  <p>Arrastra un archivo aquí o haz clic para seleccionar</p>
+                  <p className="mt-1 text-xs text-ops-tx3">.csv · .xlsx · .xls</p>
+                </div>
+              )}
+            </div>
           </div>
-
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setStep("select")}
-              className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              ← Atrás
+          <div className={footerBar}>
+            <button onClick={() => setStep("select")} className={btnSecondary}>
+              Atrás
             </button>
-            <button
-              onClick={handleFileUpload}
-              disabled={!selectedFile || isPending}
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
-            >
+            <button onClick={handleFileUpload} disabled={!selectedFile || isPending} className={btnPrimary}>
               {isPending ? "Procesando..." : "Subir archivo"}
             </button>
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* ── Step 3: Column mapping ──────────────────────────────────────────── */}
       {step === "mapping" && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
-          <h2 className="font-medium text-zinc-100">Mapeo de columnas</h2>
-          <p className="text-sm text-zinc-400">
-            Indica a qué campo interno corresponde cada columna de tu archivo.
-            Las columnas marcadas como "(Ignorar)" no se importarán.
-          </p>
-          <ColumnMapper
-            columns={columns}
-            mapping={mapping}
-            onChange={setMapping}
-            fieldLabels={TARGET_FIELD_LABELS}
-          />
-          <div className="flex items-center justify-between pt-2">
-            <button
-              onClick={() => setStep("upload")}
-              className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              ← Atrás
+        <Panel>
+          <div className="space-y-4 p-5">
+            <div>
+              <h2 className="text-sm font-semibold text-ops-tx">Mapeo de columnas</h2>
+              <p className="mt-0.5 text-sm text-ops-tx2">
+                Indica a qué campo interno corresponde cada columna de tu archivo.
+                Las columnas marcadas como &quot;(Ignorar)&quot; no se importarán.
+              </p>
+            </div>
+            <ColumnMapper
+              columns={columns}
+              mapping={mapping}
+              onChange={setMapping}
+              fieldLabels={TARGET_FIELD_LABELS}
+            />
+          </div>
+          <div className={footerBar}>
+            <button onClick={() => setStep("upload")} className={btnSecondary}>
+              Atrás
             </button>
-            <button
-              onClick={handleSaveMapping}
-              disabled={isPending}
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
-            >
-              {isPending ? "Analizando..." : "Vista previa →"}
+            <button onClick={handleSaveMapping} disabled={isPending} className={btnPrimary}>
+              {isPending ? "Analizando..." : "Continuar"}
             </button>
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* ── Step 4: Dry-run preview ─────────────────────────────────────────── */}
       {step === "dryrun" && dryRunResult && (
         <div className="space-y-4">
           <DryRunPreview result={dryRunResult} fieldLabels={TARGET_FIELD_LABELS} mapping={mapping} />
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setStep("mapping")}
-              className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              ← Cambiar mapeo
+          <div className={cn(footerBar, "rounded-lg border border-ops-line")}>
+            <button onClick={() => setStep("mapping")} className={btnSecondary}>
+              Cambiar mapeo
             </button>
             <button
               onClick={handleConfirmImport}
               disabled={dryRunResult.validRows + dryRunResult.warningRows === 0}
-              className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+              className={btnPrimary}
             >
-              Importar {dryRunResult.validRows + dryRunResult.warningRows} leads →
+              Importar <span className="mx-1 font-plex tabular-nums">{dryRunResult.validRows + dryRunResult.warningRows}</span> leads
             </button>
           </div>
         </div>
@@ -323,11 +341,13 @@ export function ImportWizard({ campaigns }: Props) {
 
       {/* ── Step 5: Importing ───────────────────────────────────────────────── */}
       {step === "confirm" && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-8 text-center space-y-3">
-          <div className="h-10 w-10 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin mx-auto" />
-          <p className="text-zinc-100 font-medium">Importando leads...</p>
-          <p className="text-sm text-zinc-500">Esto puede tomar unos segundos. No cierres esta página.</p>
-        </div>
+        <Panel bodyClassName="space-y-3 p-8 text-center" >
+          <div role="status" aria-live="polite" className="space-y-3">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-ops-blue border-t-transparent motion-reduce:animate-none" />
+            <p className="font-medium text-ops-tx">Importando leads...</p>
+            <p className="text-sm text-ops-tx2">Esto puede tomar unos segundos. No cierres esta página.</p>
+          </div>
+        </Panel>
       )}
 
       {/* ── Step 6: Done ────────────────────────────────────────────────────── */}

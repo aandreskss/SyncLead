@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { requireUser } from "@/lib/auth/server"
 import { AuthError } from "@/lib/auth/errors"
 import { getMyProfileAction } from "@/domains/account/actions"
+import { PageShell, PageHeader } from "@/components/app/ops"
 import AccountView from "./_components/AccountView"
 
 export const dynamic = "force-dynamic"
@@ -18,14 +19,11 @@ export default async function AccountPage() {
   if (!profile) redirect("/login")
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-zinc-100">Mi cuenta</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Gestiona tu información personal y credenciales de acceso.
-        </p>
+    <PageShell>
+      <PageHeader title="Mi cuenta" subtitle="Tus datos personales y de acceso." />
+      <div className="max-w-3xl">
+        <AccountView profile={profile} />
       </div>
-      <AccountView profile={profile} />
-    </div>
+    </PageShell>
   )
 }

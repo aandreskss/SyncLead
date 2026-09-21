@@ -2,11 +2,11 @@ import { redirect } from "next/navigation"
 import { requireRole } from "@/lib/auth/server"
 import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import { getCampaignsWithClientAndCounts } from "@/domains/campaigns/repository"
+import { PageShell, PageHeader } from "@/components/app/ops"
 import { ImportWizard } from "./_components/ImportWizard"
 
 export default async function ImportPage() {
   let ctx: { orgId: string; userId: string }
-  let campaigns: Array<{ id: string; name: string; clientName: string }>
 
   try {
     ctx = await requireRole(["owner", "admin", "manager"])
@@ -17,22 +17,19 @@ export default async function ImportPage() {
   }
 
   const allCampaigns = await getCampaignsWithClientAndCounts(ctx.orgId)
-  campaigns = allCampaigns.map((c) => ({
+  const campaigns = allCampaigns.map((c) => ({
     id: c.id,
     name: c.name,
     clientName: c.client?.name ?? "(sin cliente)",
   }))
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-100">Importar desde Google Sheets</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
-          Importa leads y ventas históricas desde un archivo CSV o XLSX.
-          Las ventas importadas nunca se envían a Meta CAPI.
-        </p>
-      </div>
+    <PageShell className="mx-auto max-w-5xl">
+      <PageHeader
+        title="Importar leads"
+        subtitle="Importa leads y ventas históricas desde un archivo CSV o XLSX. Las ventas importadas nunca se envían a Meta CAPI."
+      />
       <ImportWizard campaigns={campaigns} />
-    </div>
+    </PageShell>
   )
 }

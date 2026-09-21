@@ -13,6 +13,8 @@ import {
   useDroppable,
   useDraggable,
 } from "@dnd-kit/core"
+import { User } from "lucide-react"
+import { StatusChip } from "@/components/app/ops"
 import { CSS } from "@dnd-kit/utilities"
 import { updateLeadStageAction } from "@/domains/leads/actions"
 import { LeadDrawer } from "@/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer"
@@ -21,10 +23,10 @@ import type { LeadWithActivity } from "@/domains/leads/repository"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function tempBadge(t: string) {
-  if (t === "hot") return "bg-red-500/15 text-red-400"
-  if (t === "warm") return "bg-amber-500/15 text-amber-400"
-  return "bg-blue-500/15 text-blue-400"
+function tempTone(t: string): "coral" | "amber" | "cold" {
+  if (t === "hot") return "coral"
+  if (t === "warm") return "amber"
+  return "cold"
 }
 function tempLabel(t: string) {
   if (t === "hot") return "Caliente"
@@ -63,22 +65,26 @@ function KanbanCard({
           onCardClick(lead)
         }
       }}
-      className={`rounded-lg border bg-zinc-950 p-3 cursor-grab active:cursor-grabbing select-none transition-opacity ${
-        isDragging && !isDragOverlay ? "opacity-30 border-zinc-700" : "border-zinc-800 hover:border-zinc-700"
+      className={`rounded-md border bg-ops-s2 p-3 cursor-grab active:cursor-grabbing select-none transition-opacity ${
+        isDragging && !isDragOverlay ? "opacity-30 border-ops-bd" : "border-ops-line hover:border-ops-bd2"
       }`}
     >
-      <p className="font-medium text-zinc-100 text-sm truncate">{lead.name}</p>
+      <p className="font-medium text-ops-tx text-[13px] truncate">{lead.name}</p>
       {lead.phone && (
-        <p className="text-xs text-zinc-500 font-mono mt-0.5">{lead.phone}</p>
+        <p className="text-xs text-ops-tx2 font-plex tabular-nums mt-0.5">{lead.phone}</p>
       )}
       <div className="flex items-center justify-between mt-2">
-        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${tempBadge(lead.temperature)}`}>
-          {tempLabel(lead.temperature)}
-        </span>
-        <span className="text-xs text-zinc-700">{formatDate(lead.createdAt)}</span>
+        <StatusChip tone={tempTone(lead.temperature)}>{tempLabel(lead.temperature)}</StatusChip>
+        <span className="text-xs text-ops-tx3">{formatDate(lead.createdAt)}</span>
       </div>
+      {lead.assignedTo && (
+        <p className="mt-2 flex items-center gap-1.5 truncate text-xs text-ops-tx2">
+          <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className="truncate">{lead.assignedTo}</span>
+        </p>
+      )}
       {lead.saleCount > 0 && (
-        <p className="text-xs text-emerald-400 mt-1.5 font-medium">
+        <p className="text-xs text-ops-green mt-1.5 font-medium font-plex tabular-nums">
           {lead.saleTotalAmount
             ? `$ ${parseFloat(lead.saleTotalAmount).toFixed(2)}${lead.saleCount > 1 ? ` ·${lead.saleCount}` : ""}`
             : `${lead.saleCount} ${lead.saleCount === 1 ? "venta" : "ventas"}`}
@@ -110,31 +116,31 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-shrink-0 w-72 flex flex-col rounded-xl border transition-colors ${
-        isOver ? "border-indigo-500/50 bg-zinc-900/90" : "border-zinc-800 bg-zinc-900"
+      className={`flex-shrink-0 w-[300px] flex flex-col rounded-lg border bg-ops-side p-2 transition-colors ${
+        isOver ? "border-ops-blue" : "border-ops-line"
       }`}
     >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+      <div className="px-2 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: stage.color }} />
-          <span className="font-medium text-zinc-100 text-sm">{stage.label}</span>
-          <span className="text-xs text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded-full">
+          <div aria-hidden className="h-2 w-2 rounded-[2px] flex-shrink-0" style={{ background: stage.color }} />
+          <span className="font-medium text-ops-tx text-[13px]">{stage.label}</span>
+          <span className="font-plex tabular-nums text-xs text-ops-tx2">
             {leads.length}
           </span>
         </div>
         {totalAmount > 0 && (
-          <span className="text-xs text-emerald-400 font-mono">${totalAmount.toFixed(0)}</span>
+          <span className="text-xs text-ops-green font-plex tabular-nums">${totalAmount.toFixed(0)}</span>
         )}
       </div>
 
       {/* Cards */}
-      <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[120px] max-h-[600px]">
+      <div className="flex-1 space-y-2 overflow-y-auto min-h-[120px] max-h-[600px]">
         {leads.map((lead) => (
           <KanbanCard key={lead.id} lead={lead} onCardClick={onCardClick} />
         ))}
         {leads.length === 0 && (
-          <div className="h-20 flex items-center justify-center text-zinc-700 text-xs">
+          <div className="h-20 flex items-center justify-center rounded-md border border-dashed border-ops-bd text-ops-tx3 text-xs">
             Arrastra leads aquí
           </div>
         )}
@@ -161,6 +167,7 @@ export function KanbanBoard({ funnel, initialLeads, salesReps = [], whatsappNumb
   const [drawerLead, setDrawerLead] = useState<LeadWithActivity | null>(null)
   const [, startTransition] = useTransition()
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setLeads(initialLeads), [initialLeads])
 
   const sensors = useSensors(

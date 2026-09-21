@@ -31,7 +31,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="flex items-center gap-1.5 rounded border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-600 transition-colors"
+      className="flex items-center gap-1.5 rounded border border-ops-bd bg-ops-sel px-2.5 py-1 text-xs text-ops-tx2 hover:bg-zinc-600 transition-colors"
     >
       {copied ? (
         <>
@@ -248,24 +248,24 @@ export function InstallationDrawer({ definition, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-zinc-800 bg-zinc-900 shadow-2xl">
-      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4 shrink-0">
+    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-ops-line bg-ops-s1 ">
+      <div className="flex items-center justify-between border-b border-ops-line px-6 py-4 shrink-0">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">Cómo instalar</h2>
-          <p className="text-sm text-zinc-400 mt-0.5">
+          <h2 className="text-base font-semibold text-ops-tx">Cómo instalar</h2>
+          <p className="text-sm text-ops-tx2 mt-0.5">
             {definition.displayName} — {definition.providerEventName}
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="rounded p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+          className="rounded p-1.5 text-ops-tx2 hover:bg-ops-s2 hover:text-ops-tx transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="flex border-b border-zinc-800 shrink-0 overflow-x-auto">
+      <div className="flex border-b border-ops-line shrink-0 overflow-x-auto">
         {(Object.keys(TAB_LABELS) as TabKey[]).map((tab) => (
           <button
             key={tab}
@@ -273,8 +273,8 @@ export function InstallationDrawer({ definition, onClose }: Props) {
             onClick={() => setActiveTab(tab)}
             className={`shrink-0 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === tab
-                ? "border-b-2 border-zinc-400 text-zinc-100"
-                : "text-zinc-500 hover:text-zinc-300"
+                ? "border-b-2 border-zinc-400 text-ops-tx"
+                : "text-ops-tx3 hover:text-ops-tx2"
             }`}
           >
             {TAB_LABELS[tab]}
@@ -293,43 +293,43 @@ export function InstallationDrawer({ definition, onClose }: Props) {
         )}
 
         {definition.installationNotes && (
-          <div className="rounded border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-400">
-            <p className="font-medium text-zinc-300 mb-1">Nota de instalación</p>
+          <div className="rounded border border-ops-bd bg-ops-s2 px-4 py-3 text-sm text-ops-tx2">
+            <p className="font-medium text-ops-tx2 mb-1">Nota de instalación</p>
             <p>{definition.installationNotes}</p>
           </div>
         )}
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-zinc-300">{TAB_LABELS[activeTab]}</span>
+            <span className="text-sm font-medium text-ops-tx2">{TAB_LABELS[activeTab]}</span>
             <CopyButton text={snippets[activeTab]} />
           </div>
-          <pre className="overflow-x-auto rounded border border-zinc-700 bg-zinc-950 px-4 py-4 text-xs text-zinc-300 whitespace-pre leading-relaxed">
+          <pre className="overflow-x-auto rounded border border-ops-bd bg-ops-bg px-4 py-4 text-xs text-ops-tx2 whitespace-pre leading-relaxed">
             {snippets[activeTab]}
           </pre>
         </div>
 
         {definition.requiredParameters.length > 0 && (
-          <div className="rounded border border-zinc-700 bg-zinc-800 px-4 py-3">
-            <p className="text-sm font-medium text-zinc-300 mb-2">Parámetros requeridos</p>
+          <div className="rounded border border-ops-bd bg-ops-s2 px-4 py-3">
+            <p className="text-sm font-medium text-ops-tx2 mb-2">Parámetros requeridos</p>
             <ul className="space-y-1">
               {definition.requiredParameters.map((param) => (
                 <li key={param} className="flex items-center gap-2 text-sm">
                   <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 shrink-0" />
-                  <code className="text-zinc-300">{param}</code>
+                  <code className="text-ops-tx2">{param}</code>
                 </li>
               ))}
             </ul>
           </div>
         )}
 
-        <div className="rounded border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-400">
-          <p className="font-medium text-zinc-300 mb-1">Tipo de trigger</p>
+        <div className="rounded border border-ops-bd bg-ops-s2 px-4 py-3 text-sm text-ops-tx2">
+          <p className="font-medium text-ops-tx2 mb-1">Tipo de trigger</p>
           <p className="capitalize">{definition.triggerType.replace(/_/g, " ")}</p>
           {definition.expectedSource !== "browser" && (
             <p className="mt-1">
               Este evento requiere también implementación{" "}
-              <strong className="text-zinc-300">
+              <strong className="text-ops-tx2">
                 {definition.expectedSource === "both" ? "en servidor (CAPI)" : "en servidor"}
               </strong>{" "}
               para deduplicación.

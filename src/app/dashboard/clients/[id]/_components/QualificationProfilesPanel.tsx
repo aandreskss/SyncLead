@@ -56,9 +56,9 @@ function StatusBadge({ status }: { status: QualificationProfile["status"] }) {
     QualificationProfile["status"],
     { label: string; cls: string }
   > = {
-    draft: { label: "Borrador", cls: "bg-zinc-700 text-zinc-300 hover:bg-zinc-700" },
-    published: { label: "Publicado", cls: "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20" },
-    archived: { label: "Archivado", cls: "bg-zinc-800 text-zinc-500 hover:bg-zinc-800" },
+    draft: { label: "Borrador", cls: "bg-ops-sel text-ops-tx2 hover:bg-ops-sel" },
+    published: { label: "Publicado", cls: "bg-emerald-500/20 text-ops-green hover:bg-emerald-500/20" },
+    archived: { label: "Archivado", cls: "bg-ops-s2 text-ops-tx3 hover:bg-ops-s2" },
   }
   const s = map[status] ?? map.draft
   return <Badge className={`text-xs font-medium ${s.cls}`}>{s.label}</Badge>
@@ -137,18 +137,18 @@ function ProfileCard({
     : 0
 
   return (
-    <div className="border border-zinc-800 rounded-xl p-4 space-y-3 bg-zinc-900/40">
+    <div className="border border-ops-line rounded-lg p-4 space-y-3 bg-ops-s1/40">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-zinc-100 truncate">{profile.name}</span>
+            <span className="text-sm font-medium text-ops-tx truncate">{profile.name}</span>
             <StatusBadge status={profile.status} />
-            <span className="text-xs text-zinc-600">v{profile.version}</span>
+            <span className="text-xs text-ops-tx3">v{profile.version}</span>
           </div>
           {profile.description && (
-            <p className="text-xs text-zinc-500 line-clamp-2">{profile.description}</p>
+            <p className="text-xs text-ops-tx3 line-clamp-2">{profile.description}</p>
           )}
-          <p className="text-xs text-zinc-600">
+          <p className="text-xs text-ops-tx3">
             {ruleCount === 0 ? "Sin reglas" : `${ruleCount} regla${ruleCount !== 1 ? "s" : ""}`}
             {" · "}Score inicial: {profile.initialScore}
           </p>
@@ -156,7 +156,7 @@ function ProfileCard({
       </div>
 
       {error && (
-        <p className="text-xs text-red-400 flex items-center gap-1">
+        <p className="text-xs text-ops-coral flex items-center gap-1">
           <AlertCircle className="h-3 w-3 flex-shrink-0" />
           {error}
         </p>
@@ -167,7 +167,7 @@ function ProfileCard({
         {profile.status === "draft" && (
           <button
             onClick={() => onEditRules(profile.id)}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-blue hover:bg-ops-blue/90 text-white transition-colors"
           >
             <Settings2 className="h-3.5 w-3.5" />
             Editar reglas
@@ -178,7 +178,7 @@ function ProfileCard({
         {profile.status !== "draft" && (
           <button
             onClick={() => onEditRules(profile.id)}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-ops-sel text-ops-tx2 transition-colors"
           >
             <FileText className="h-3.5 w-3.5" />
             Ver reglas
@@ -190,7 +190,7 @@ function ProfileCard({
           <button
             onClick={handlePublish}
             disabled={anyPending}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-emerald-900/30 hover:text-emerald-400 text-zinc-300 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-emerald-900/30 hover:text-ops-green text-ops-tx2 transition-colors disabled:opacity-50"
           >
             {publishPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -206,7 +206,7 @@ function ProfileCard({
           <button
             onClick={handleReactivate}
             disabled={anyPending}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-indigo-900/30 hover:text-indigo-400 text-zinc-400 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-indigo-900/30 hover:text-ops-blue-t text-ops-tx2 transition-colors disabled:opacity-50"
           >
             {reactivatePending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -232,7 +232,7 @@ function ProfileCard({
               <button
                 onClick={() => setConfirmArchive(false)}
                 disabled={anyPending}
-                className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+                className="text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-ops-sel text-ops-tx2 transition-colors"
               >
                 Cancelar
               </button>
@@ -241,7 +241,7 @@ function ProfileCard({
             <button
               onClick={() => setConfirmArchive(true)}
               disabled={anyPending}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-red-900/30 hover:text-red-400 text-zinc-500 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-red-900/30 hover:text-ops-coral text-ops-tx3 transition-colors disabled:opacity-50"
             >
               <Archive className="h-3.5 w-3.5" />
               Archivar
@@ -263,7 +263,7 @@ function ProfileCard({
             <button
               onClick={() => setConfirmDelete(false)}
               disabled={anyPending}
-              className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+              className="text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-ops-sel text-ops-tx2 transition-colors"
             >
               Cancelar
             </button>
@@ -273,7 +273,7 @@ function ProfileCard({
             onClick={() => setConfirmDelete(true)}
             disabled={anyPending}
             title="Eliminar perfil permanentemente"
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-red-900/30 hover:text-red-400 text-zinc-600 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-red-900/30 hover:text-ops-coral text-ops-tx3 transition-colors disabled:opacity-50"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Eliminar
@@ -337,36 +337,36 @@ function NewProfileDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-md">
+      <DialogContent className="bg-ops-s1 border-ops-line text-ops-tx max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Nuevo perfil de calificación</DialogTitle>
+          <DialogTitle className="text-ops-tx">Nuevo perfil de calificación</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <Label className="text-xs text-zinc-400">Nombre *</Label>
+            <Label className="text-xs text-ops-tx2">Nombre *</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Calificación Savaya"
               required
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder-zinc-600 focus-visible:ring-indigo-500"
+              className="bg-ops-s2 border-ops-bd text-ops-tx placeholder-ops-tx3 focus-visible:ring-indigo-500"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-zinc-400">Descripción (opcional)</Label>
+            <Label className="text-xs text-ops-tx2">Descripción (opcional)</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe el propósito de este perfil..."
               rows={3}
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder-zinc-600 resize-none focus-visible:ring-indigo-500"
+              className="bg-ops-s2 border-ops-bd text-ops-tx placeholder-ops-tx3 resize-none focus-visible:ring-indigo-500"
             />
           </div>
 
           {error && (
-            <p className="text-xs text-red-400 flex items-center gap-1.5">
+            <p className="text-xs text-ops-coral flex items-center gap-1.5">
               <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
               {error}
             </p>
@@ -376,7 +376,7 @@ function NewProfileDialog({
             <Button
               type="submit"
               disabled={pending || !name.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
+              className="bg-ops-blue hover:bg-ops-blue/90 text-white disabled:opacity-50"
             >
               {pending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {pending ? "Creando…" : "Crear perfil"}
@@ -386,7 +386,7 @@ function NewProfileDialog({
               variant="outline"
               onClick={handleClose}
               disabled={pending}
-              className="border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+              className="border-ops-bd bg-ops-s2 text-ops-tx2 hover:bg-ops-sel hover:text-ops-tx"
             >
               Cancelar
             </Button>
@@ -444,6 +444,7 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadProfiles()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId])
@@ -470,14 +471,14 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">Perfiles de calificación</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
+          <h2 className="text-base font-semibold text-ops-tx">Perfiles de calificación</h2>
+          <p className="text-xs text-ops-tx3 mt-0.5">
             Define reglas basadas en puntuación para clasificar leads automáticamente.
           </p>
         </div>
         <button
           onClick={() => setShowNewDialog(true)}
-          className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+          className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-ops-blue hover:bg-ops-blue/90 text-white transition-colors"
         >
           <Plus className="h-4 w-4" />
           Nuevo perfil
@@ -487,13 +488,13 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
       {/* Profiles list */}
       {loading ? (
         <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
+          <Loader2 className="h-5 w-5 animate-spin text-ops-tx3" />
         </div>
       ) : profiles.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-zinc-800 rounded-xl">
-          <FileText className="h-8 w-8 text-zinc-600 mb-3" />
-          <p className="text-zinc-400 text-sm font-medium">Sin perfiles de calificación</p>
-          <p className="text-zinc-600 text-xs mt-1">
+        <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-ops-line rounded-lg">
+          <FileText className="h-8 w-8 text-ops-tx3 mb-3" />
+          <p className="text-ops-tx2 text-sm font-medium">Sin perfiles de calificación</p>
+          <p className="text-ops-tx3 text-xs mt-1">
             Crea un perfil para definir reglas de puntuación para este cliente.
           </p>
         </div>
@@ -524,11 +525,11 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
 
       {/* Legacy rule sets warning */}
       {hasLegacyRules && (
-        <div className="border border-amber-500/30 bg-amber-500/5 rounded-xl p-4 space-y-2">
+        <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg p-4 space-y-2">
           <div className="flex items-start gap-2">
-            <TriangleAlert className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <TriangleAlert className="h-4 w-4 text-ops-amber flex-shrink-0 mt-0.5" />
             <div className="space-y-1 flex-1 min-w-0">
-              <p className="text-sm font-medium text-amber-300">Reglas legadas activas (v1)</p>
+              <p className="text-sm font-medium text-ops-amber">Reglas legadas activas (v1)</p>
               <p className="text-xs text-amber-500/80">
                 Este cliente tiene reglas de negocio/ciudad del sistema anterior. El perfil de calificación
                 tiene prioridad, pero es recomendable desactivar las reglas legadas para evitar
@@ -537,7 +538,7 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
             </div>
           </div>
           {legacyError && (
-            <p className="text-xs text-red-400 flex items-center gap-1 pl-6">
+            <p className="text-xs text-ops-coral flex items-center gap-1 pl-6">
               <AlertCircle className="h-3 w-3 flex-shrink-0" />
               {legacyError}
             </p>
@@ -546,7 +547,7 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
             <button
               onClick={handleDeactivateLegacy}
               disabled={deactivatingLegacy}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-ops-amber transition-colors disabled:opacity-50"
             >
               {deactivatingLegacy ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -562,7 +563,7 @@ export function QualificationProfilesPanel({ clientId, orgId }: Props) {
       {/* Rule builder sheet */}
       <Sheet open={sheetOpen} onOpenChange={(o) => { if (!o) handleSheetClose() }}>
         <SheetContent
-          className="w-full sm:max-w-2xl bg-zinc-950 border-zinc-800 p-0 overflow-y-auto"
+          className="w-full sm:max-w-2xl bg-ops-bg border-ops-line p-0 overflow-y-auto"
         >
           {selectedProfileId && (
             <ProfileRuleBuilder
