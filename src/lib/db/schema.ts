@@ -403,9 +403,10 @@ export const leads = pgTable(
     metaAdsetName: text("meta_adset_name"),
     metaAdName: text("meta_ad_name"),
 
-    // Device
+    // Device (auto-parsed from User-Agent if not provided by form)
     platform: text("platform"),
     device: text("device"),
+    browser: text("browser"),
 
     // PII with retention policy
     ip: text("ip"),

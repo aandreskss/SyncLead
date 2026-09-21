@@ -14,7 +14,7 @@ export type ScriptConfig =
       organicKey?: string  // key de la campaña "Orgánico / Directo" — fallback absoluto
     }
 
-type PlatformId = "shopify" | "wordpress" | "nextjs" | "html"
+type PlatformId = "shopify" | "wordpress" | "nextjs" | "html" | "gtm"
 
 interface CodeBlock {
   label: string
@@ -214,9 +214,192 @@ export function useRegisterPurchase(order: {
 </script>`
 }
 
+// ─── GTM steps ────────────────────────────────────────────────────────────────
+
+function getGtmSteps(config: ScriptConfig, appUrl: string): Step[] {
+  const configCode = buildConfigBlock(config, appUrl)
+
+  const loaderTag = `<script>
+  ${configCode}
+</script>
+<script src="${appUrl}/sl.js"></script>`
+
+  const captureTag = `<script>
+(function () {
+  // Busca el formulario recién enviado (GTM inyecta {{Form Element}})
+  var form = document.currentScript
+    ? document.currentScript.closest('form')
+    : null;
+
+  // Extrae el valor de un campo por nombre o id (prueba nombres comunes)
+  function val() {
+    var names = Array.from(arguments);
+    for (var i = 0; i < names.length; i++) {
+      var el = document.querySelector('[name="' + names[i] + '"]')
+            || document.querySelector('#' + names[i]);
+      if (el && el.value && el.value.trim()) return el.value.trim();
+    }
+    return '';
+  }
+
+  window.SyncLead && window.SyncLead.capture({
+    name:  val('name', 'nombre', 'full_name', 'fullname', 'your-name', 'apellido'),
+    email: val('email', 'correo', 'mail', 'your-email', 'e-mail'),
+    phone: val('phone', 'telefono', 'tel', 'celular', 'movil', 'your-phone'),
+    city:  val('city', 'ciudad'),
+  });
+})();
+</script>`
+
+  const dlPushExample = `// ── Opción B: Data Layer (recomendado para React / Vue / SPA) ──────────────
+// Agrega esto en tu handler de formulario, JUSTO al confirmar el envío:
+window.dataLayer = window.dataLayer || [];
+window.dataLayer.push({
+  event:    'synclead_lead',
+  sl_name:  nombre,    // variable con el nombre del lead
+  sl_email: email,     // variable con el email
+  sl_phone: telefono,  // variable con el teléfono
+});
+
+// ── Opción B — Contact Form 7 (WordPress) ─────────────────────────────────
+document.addEventListener('wpcf7mailsent', function (e) {
+  var f = {};
+  e.detail.inputs.forEach(function (i) { f[i.name] = i.value; });
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event:    'synclead_lead',
+    sl_name:  f['your-name']  || '',
+    sl_email: f['your-email'] || '',
+    sl_phone: f['your-phone'] || '',
+  });
+});`
+
+  const captureTagDL = `<script>
+// Disparado por el evento personalizado "synclead_lead" del dataLayer
+window.SyncLead && window.SyncLead.capture({
+  name:  {{DLV - sl_name}}  || '',
+  email: {{DLV - sl_email}} || '',
+  phone: {{DLV - sl_phone}} || '',
+});
+</script>`
+
+  const purchaseTagDL = `<script>
+// Dispara esto en la página de confirmación de pedido con un evento dataLayer:
+// dataLayer.push({ event: 'synclead_purchase', sl_amount: 99.99,
+//   sl_currency: 'USD', sl_order_id: 'ORD-123', sl_email: 'cliente@email.com' });
+
+window.SyncLead && window.SyncLead.purchase({
+  amount:   {{DLV - sl_amount}},
+  currency: {{DLV - sl_currency}},
+  order_id: {{DLV - sl_order_id}},
+  email:    {{DLV - sl_email}},
+});
+</script>`
+
+  const purchaseDLPush = `// Página de confirmación de pedido — pega esto en tu sistema
+// (o crea un snippet WPCode / Shopify "Additional scripts")
+window.dataLayer = window.dataLayer || [];
+window.dataLayer.push({
+  event:          'synclead_purchase',
+  sl_amount:      99.99,       // ← monto real del pedido (número)
+  sl_currency:    'USD',       // ← ISO-4217: USD, EUR, VES...
+  sl_order_id:    'ORD-123',   // ← ID único del pedido (evita duplicados)
+  sl_email:       'cliente@email.com', // ← email del comprador
+});`
+
+  return [
+    {
+      title: "Crea el tag SyncLead Loader",
+      description: "En GTM ve a Tags → Nueva → Etiqueta HTML personalizada. Ponle el nombre SyncLead Loader y pega este código:",
+      blocks: [{ label: "Tag: SyncLead Loader", code: loaderTag }],
+      notes: [
+        "Activador: <b>All Pages</b> (o Inicialización del DOM para mayor compatibilidad).",
+        "Este tag carga sl.js y registra automáticamente UTMs, fbclid, nombre de campaña, adset y anuncio de Meta en cada visita.",
+        config.mode === "multi"
+          ? "Modo multi-campaña activo: sl.js selecciona el API key correcto según el utm_campaign del visitante."
+          : "Modo campaña única activo: todos los leads van a la campaña configurada.",
+      ],
+    },
+    {
+      title: "Activa las variables de formulario integradas",
+      description: "En GTM ve a Variables → Configurar variables integradas y activa las siguientes:",
+      notes: [
+        "<b>Form Classes</b> — clase CSS del formulario enviado.",
+        "<b>Form Element</b> — referencia al elemento &lt;form&gt; enviado.",
+        "<b>Form ID</b> — atributo id del formulario.",
+        "Esto le permite a GTM identificar cuál formulario se envió.",
+      ],
+    },
+    {
+      title: "Crea el activador de envío de formulario",
+      description: "En GTM ve a Activadores → Nuevo → Envío de formulario:",
+      notes: [
+        "<b>Esperar etiquetas</b>: activado — da tiempo a SyncLead de enviar el lead antes de que la página navegue.",
+        "<b>Verificar validación</b>: activado — solo dispara si el formulario pasa la validación HTML nativa.",
+        "<b>Disparar en</b>: Todos los formularios. (Si tienes múltiples formularios, filtra por Form ID o Form Classes para que solo se dispare en el formulario de leads.)",
+      ],
+    },
+    {
+      title: "Crea el tag SyncLead Capture Lead",
+      description: "Tags → Nueva → Etiqueta HTML personalizada. Nombre: SyncLead Capture Lead. Activador: el que creaste en el paso anterior.",
+      blocks: [
+        {
+          label: "Tag: SyncLead Capture Lead (Opción A — sin cambios de código)",
+          code: captureTag,
+        },
+      ],
+      notes: [
+        "El tag intenta múltiples nombres de campo comunes (name, nombre, email, correo, phone, telefono, etc.) para funcionar con la mayoría de formularios sin tocar el código del sitio.",
+        "Si tus campos tienen nombres distintos, agrégalos al array correspondiente en la función <code>val()</code>.",
+      ],
+    },
+    {
+      title: "Alternativa: Data Layer (recomendado para SPAs y React)",
+      description: "Si el sitio usa React, Vue u otro framework donde GTM no puede capturar el formulario automáticamente, usa el enfoque Data Layer. Agrega este código donde confirmas el envío del formulario:",
+      blocks: [{ label: "Data Layer push — en el handler del formulario", code: dlPushExample }],
+      notes: [
+        "Después, crea en GTM un activador de <b>Evento personalizado</b> con nombre <code>synclead_lead</code>.",
+        "Crea tres Variables de capa de datos: <code>sl_name</code>, <code>sl_email</code>, <code>sl_phone</code>.",
+        "Usa este tag en lugar del de la Opción A:",
+      ],
+    },
+    {
+      title: "Tag alternativo para Data Layer",
+      description: "Si usas Data Layer (Opción B), sustituye el tag de captura por este. Las variables {{DLV - sl_name}} etc. deben coincidir con las que creaste:",
+      blocks: [{ label: "Tag: SyncLead Capture Lead (Opción B — Data Layer)", code: captureTagDL }],
+    },
+    {
+      title: "Registra ventas en tiempo real",
+      description: "En la página de confirmación de pedido, empuja los datos al Data Layer. Puedes hacerlo desde Shopify Additional Scripts, WPCode, o el sistema de checkout que uses:",
+      blocks: [
+        { label: "Data Layer push — confirmación de pedido", code: purchaseDLPush },
+        { label: "Tag: SyncLead Purchase (activado por evento synclead_purchase)", code: purchaseTagDL },
+      ],
+      notes: [
+        "Crea el activador en GTM: Evento personalizado → nombre del evento: <code>synclead_purchase</code>.",
+        "Crea cuatro Variables de capa de datos: <code>sl_amount</code>, <code>sl_currency</code>, <code>sl_order_id</code>, <code>sl_email</code>.",
+        "Este tag dispara <code>SyncLead.purchase()</code> que registra la venta Y envía el evento Purchase a Meta CAPI en tiempo real.",
+      ],
+      isPurchase: true,
+    },
+    {
+      title: "Publica el contenedor y prueba",
+      description: "En GTM ve a Enviar → Publicar. Luego activa el Modo Vista previa (Preview) para verificar que los tags se disparan correctamente:",
+      notes: [
+        "Abre tu sitio con GTM en modo Preview activo.",
+        "Llena el formulario de contacto: deberías ver <b>SyncLead Capture Lead</b> disparado en el panel de GTM.",
+        "Verifica en SyncLead que el lead aparece con UTM, plataforma y dispositivo.",
+        "Para ventas, navega a la página de confirmación y verifica que <b>SyncLead Purchase</b> se dispara.",
+      ],
+    },
+  ]
+}
+
 // ─── Per-platform step definitions ───────────────────────────────────────────
 
 function getSteps(platform: PlatformId, config: ScriptConfig, appUrl: string): Step[] {
+  if (platform === "gtm") return getGtmSteps(config, appUrl)
+
   const configCode = buildConfigBlock(config, appUrl)
   const installScript = `<script>\n  ${configCode}\n</script>\n<script src="${appUrl}/sl.js" defer></script>`
   const captureScript = captureExample(platform)
@@ -393,7 +576,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 // ─── Platform cards data ──────────────────────────────────────────────────────
 
-const PLATFORMS: { id: PlatformId; name: string; logo: string; description: string }[] = [
+const PLATFORMS: { id: PlatformId; name: string; logo: string; description: string; badge?: string }[] = [
+  {
+    id: "gtm",
+    name: "Google Tag Manager",
+    logo: "📦",
+    description: "Sin tocar código — gestión centralizada",
+    badge: "Recomendado",
+  },
   {
     id: "shopify",
     name: "Shopify",
@@ -434,17 +624,17 @@ function CodeBlockView({ block }: { block: CodeBlock }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-500 font-mono">{block.filename ?? block.label}</span>
+        <span className="text-xs text-ops-tx3 font-mono">{block.filename ?? block.label}</span>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+          className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-ops-s2 text-ops-tx2 hover:text-ops-tx hover:bg-ops-sel transition-colors"
         >
-          {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+          {copied ? <Check className="h-3 w-3 text-ops-green" /> : <Copy className="h-3 w-3" />}
           {copied ? "Copiado" : "Copiar"}
         </button>
       </div>
-      <div className="rounded-lg border border-zinc-700 bg-zinc-950 overflow-hidden">
-        <pre className="p-3 text-xs text-zinc-300 font-mono overflow-x-auto leading-relaxed whitespace-pre">
+      <div className="rounded-lg border border-ops-bd bg-ops-bg overflow-hidden">
+        <pre className="p-3 text-xs text-ops-tx font-mono overflow-x-auto leading-relaxed whitespace-pre">
           {block.code}
         </pre>
       </div>
@@ -469,35 +659,51 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
       <div className="space-y-4">
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="flex items-center gap-1 text-xs text-ops-tx3 hover:text-ops-tx transition-colors"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
           {config.mode === "multi" ? "Cambiar selección o UTMs" : "Volver"}
         </button>
 
         <div>
-          <p className="text-sm font-medium text-zinc-200 mb-1">¿Para qué plataforma necesitas el script?</p>
-          <p className="text-xs text-zinc-500">Te generamos el código exacto y la guía de instalación paso a paso.</p>
+          <p className="text-sm font-medium text-ops-tx mb-1">¿Para qué plataforma necesitas el script?</p>
+          <p className="text-xs text-ops-tx3">Te generamos el código exacto y la guía de instalación paso a paso.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {PLATFORMS.map((p) => (
+        <div className="space-y-2">
+          {/* GTM — full width card */}
+          {PLATFORMS.filter((p) => p.badge).map((p) => (
             <button
               key={p.id}
               onClick={() => setPlatform(p.id)}
-              className="flex items-center gap-3 p-4 rounded-xl border border-zinc-800 bg-zinc-900 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors text-left group"
+              className="w-full flex items-center gap-3 p-4 rounded-lg border border-ops-blue/30 bg-ops-blue/5 hover:border-ops-blue/60 hover:bg-ops-blue/10 transition-colors text-left group"
             >
-              <span className="text-2xl w-8 text-center flex-shrink-0 font-mono leading-none">
-                {p.logo}
-              </span>
-              <div>
-                <p className="text-sm font-medium text-zinc-100 group-hover:text-indigo-300 transition-colors">
-                  {p.name}
-                </p>
-                <p className="text-xs text-zinc-500 mt-0.5">{p.description}</p>
+              <span className="text-2xl w-8 text-center flex-shrink-0 font-mono leading-none">{p.logo}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-ops-tx group-hover:text-ops-blue-t transition-colors">{p.name}</p>
+                  <span className="inline-flex h-4 items-center rounded px-1.5 text-[10px] font-semibold bg-ops-blue text-ops-bg">{p.badge}</span>
+                </div>
+                <p className="text-xs text-ops-tx3 mt-0.5">{p.description}</p>
               </div>
             </button>
           ))}
+          {/* Other platforms — 2-col grid */}
+          <div className="grid grid-cols-2 gap-2">
+            {PLATFORMS.filter((p) => !p.badge).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPlatform(p.id)}
+                className="flex items-center gap-3 p-4 rounded-lg border border-ops-line bg-ops-s1 hover:border-ops-blue/50 hover:bg-ops-blue/10 transition-colors text-left group"
+              >
+                <span className="text-2xl w-8 text-center flex-shrink-0 font-mono leading-none">{p.logo}</span>
+                <div>
+                  <p className="text-sm font-medium text-ops-tx group-hover:text-ops-blue-t transition-colors">{p.name}</p>
+                  <p className="text-xs text-ops-tx3 mt-0.5">{p.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -505,7 +711,10 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
 
   const platformInfo = PLATFORMS.find((p) => p.id === platform)!
   const allSteps = getSteps(platform, config, appUrl)
-  const visibleSteps = allSteps.filter((s) => !s.isPurchase || withPurchase)
+  // GTM always shows all steps (purchase steps are informational, not inline code)
+  const visibleSteps = platform === "gtm"
+    ? allSteps.filter((s) => !s.isPurchase || withPurchase)
+    : allSteps.filter((s) => !s.isPurchase || withPurchase)
 
   return (
     <div className="space-y-5">
@@ -513,13 +722,13 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
       <div className="flex items-center gap-3">
         <button
           onClick={() => setPlatform(null)}
-          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0"
+          className="flex items-center gap-1 text-xs text-ops-tx3 hover:text-ops-tx transition-colors flex-shrink-0"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
           Plataformas
         </button>
-        <span className="text-zinc-700 text-xs">·</span>
-        <span className="text-xs font-medium text-zinc-300">
+        <span className="text-ops-tx3 text-xs">·</span>
+        <span className="text-xs font-medium text-ops-tx">
           {platformInfo.logo} {platformInfo.name}
         </span>
       </div>
@@ -529,20 +738,20 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
         onClick={() => setWithPurchase((v) => !v)}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors text-left ${
           withPurchase
-            ? "border-emerald-500/40 bg-emerald-500/10"
-            : "border-zinc-700 bg-zinc-900 hover:border-zinc-600"
+            ? "border-ops-green/40 bg-ops-green/10"
+            : "border-ops-bd bg-ops-s1 hover:border-ops-bd2"
         }`}
       >
         {/* Toggle pill */}
-        <div className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${withPurchase ? "bg-emerald-500" : "bg-zinc-700"}`}>
-          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${withPurchase ? "translate-x-4" : "translate-x-0.5"}`} />
+        <div className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${withPurchase ? "bg-ops-green" : "bg-ops-sel"}`}>
+          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${withPurchase ? "translate-x-4" : "translate-x-0.5"}`} />
         </div>
-        <ShoppingCart className={`h-3.5 w-3.5 flex-shrink-0 ${withPurchase ? "text-emerald-400" : "text-zinc-500"}`} />
+        <ShoppingCart className={`h-3.5 w-3.5 flex-shrink-0 ${withPurchase ? "text-ops-green" : "text-ops-tx3"}`} />
         <div className="flex-1 min-w-0">
-          <p className={`text-xs font-medium ${withPurchase ? "text-emerald-300" : "text-zinc-400"}`}>
+          <p className={`text-xs font-medium ${withPurchase ? "text-ops-green" : "text-ops-tx2"}`}>
             Incluir tracking de ventas
           </p>
-          <p className="text-xs text-zinc-600 leading-tight">
+          <p className="text-xs text-ops-tx3 leading-tight">
             {withPurchase
               ? "Se incluye el código para registrar compras en la página de confirmación"
               : "Actívalo si tu sitio tiene checkout o tienda (Shopify, WooCommerce, etc.)"}
@@ -556,13 +765,13 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
           <div key={i} className="space-y-2">
             {/* Step number + title */}
             <div className="flex items-start gap-3">
-              <span className="flex-shrink-0 h-5 w-5 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+              <span className="flex-shrink-0 h-5 w-5 rounded-full bg-ops-blue text-white text-xs font-bold flex items-center justify-center mt-0.5">
                 {i + 1}
               </span>
               <div className="space-y-1 flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-100">{step.title}</p>
+                <p className="text-sm font-medium text-ops-tx">{step.title}</p>
                 {step.description && (
-                  <p className="text-xs text-zinc-400">{step.description}</p>
+                  <p className="text-xs text-ops-tx2">{step.description}</p>
                 )}
               </div>
             </div>
@@ -580,8 +789,8 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
             {step.notes && step.notes.length > 0 && (
               <ul className="ml-8 space-y-1">
                 {step.notes.map((note, j) => (
-                  <li key={j} className="text-xs text-zinc-500 flex items-start gap-1.5">
-                    <span className="mt-1 h-1 w-1 rounded-full bg-zinc-600 flex-shrink-0" />
+                  <li key={j} className="text-xs text-ops-tx3 flex items-start gap-1.5">
+                    <span className="mt-1 h-1 w-1 rounded-full bg-ops-bd2 flex-shrink-0" />
                     <span dangerouslySetInnerHTML={{ __html: note }} />
                   </li>
                 ))}
@@ -592,13 +801,13 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
       </div>
 
       {/* Footer tips */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-500 space-y-2">
+      <div className="rounded-lg border border-ops-line bg-ops-s1/50 p-3 text-xs text-ops-tx3 space-y-2">
         <p>Los UTMs y el fbclid de Meta se capturan automáticamente al cargar cualquier página.</p>
-        <p><code className="text-indigo-400 bg-indigo-400/10 px-1 rounded">SyncLead.capture()</code> registra el lead · <code className="text-emerald-400 bg-emerald-400/10 px-1 rounded">SyncLead.purchase()</code> registra la venta y dispara el evento CAPI a Meta.</p>
-        <p className="border-t border-zinc-800 pt-2">
-          Para ver el <span className="text-zinc-400 font-medium">conjunto de anuncios y anuncio</span> de cada lead, agrega estos parámetros en la URL de destino de tus anuncios en Meta Ads Manager:
+        <p><code className="text-ops-blue-t bg-ops-blue/10 px-1 rounded">SyncLead.capture()</code> registra el lead · <code className="text-ops-green bg-ops-green/10 px-1 rounded">SyncLead.purchase()</code> registra la venta y dispara el evento CAPI a Meta.</p>
+        <p className="border-t border-ops-line pt-2">
+          Para ver el <span className="text-ops-tx2 font-medium">conjunto de anuncios y anuncio</span> de cada lead, agrega estos parámetros en la URL de destino de tus anuncios en Meta Ads Manager:
           <br />
-          <code className="text-indigo-300 bg-indigo-400/10 px-1 rounded mt-1 inline-block">adset_name={"{{"}adset.name{"}}"}&amp;ad_name={"{{"}ad.name{"}}"}</code>
+          <code className="text-ops-blue-t bg-ops-blue/10 px-1 rounded mt-1 inline-block">adset_name={"{{"}adset.name{"}}"}&amp;ad_name={"{{"}ad.name{"}}"}</code>
         </p>
       </div>
     </div>

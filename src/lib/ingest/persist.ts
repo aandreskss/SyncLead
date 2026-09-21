@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { leads, webhookEvents, leadAttributionTouchpoints, leadActivities, metaConnections, campaigns, metaEvents } from "@/lib/db/schema"
 import type { NormalizedLead } from "./normalize"
+import { parseUserAgent } from "./normalize"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 import { decryptTokenVersioned } from "@/lib/crypto"
 import { sendMetaEventDirect } from "@/lib/meta-outbox/worker"
@@ -51,6 +52,9 @@ export async function persistLead(input: PersistInput): Promise<PersistResult> {
   const ipExpiresAt = ip ? new Date(Date.now() + IP_RETENTION_DAYS * 86_400_000) : null
   const uaExpiresAt = userAgent ? new Date(Date.now() + UA_RETENTION_DAYS * 86_400_000) : null
 
+  // Auto-detect device/platform/browser from UA when the form didn't provide them
+  const parsedUA = parseUserAgent(userAgent)
+
   // ─── 1. Idempotency anchor ────────────────────────────────────────────────────
   const [event] = await db
     .insert(webhookEvents)
@@ -96,8 +100,9 @@ export async function persistLead(input: PersistInput): Promise<PersistResult> {
         metaCampaignName: lead.metaCampaignName,
         metaAdsetName: lead.metaAdsetName,
         metaAdName: lead.metaAdName,
-        platform: lead.platform,
-        device: lead.device,
+        platform: lead.platform ?? parsedUA.platform,
+        device: lead.device ?? parsedUA.device,
+        browser: parsedUA.browser,
         ip,
         ipExpiresAt,
         userAgent,

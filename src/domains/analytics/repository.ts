@@ -360,6 +360,42 @@ export async function getLeadsByDevice(
   return rows.map((r) => ({ device: r.device, total: Number(r.total) }))
 }
 
+// ─── Leads por navegador ──────────────────────────────────────────────────────
+
+export interface LeadsByBrowserRow {
+  browser: string
+  total: number
+}
+
+export async function getLeadsByBrowser(
+  orgId: string,
+  from: Date,
+  to: Date,
+  clientId?: string,
+): Promise<LeadsByBrowserRow[]> {
+  const campaignIds = await resolveCampaignIds(orgId, clientId)
+  if (campaignIds !== null && campaignIds.length === 0) return []
+
+  const rows = await db
+    .select({
+      browser: sql<string>`coalesce(nullif(${leads.browser}, ''), 'Desconocido')`,
+      total: sql<number>`cast(count(${leads.id}) as int)`,
+    })
+    .from(leads)
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        gte(leads.createdAt, from),
+        lte(leads.createdAt, to),
+        campaignIds ? inArray(leads.campaignId, campaignIds) : undefined,
+      ),
+    )
+    .groupBy(sql`coalesce(nullif(${leads.browser}, ''), 'Desconocido')`)
+    .orderBy(desc(sql`count(${leads.id})`))
+
+  return rows.map((r) => ({ browser: r.browser, total: Number(r.total) }))
+}
+
 // ─── Top ciudades (top 10) ─────────────────────────────────────────────────────
 
 export interface TopCityRow {
