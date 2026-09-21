@@ -112,6 +112,9 @@
       if (res && res.leadId) {
         try { localStorage.setItem('_sl_lead_id', res.leadId); } catch (e) {}
       }
+      if (res && res.error) {
+        console.warn('[SyncLead] capture() falló:', res.error);
+      }
       return res;
     }).catch(function () {
       // keepalive fails if payload > 64 KB — plain fetch as last resort
@@ -122,6 +125,9 @@
       }).then(function (r) { return r.json(); }).then(function (res) {
         if (res && res.leadId) {
           try { localStorage.setItem('_sl_lead_id', res.leadId); } catch (e) {}
+        }
+        if (res && res.error) {
+          console.warn('[SyncLead] capture() falló:', res.error);
         }
         return res;
       });
@@ -156,7 +162,12 @@
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'X-Campaign-Key': key },
       body:    JSON.stringify(payload),
-    }).then(function (r) { return r.json(); });
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res && res.error) {
+        console.warn('[SyncLead] purchase() falló:', res.error);
+      }
+      return res;
+    });
   }
 
   window.SyncLead = { capture: capture, purchase: purchase };

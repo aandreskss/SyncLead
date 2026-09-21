@@ -5,6 +5,7 @@ import { ServerPayloadSchema, MAX_BODY_BYTES } from "@/lib/ingest/schema"
 import { lookupCredential } from "@/lib/ingest/lookup"
 import { normalizeLeadData, extractTrustedIp, extractTrustedUserAgent } from "@/lib/ingest/normalize"
 import { persistLead } from "@/lib/ingest/persist"
+import { logIngestError } from "@/lib/ingest/errors"
 
 // ─── Rate limiter: 1000 req/min per credential prefix ────────────────────────
 let ratelimit: Ratelimit | null = null
@@ -61,6 +62,14 @@ export async function POST(req: NextRequest) {
   const parsed = ServerPayloadSchema.safeParse(rawBody)
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
+    logIngestError({
+      orgId: cred.orgId,
+      campaignId: cred.campaignId,
+      clientId: cred.clientId,
+      source: "server",
+      errorType: "validation_error",
+      zodError: parsed.error,
+    })
     return NextResponse.json(
       { error: issue?.message ?? "Invalid payload", correlationId },
       { status: 400 }

@@ -7,10 +7,12 @@ import type {
   ConversionIssuePublic,
 } from "@/domains/tracking/types"
 import type { MetaConnectionPublic } from "@/domains/meta/actions"
+import type { IngestErrorPublic } from "@/domains/tracking/actions"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConversionList } from "./ConversionList"
 import { LiveEventFeed } from "./LiveEventFeed"
+import { IngestErrorsPanel } from "./IngestErrorsPanel"
 import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, XCircle, ExternalLink } from "lucide-react"
 import { createTrackingSiteAction, applyBusinessTemplateAction } from "@/domains/tracking/actions"
 
@@ -20,6 +22,7 @@ type Props = {
   definitions: ConversionWithStatus[]
   issues: ConversionIssuePublic[]
   metaConnections: MetaConnectionPublic[]
+  ingestErrors: IngestErrorPublic[]
 }
 
 
@@ -515,7 +518,7 @@ function ApplyTemplateModal({
   )
 }
 
-export function TrackingDashboard({ clientId, sites: initialSites, definitions, issues, metaConnections }: Props) {
+export function TrackingDashboard({ clientId, sites: initialSites, definitions, issues, metaConnections, ingestErrors }: Props) {
   const [sites, setSites] = useState<TrackingSitePublic[]>(initialSites)
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(
     initialSites[0]?.id ?? null
@@ -605,6 +608,11 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
       )}
 
       {issues.length > 0 && <IssuesList issues={issues} />}
+
+      <div className="space-y-2">
+        <h2 className="text-sm font-medium text-ops-tx2 uppercase tracking-wide">Errores de integración</h2>
+        <IngestErrorsPanel errors={ingestErrors} />
+      </div>
 
       <LiveEventFeed clientId={clientId} />
     </div>

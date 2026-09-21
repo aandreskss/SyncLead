@@ -3,6 +3,9 @@
 import { createHash, randomBytes } from "crypto"
 import { requireClientAccess } from "@/lib/auth/server"
 import { writeAuditLog } from "@/lib/audit"
+import { db } from "@/lib/db"
+import { ingestErrors, campaigns } from "@/lib/db/schema"
+import { eq, inArray, desc } from "drizzle-orm"
 import {
   getTrackingSitesByClient,
   getTrackingSiteById,
@@ -775,4 +778,61 @@ export async function acknowledgeIssueAction(
   }).catch(() => undefined)
 
   return { success: true }
+}
+
+// ─── Ingest Errors ────────────────────────────────────────────────────────────
+
+export interface IngestErrorPublic {
+  id: string
+  campaignId: string | null
+  campaignName: string | null
+  errorType: string
+  errorDetail: string | null
+  source: string
+  occurredAt: Date
+}
+
+export async function getIngestErrorsByClientAction(
+  clientId: string
+): Promise<{ data?: IngestErrorPublic[]; error?: string }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch { return { error: "No autorizado" } }
+
+  void ctx
+
+  const clientCampaigns = await db.query.campaigns.findMany({
+    where: eq(campaigns.clientId, clientId),
+    columns: { id: true, name: true },
+  })
+
+  const campaignIds = clientCampaigns.map((c) => c.id)
+  const campaignNameMap = new Map(clientCampaigns.map((c) => [c.id, c.name]))
+
+  if (campaignIds.length === 0) return { data: [] }
+
+  const rows = await db.query.ingestErrors.findMany({
+    where: inArray(ingestErrors.campaignId, campaignIds),
+    columns: {
+      id: true,
+      campaignId: true,
+      errorType: true,
+      errorDetail: true,
+      source: true,
+      occurredAt: true,
+    },
+    orderBy: [desc(ingestErrors.occurredAt)],
+    limit: 100,
+  })
+
+  const data: IngestErrorPublic[] = rows.map((r) => ({
+    id: r.id,
+    campaignId: r.campaignId,
+    campaignName: r.campaignId ? (campaignNameMap.get(r.campaignId) ?? null) : null,
+    errorType: r.errorType,
+    errorDetail: r.errorDetail,
+    source: r.source,
+    occurredAt: r.occurredAt,
+  }))
+
+  return { data }
 }

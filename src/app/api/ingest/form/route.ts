@@ -6,6 +6,7 @@ import { lookupCredential } from "@/lib/ingest/lookup"
 import { normalizeLeadData, extractTrustedIp, extractTrustedUserAgent, anonymizeIp, isOriginAllowed } from "@/lib/ingest/normalize"
 import { verifyTurnstile, checkHoneypot, checkSubmitTime } from "@/lib/ingest/bot"
 import { persistLead } from "@/lib/ingest/persist"
+import { logIngestError } from "@/lib/ingest/errors"
 
 // ─── Rate limiter: 20 submissions per token+anonIP per minute ────────────────
 let ratelimit: Ratelimit | null = null
@@ -107,6 +108,14 @@ export async function POST(req: NextRequest) {
   const parsed = FormPayloadSchema.safeParse(rawBody)
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
+    logIngestError({
+      orgId: cred.orgId,
+      campaignId: cred.campaignId,
+      clientId: cred.clientId,
+      source: "form",
+      errorType: "validation_error",
+      zodError: parsed.error,
+    })
     return NextResponse.json(
       { error: issue?.message ?? "Invalid payload", correlationId },
       { status: 400, headers: corsHeaders(origin, cred.allowedOrigins) }

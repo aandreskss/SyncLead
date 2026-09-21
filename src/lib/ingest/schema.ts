@@ -17,6 +17,11 @@ const optEmail = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? null : v),
   z.string().email().max(255).optional().nullable()
 )
+// Trims whitespace from phone numbers before validation (forms often send " +58..." etc.)
+const optPhone = z.preprocess(
+  (v) => (typeof v === "string" ? v.trim() : v),
+  z.string().max(30).optional().nullable()
+)
 
 /**
  * Shared lead data accepted by both ingest modes.
@@ -24,7 +29,7 @@ const optEmail = z.preprocess(
  */
 export const LeadDataSchema = z.object({
   name: z.string().min(1, "name is required").max(255).trim(),
-  phone: z.string().max(30).optional().nullable(),
+  phone: optPhone,
   email: optEmail,
   city: z.string().max(100).optional().default(""),
   negocio: z.union([z.boolean(), z.string(), z.number()]).optional(),
