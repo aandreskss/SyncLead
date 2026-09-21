@@ -47,6 +47,8 @@ interface Props {
     repId?: string
     assignment?: string
     converted?: string
+    source?: string
+    activity?: string
   }>
 }
 
@@ -93,6 +95,8 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         temperature: (sp.temperature as Temperature) || undefined,
         stage: (sp.stage as LeadStage) || undefined,
         converted: convertedFilter,
+        source: (sp.source as "meta_ads" | "organic" | "imported" | undefined) || undefined,
+        activity: (sp.activity as "has_sale" | "pending_capi" | "checkout" | "cart_abandoned" | "form_submitted" | "info_requested" | undefined) || undefined,
       }),
       listSalesReps(ctx.orgId, id),
     ])
@@ -115,6 +119,8 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
           repId: sp.repId ?? "",
           assignment: sp.assignment ?? "",
           converted: sp.converted ?? "",
+          source: sp.source ?? "",
+          activity: sp.activity ?? "",
         }}
       />
     )
