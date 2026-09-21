@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { campaigns, leads, metaConnections } from "@/lib/db/schema"
-import { eq, and, or } from "drizzle-orm"
+import { eq, and, or, ne } from "drizzle-orm"
 import { normalizePhone } from "@/domains/leads/normalize"
 import {
   createConversionIdempotent,
@@ -10,6 +10,7 @@ import {
   syncLeadConvertedFields,
 } from "@/domains/conversions/repository"
 import { buildPurchasePayload } from "@/domains/conversions/payload"
+import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
 
   if (body.email || phone) {
     const conditions = []
-    if (body.email) conditions.push(eq(leads.email, body.email))
+    if (body.email) conditions.push(eq(leads.email, body.email.toLowerCase().trim()))
     if (phone) conditions.push(eq(leads.phone, phone))
 
     lead = (await db.query.leads.findFirst({
@@ -172,6 +173,15 @@ export async function POST(req: NextRequest) {
       conversion.convertedAt,
       "api_purchase"
     ).catch(() => undefined)
+
+    // A confirmed purchase always promotes to hot
+    await db.update(leads)
+      .set({ temperature: "hot", updatedAt: new Date() })
+      .where(and(eq(leads.id, lead.id), eq(leads.orgId, campaign.orgId), ne(leads.temperature, "hot")))
+      .catch(() => undefined)
+
+    // Re-qualify so the finally block's safety nets run (profile score, confirmed-sale check)
+    autoQualifyLeadInternal(lead.id, campaign.orgId, campaign.id).catch(() => undefined)
 
     // Crea meta_event para el outbox CAPI si hay conexión activa (non-blocking)
     const capturedLead = lead
