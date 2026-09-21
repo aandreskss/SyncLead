@@ -132,6 +132,7 @@ export const organizations = pgTable("organizations", {
   slug: text("slug").notNull().unique(),
   plan: text("plan").notNull().default("free"),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  monthlyReportEmail: boolean("monthly_report_email").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
