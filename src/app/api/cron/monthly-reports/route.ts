@@ -58,7 +58,7 @@ export async function GET(req: Request) {
           const report = await getReportData(org.id, client.id, from, to)
           if (!report || report.totalLeads === 0) continue
 
-          const previewUrl = `${appUrl}/dashboard/reports/preview?clientId=${client.id}&month=${monthStr}`
+          const previewUrl = `${appUrl}/api/reports/preview?clientId=${client.id}&month=${monthStr}`
           await sendMonthlyReportEmail({ to: ownerRow.email, report, previewUrl })
           emailsSent++
         } catch {
