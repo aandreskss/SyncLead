@@ -2,9 +2,36 @@
 
 import { compare, hash } from "bcryptjs"
 import { eq } from "drizzle-orm"
+import { put } from "@vercel/blob"
 import { requireUser } from "@/lib/auth/server"
 import { db } from "@/lib/db"
 import { users } from "@/lib/db/schema"
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+const MAX_AVATAR_BYTES = 4 * 1024 * 1024 // 4 MB (Vercel function body limit is 4.5 MB)
+
+export async function uploadAvatarAction(
+  formData: FormData
+): Promise<{ success?: true; url?: string; error?: string }> {
+  const { userId } = await requireUser()
+
+  const file = formData.get("avatar") as File | null
+  if (!file || file.size === 0) return { error: "No se seleccionó ningún archivo" }
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return { error: "Formato no soportado. Usa JPG, PNG o WebP" }
+  }
+  if (file.size > MAX_AVATAR_BYTES) {
+    return { error: "La imagen no puede exceder 4 MB" }
+  }
+
+  const ext = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1]
+  const blob = await put(`avatars/${userId}.${ext}`, file, {
+    access: "public",
+  })
+
+  await db.update(users).set({ image: blob.url }).where(eq(users.id, userId))
+  return { success: true, url: blob.url }
+}
 
 export interface MyProfile {
   id: string

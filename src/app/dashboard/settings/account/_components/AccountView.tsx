@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef } from "react"
 import { useSession } from "next-auth/react"
 import {
   updateDisplayNameAction,
   updateAvatarUrlAction,
+  uploadAvatarAction,
   updateEmailAction,
   updatePasswordAction,
 } from "@/domains/account/actions"
@@ -21,6 +22,8 @@ import {
   Eye,
   EyeOff,
   X,
+  Upload,
+  Link as LinkIcon,
 } from "lucide-react"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -119,10 +122,235 @@ function PasswordInput({
   )
 }
 
+// ─── Avatar editor ────────────────────────────────────────────────────────────
+
+type AvatarMode = "idle" | "file" | "url"
+
+function AvatarEditor({
+  profile,
+  onSaved,
+}: {
+  profile: MyProfile
+  onSaved: (url: string) => void
+}) {
+  const [mode, setMode] = useState<AvatarMode>("idle")
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  // file mode
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [localPreview, setLocalPreview] = useState<string | null>(null)
+
+  // url mode
+  const [urlValue, setUrlValue] = useState("")
+
+  function resetState() {
+    setMode("idle")
+    setError(null)
+    setSelectedFile(null)
+    if (localPreview) URL.revokeObjectURL(localPreview)
+    setLocalPreview(null)
+    setUrlValue("")
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      setError("Formato no soportado. Usa JPG, PNG o WebP")
+      return
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      setError("La imagen no puede exceder 4 MB")
+      return
+    }
+    if (localPreview) URL.revokeObjectURL(localPreview)
+    setSelectedFile(file)
+    setLocalPreview(URL.createObjectURL(file))
+    setError(null)
+  }
+
+  function handleUploadFile() {
+    if (!selectedFile) return
+    const fd = new FormData()
+    fd.append("avatar", selectedFile)
+    setError(null)
+    startTransition(async () => {
+      try {
+        const r = await uploadAvatarAction(fd)
+        if (r.error) { setError(r.error); return }
+        onSaved(r.url!)
+        resetState()
+      } catch {
+        setError("Error inesperado al subir la imagen")
+      }
+    })
+  }
+
+  function handleSaveUrl() {
+    setError(null)
+    startTransition(async () => {
+      try {
+        const r = await updateAvatarUrlAction(urlValue)
+        if (r.error) { setError(r.error); return }
+        onSaved(urlValue)
+        resetState()
+      } catch {
+        setError("Error inesperado al guardar")
+      }
+    })
+  }
+
+  if (mode === "file") {
+    return (
+      <div className="space-y-3">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        {!selectedFile ? (
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="w-full flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-lg border-2 border-dashed border-zinc-700 hover:border-indigo-500/60 hover:bg-indigo-500/5 text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            <Upload className="h-6 w-6" />
+            <span className="text-xs">Haz clic para seleccionar una imagen</span>
+            <span className="text-xs text-zinc-600">JPG, PNG, WebP · máx. 4 MB</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-800/60 border border-zinc-700/60">
+            <img
+              src={localPreview!}
+              alt="preview"
+              className="h-12 w-12 rounded-full object-cover flex-shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-zinc-300 truncate">{selectedFile.name}</p>
+              <p className="text-xs text-zinc-500">{(selectedFile.size / 1024).toFixed(0)} KB</p>
+            </div>
+            <button
+              onClick={() => { setSelectedFile(null); if (localPreview) URL.revokeObjectURL(localPreview); setLocalPreview(null) }}
+              className="text-zinc-500 hover:text-zinc-300 flex-shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        <Feedback saved={false} error={error} />
+        <div className="flex gap-2">
+          <button
+            onClick={handleUploadFile}
+            disabled={pending || !selectedFile}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-40"
+          >
+            {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            {pending ? "Subiendo…" : "Subir foto"}
+          </button>
+          <button onClick={resetState} disabled={pending} className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === "url") {
+    return (
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-zinc-500 block mb-1">URL de la imagen</label>
+          <input
+            type="url"
+            value={urlValue}
+            onChange={(e) => setUrlValue(e.target.value)}
+            placeholder="https://ejemplo.com/mi-foto.jpg"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
+          />
+        </div>
+        {urlValue && (
+          <img
+            src={urlValue}
+            alt="preview"
+            className="h-12 w-12 rounded-full object-cover bg-zinc-800"
+            onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.2" }}
+          />
+        )}
+        <Feedback saved={false} error={error} />
+        <div className="flex gap-2">
+          <button
+            onClick={handleSaveUrl}
+            disabled={pending || !urlValue.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-40"
+          >
+            {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Guardar URL
+          </button>
+          <button onClick={resetState} disabled={pending} className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // idle — show change buttons
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button
+        onClick={() => setMode("file")}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 transition-colors"
+      >
+        <Upload className="h-3.5 w-3.5" />
+        Subir imagen
+      </button>
+      <button
+        onClick={() => setMode("url")}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+      >
+        <LinkIcon className="h-3.5 w-3.5" />
+        Usar URL
+      </button>
+      {profile.image && (
+        <button
+          onClick={() => {
+            setError(null)
+            startTransition(async () => {
+              const r = await updateAvatarUrlAction("")
+              if (r.error) { setError(r.error); return }
+              onSaved("")
+            })
+          }}
+          disabled={pending}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-zinc-600 hover:text-red-400 hover:bg-zinc-800 border border-transparent hover:border-zinc-700 transition-colors disabled:opacity-40"
+        >
+          <X className="h-3.5 w-3.5" />
+          Quitar foto
+        </button>
+      )}
+      {error && <Feedback saved={false} error={error} />}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AccountView({ profile }: { profile: MyProfile }) {
   const { update: updateSession } = useSession()
+
+  // ── Avatar ────────────────────────────────────────────────────────────────
+  const [savedImage, setSavedImage] = useState(profile.image ?? "")
+  const [avatarSaved, setAvatarSaved] = useState(false)
+
+  async function handleAvatarSaved(url: string) {
+    setSavedImage(url)
+    setAvatarSaved(true)
+    await updateSession()
+    setTimeout(() => setAvatarSaved(false), 3000)
+  }
 
   // ── Name ──────────────────────────────────────────────────────────────────
   const [name, setName] = useState(profile.name ?? "")
@@ -144,32 +372,6 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
         setTimeout(() => setNameSaved(false), 3000)
       } catch {
         setNameError("Error inesperado al guardar")
-      }
-    })
-  }
-
-  // ── Avatar ────────────────────────────────────────────────────────────────
-  const [imageUrl, setImageUrl] = useState(profile.image ?? "")
-  const [avatarEditing, setAvatarEditing] = useState(false)
-  const [avatarPending, startAvatar] = useTransition()
-  const [avatarSaved, setAvatarSaved] = useState(false)
-  const [avatarError, setAvatarError] = useState<string | null>(null)
-  const [previewImage, setPreviewImage] = useState(profile.image ?? "")
-
-  function handleSaveAvatar() {
-    setAvatarError(null)
-    setAvatarSaved(false)
-    startAvatar(async () => {
-      try {
-        const r = await updateAvatarUrlAction(imageUrl)
-        if (r.error) { setAvatarError(r.error); return }
-        setPreviewImage(imageUrl)
-        setAvatarSaved(true)
-        setAvatarEditing(false)
-        await updateSession()
-        setTimeout(() => setAvatarSaved(false), 3000)
-      } catch {
-        setAvatarError("Error inesperado al guardar")
       }
     })
   }
@@ -238,74 +440,14 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
       {/* ── Foto de perfil ─────────────────────────────────────────────── */}
       <SectionCard title="Foto de perfil" icon={ImageIcon}>
         <div className="flex items-center gap-4">
-          <Avatar name={profile.name} image={previewImage || null} email={profile.email} />
-          <div className="flex-1 space-y-1">
-            <p className="text-sm font-medium text-zinc-200">{profile.name ?? "Sin nombre"}</p>
-            <p className="text-xs text-zinc-500">{profile.email}</p>
-            {!avatarEditing && (
-              <button
-                onClick={() => setAvatarEditing(true)}
-                className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-              >
-                Cambiar foto
-              </button>
-            )}
+          <Avatar name={profile.name} image={savedImage || null} email={profile.email} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-zinc-200 truncate">{profile.name ?? "Sin nombre"}</p>
+            <p className="text-xs text-zinc-500 truncate">{profile.email}</p>
           </div>
         </div>
-
-        {avatarEditing && (
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">URL de la imagen</label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://ejemplo.com/mi-foto.jpg"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
-              <p className="text-xs text-zinc-600 mt-1">Pega el enlace directo a una imagen (JPG, PNG, etc.)</p>
-            </div>
-            {imageUrl && (
-              <div className="flex items-center gap-3">
-                <img
-                  src={imageUrl}
-                  alt="Preview"
-                  className="h-10 w-10 rounded-full object-cover bg-zinc-800"
-                  onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.3" }}
-                />
-                <span className="text-xs text-zinc-500">Vista previa</span>
-                <button
-                  onClick={() => setImageUrl("")}
-                  className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
-                >
-                  <X className="h-3 w-3" />Quitar foto
-                </button>
-              </div>
-            )}
-            <Feedback saved={avatarSaved} error={avatarError} />
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveAvatar}
-                disabled={avatarPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50"
-              >
-                {avatarPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                Guardar
-              </button>
-              <button
-                onClick={() => { setAvatarEditing(false); setImageUrl(previewImage); setAvatarError(null) }}
-                disabled={avatarPending}
-                className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
-        {!avatarEditing && avatarSaved && (
-          <Feedback saved={avatarSaved} error={null} />
-        )}
+        <AvatarEditor profile={{ ...profile, image: savedImage || null }} onSaved={handleAvatarSaved} />
+        {avatarSaved && <Feedback saved error={null} />}
       </SectionCard>
 
       {/* ── Nombre ──────────────────────────────────────────────────────── */}
@@ -341,7 +483,9 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
           </div>
         ) : (
           <div className="flex items-center justify-between">
-            <p className="text-sm text-zinc-200">{profile.name ?? <span className="text-zinc-500 italic">Sin nombre</span>}</p>
+            <p className="text-sm text-zinc-200">
+              {profile.name ?? <span className="text-zinc-500 italic">Sin nombre</span>}
+            </p>
             <button
               onClick={() => setNameEditing(true)}
               className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
