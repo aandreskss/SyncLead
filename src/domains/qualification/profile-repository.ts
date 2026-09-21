@@ -449,6 +449,70 @@ export async function deleteRule(
     )
 }
 
+/** Activates or deactivates a single rule. Profile must be in 'draft'. */
+export async function setRuleActive(
+  orgId: string,
+  profileId: string,
+  ruleId: string,
+  active: boolean,
+): Promise<void> {
+  const [profile] = await db
+    .select({ status: qualificationProfiles.status })
+    .from(qualificationProfiles)
+    .where(
+      and(
+        eq(qualificationProfiles.id, profileId),
+        eq(qualificationProfiles.orgId, orgId),
+      )
+    )
+    .limit(1)
+
+  if (!profile) throw new Error("Profile not found or access denied")
+  if (profile.status !== "draft") throw new Error("Cannot edit rules on a published profile. Duplicate it first.")
+
+  await db
+    .update(qualificationRules)
+    .set({ active, updatedAt: new Date() })
+    .where(
+      and(
+        eq(qualificationRules.id, ruleId),
+        eq(qualificationRules.orgId, orgId),
+        eq(qualificationRules.profileId, profileId),
+      )
+    )
+}
+
+/** Deletes a single rule by ID. Profile must be in 'draft'. */
+export async function deleteRuleById(
+  orgId: string,
+  profileId: string,
+  ruleId: string,
+): Promise<void> {
+  const [profile] = await db
+    .select({ status: qualificationProfiles.status })
+    .from(qualificationProfiles)
+    .where(
+      and(
+        eq(qualificationProfiles.id, profileId),
+        eq(qualificationProfiles.orgId, orgId),
+      )
+    )
+    .limit(1)
+
+  if (!profile) throw new Error("Profile not found or access denied")
+  if (profile.status !== "draft") throw new Error("Cannot delete rules on a published profile. Duplicate it first.")
+
+  await db
+    .delete(qualificationRules)
+    .where(
+      and(
+        eq(qualificationRules.id, ruleId),
+        eq(qualificationRules.orgId, orgId),
+        eq(qualificationRules.profileId, profileId),
+      )
+    )
+}
+
 // ─── Field definitions ────────────────────────────────────────────────────────
 
 /**

@@ -25,6 +25,8 @@ import {
   getActiveProfileForCampaign,
   getEventDataForLead,
   persistProfileEvaluation,
+  setRuleActive,
+  deleteRuleById,
 } from "./profile-repository"
 import { getEffectiveQualification } from "./repository"
 import { buildLeadContext, evaluateProfile } from "./score-engine"
@@ -96,6 +98,39 @@ export async function duplicateProfileAction(profileId: string, newName: string)
 }
 
 // ─── Rule management ──────────────────────────────────────────────────────────
+
+/** Activates or deactivates a single rule immediately. Profile must be draft. */
+export async function toggleRuleActiveAction(
+  profileId: string,
+  ruleId: string,
+  active: boolean,
+) {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+  try {
+    await setRuleActive(ctx.orgId, profileId, ruleId, active)
+    return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "No se pudo actualizar la regla"
+    return { error: msg }
+  }
+}
+
+/** Deletes a single rule immediately. Profile must be draft. */
+export async function deleteRuleByIdAction(
+  profileId: string,
+  ruleId: string,
+) {
+  let ctx
+  try { ctx = await requireOrganizationMembership() } catch { return { error: "No autorizado" } }
+  try {
+    await deleteRuleById(ctx.orgId, profileId, ruleId)
+    return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "No se pudo eliminar la regla"
+    return { error: msg }
+  }
+}
 
 export async function upsertRulesAction(
   profileId: string,
