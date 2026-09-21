@@ -14,6 +14,7 @@ import {
   updateLeadNotesAction,
   updateLeadInfoAction,
   fetchLeadDetailAction,
+  deleteLeadsAction,
 } from "@/domains/leads/actions"
 import {
   registerSaleAction,
@@ -41,7 +42,7 @@ import {
   MessageCircle, ThermometerSun, Clock, DollarSign,
   CheckCircle2, AlertCircle, RefreshCw, Loader2, X,
   Users, UserCheck, ExternalLink, Pencil, Save,
-  Phone, Mail, MapPin, Copy, Check, Tag,
+  Phone, Mail, MapPin, Copy, Check, Tag, Trash2,
 } from "lucide-react"
 
 const CURRENCIES = ["USD", "EUR", "VES", "COP", "MXN", "BRL", "ARS"]
@@ -746,6 +747,7 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
   const [notes, setNotes] = useState("")
   const [notesDirty, setNotesDirty] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   async function loadAll(leadId: string) {
@@ -816,6 +818,17 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
     setDetail((d) => (d ? { ...d, stage: s } : null))
     startTransition(async () => { await updateLeadStageAction(leadId, s) })
   }
+  function handleDelete() {
+    startTransition(async () => {
+      try {
+        const result = await deleteLeadsAction([leadId])
+        if (!result.error) onClose()
+      } catch {
+        // Non-fatal — drawer stays open
+      }
+    })
+  }
+
   function handleSaveNotes() {
     setNotesDirty(false); setNotesSaved(true)
     setDetail((d) => (d ? { ...d, notes } : null))
@@ -1039,6 +1052,38 @@ export function LeadDrawer({ lead, open, onClose, onMutated, whatsappNumbers, cl
                   </div>
                 ))}
               </div>
+            )}
+          </section>
+          {/* ── Eliminar ────────────────────────────────────────── */}
+          <section className="pt-2 border-t border-zinc-800/60">
+            {confirmDelete ? (
+              <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-red-800/50 bg-red-900/10">
+                <p className="text-xs text-zinc-400">¿Eliminar este lead permanentemente?</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDelete}
+                    disabled={isPending}
+                    className="text-xs text-red-400 hover:text-red-300 font-medium disabled:opacity-50"
+                  >
+                    {isPending ? "Eliminando…" : "Eliminar"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={isPending}
+                    className="text-xs text-zinc-500 hover:text-zinc-300"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-red-400 transition-colors w-full justify-center py-2 rounded-lg hover:bg-zinc-800/60"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Eliminar lead
+              </button>
             )}
           </section>
         </SheetBody>

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { leads, leadStageHistory, campaigns, conversions, leadBehaviorEvents } from "@/lib/db/schema"
+import { leads, leadStageHistory, campaigns, conversions, leadBehaviorEvents, metaEvents } from "@/lib/db/schema"
 import type { Lead, LeadStageHistory, Temperature, LeadStage } from "@/lib/db/schema"
 import { and, desc, eq, ilike, inArray, isNotNull, isNull, or } from "drizzle-orm"
 
@@ -62,7 +62,8 @@ export interface LeadFilters {
   platform?: string
   device?: string
   converted?: boolean
-  activity?: "has_sale" | "checkout" | "cart_abandoned" | "form_submitted" | "info_requested" | ""
+  source?: "meta_ads" | "organic" | "imported" | ""
+  activity?: "has_sale" | "pending_capi" | "checkout" | "cart_abandoned" | "form_submitted" | "info_requested" | ""
 }
 
 export interface LeadActivitySummary {
@@ -78,6 +79,7 @@ export interface LeadWithActivity extends Lead {
   saleCount: number
   saleTotalAmount: string | null  // sum if uniform currency, null if mixed or no sales
   saleCurrency: string | null     // null if mixed or no sales
+  hasPendingCapi: boolean
   activity: LeadActivitySummary
 }
 
@@ -104,6 +106,7 @@ export async function getLeadsByCampaign(
       filters.stage ? eq(leads.stage, filters.stage) : undefined,
       filters.platform ? eq(leads.platform, filters.platform) : undefined,
       filters.device ? eq(leads.device, filters.device) : undefined,
+      filters.source ? eq(leads.leadSource, filters.source) : undefined,
       searchCond,
     ),
     orderBy: (l, { desc }) => [desc(l.createdAt)],
@@ -131,7 +134,7 @@ export async function getLeadsByCampaignWithActivity(
 
   const leadIds = leadRows.map((l) => l.id)
 
-  const [convRows, eventRows] = await Promise.all([
+  const [convRows, eventRows, capiRows] = await Promise.all([
     db
       .select({
         leadId: conversions.leadId,
@@ -164,7 +167,23 @@ export async function getLeadsByCampaignWithActivity(
           inArray(leadBehaviorEvents.leadId, leadIds)
         )
       ),
+
+    db
+      .select({ leadId: metaEvents.leadId })
+      .from(metaEvents)
+      .where(
+        and(
+          eq(metaEvents.orgId, orgId),
+          isNotNull(metaEvents.leadId),
+          inArray(metaEvents.leadId, leadIds),
+          or(eq(metaEvents.status, "pending"), eq(metaEvents.status, "retrying"))
+        )
+      ),
   ])
+
+  const pendingCapiLeadIds = new Set<string>(
+    capiRows.map((r) => r.leadId).filter((id): id is string => id !== null)
+  )
 
   // Group all confirmed conversions per lead
   const convsByLead = new Map<string, typeof convRows>()
@@ -207,11 +226,13 @@ export async function getLeadsByCampaignWithActivity(
       saleCount: sale.count,
       saleTotalAmount: sale.totalAmount,
       saleCurrency: sale.currency,
+      hasPendingCapi: pendingCapiLeadIds.has(lead.id),
       activity: eventMap.get(lead.id) ?? emptyActivity(),
     }
   })
 
   if (filters.activity === "has_sale") result = result.filter((l) => l.saleCount > 0)
+  else if (filters.activity === "pending_capi") result = result.filter((l) => l.hasPendingCapi)
   else if (filters.activity === "checkout") result = result.filter((l) => l.activity.hasCheckout)
   else if (filters.activity === "cart_abandoned") result = result.filter((l) => l.activity.hasAbandonedCart)
   else if (filters.activity === "form_submitted") result = result.filter((l) => l.activity.hasFormSubmit)
@@ -312,6 +333,7 @@ export async function getLeadsByClientWithActivity(
       saleCount: sale.count,
       saleTotalAmount: sale.totalAmount,
       saleCurrency: sale.currency,
+      hasPendingCapi: false,
       activity: emptyActivity(),
     }
   })
