@@ -107,13 +107,24 @@
       headers: { 'Content-Type': 'application/json', 'X-Campaign-Key': key },
       body:    JSON.stringify(payload),
       keepalive: true,
-    }).then(function (r) { return r.json(); }).catch(function () {
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      // Guardar leadId para que purchase() pueda identificar el lead sin email/phone
+      if (res && res.leadId) {
+        try { localStorage.setItem('_sl_lead_id', res.leadId); } catch (e) {}
+      }
+      return res;
+    }).catch(function () {
       // keepalive fails if payload > 64 KB — plain fetch as last resort
       return fetch(host + '/api/leads/ingest', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'X-Campaign-Key': key },
         body:    JSON.stringify(payload),
-      }).then(function (r) { return r.json(); });
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res && res.leadId) {
+          try { localStorage.setItem('_sl_lead_id', res.leadId); } catch (e) {}
+        }
+        return res;
+      });
     });
   }
 
@@ -132,6 +143,13 @@
       try { payload.event_id = crypto.randomUUID(); } catch (e) {
         payload.event_id = Date.now().toString(36) + Math.random().toString(36).slice(2);
       }
+    }
+    // Incluir leadId guardado al capturar el contacto para match directo
+    if (!payload.lead_id) {
+      try {
+        var storedLeadId = localStorage.getItem('_sl_lead_id');
+        if (storedLeadId) payload.lead_id = storedLeadId;
+      } catch (e) {}
     }
 
     return fetch(host + '/api/leads/purchase', {

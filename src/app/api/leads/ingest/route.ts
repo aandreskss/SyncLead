@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
         orgId: campaign.orgId,
         campaignId: campaign.id,
         name: body.name,
-        email: body.email ?? null,
+        email: body.email ? body.email.toLowerCase().trim() : null,
         phone,
         city: city || null,
         negocio: isNegocio,
