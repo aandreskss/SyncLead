@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { campaigns, leads, metaConnections } from "@/lib/db/schema"
-import { eq, and, or, ne, ilike } from "drizzle-orm"
+import { eq, and, or, ilike } from "drizzle-orm"
 import { normalizePhone } from "@/domains/leads/normalize"
 import {
   createConversionIdempotent,
@@ -184,13 +184,9 @@ export async function POST(req: NextRequest) {
       "api_purchase"
     ).catch(() => undefined)
 
-    // A confirmed purchase always promotes to hot
-    await db.update(leads)
-      .set({ temperature: "hot", updatedAt: new Date() })
-      .where(and(eq(leads.id, lead.id), eq(leads.orgId, campaign.orgId), ne(leads.temperature, "hot")))
-      .catch(() => undefined)
-
-    // Re-qualify so the finally block's safety nets run (profile score, confirmed-sale check)
+    // Temperature is determined by the qualification engine (autoQualifyLeadInternal).
+    // Do NOT set it here — the qualification profile for this campaign may intentionally
+    // result in "warm" (e.g. a catalog purchase that needs follow-up) rather than "hot".
     autoQualifyLeadInternal(lead.id, campaign.orgId, campaign.id).catch(() => undefined)
 
     // Crea meta_event para el outbox CAPI si hay conexión activa (non-blocking)

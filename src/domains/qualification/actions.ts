@@ -39,6 +39,9 @@ export async function autoQualifyLeadInternal(
   orgId: string,
   campaignId: string,
 ): Promise<void> {
+  // Tracks whether a v2 profile evaluation ran — Safety net B defers to it.
+  let profileEvaluated = false
+
   try {
     // ── Step 1: Try profile-based evaluation (v2) ───────────────────────────
     const activeProfile = await getActiveProfileForCampaign(orgId, campaignId).catch(() => null)
@@ -100,6 +103,7 @@ export async function autoQualifyLeadInternal(
       const result = evaluateProfile(activeProfile.profile, activeProfile.rules, evalContext, fieldDefs)
 
       await persistProfileEvaluation(leadId, orgId, activeProfile.profile.id, result, "ingest")
+      profileEvaluated = true
       return
     }
 
@@ -173,26 +177,32 @@ export async function autoQualifyLeadInternal(
       }
     }
 
-    // ── Safety net B: Confirmed sale always wins ──────────────────────────────
-    const [confirmedSale] = await db
-      .select({ id: conversions.id })
-      .from(conversions)
-      .where(
-        and(
-          eq(conversions.leadId, leadId),
-          eq(conversions.orgId, orgId),
-          eq(conversions.status, "confirmed"),
-        ),
-      )
-      .limit(1)
-      .catch(() => [] as { id: string }[])
+    // ── Safety net B: Confirmed sale → hot (skipped when a profile ran) ──────
+    // When a v2 qualification profile evaluated the lead, its result wins —
+    // the profile may intentionally set "warm" for a purchase (e.g. a catalog
+    // sale that needs follow-up). Without a profile, a confirmed sale always
+    // promotes the lead to hot so paying customers never stay cold.
+    if (!profileEvaluated) {
+      const [confirmedSale] = await db
+        .select({ id: conversions.id })
+        .from(conversions)
+        .where(
+          and(
+            eq(conversions.leadId, leadId),
+            eq(conversions.orgId, orgId),
+            eq(conversions.status, "confirmed"),
+          ),
+        )
+        .limit(1)
+        .catch(() => [] as { id: string }[])
 
-    if (confirmedSale) {
-      await db
-        .update(leads)
-        .set({ temperature: "hot", updatedAt: new Date() })
-        .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), ne(leads.temperature, "hot")))
-        .catch(() => undefined)
+      if (confirmedSale) {
+        await db
+          .update(leads)
+          .set({ temperature: "hot", updatedAt: new Date() })
+          .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), ne(leads.temperature, "hot")))
+          .catch(() => undefined)
+      }
     }
   }
 }
