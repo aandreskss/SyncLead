@@ -1484,6 +1484,32 @@ export const funnels = pgTable(
   (t) => [index("funnels_org_id_idx").on(t.orgId)]
 )
 
+// ─── Ingest Errors ───────────────────────────────────────────────────────────
+// Non-PII log of validation failures during lead ingestion.
+// Stores only failing field names — never field values.
+
+export const ingestErrors = pgTable(
+  "ingest_errors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .references(() => campaigns.id, { onDelete: "set null" }),
+    clientId: uuid("client_id")
+      .references(() => clients.id, { onDelete: "set null" }),
+    errorType: text("error_type").notNull(),
+    errorDetail: text("error_detail"),
+    source: text("source").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ingest_errors_org_occurred_idx").on(t.orgId, t.occurredAt),
+    index("ingest_errors_client_idx").on(t.clientId),
+  ]
+)
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -1502,6 +1528,13 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   salesReps: many(salesReps),
   conversions: many(conversions),
   metaEvents: many(metaEvents),
+  ingestErrors: many(ingestErrors),
+}))
+
+export const ingestErrorsRelations = relations(ingestErrors, ({ one }) => ({
+  organization: one(organizations, { fields: [ingestErrors.orgId], references: [organizations.id] }),
+  campaign: one(campaigns, { fields: [ingestErrors.campaignId], references: [campaigns.id] }),
+  client: one(clients, { fields: [ingestErrors.clientId], references: [clients.id] }),
 }))
 
 export const orgMembersRelations = relations(orgMembers, ({ one }) => ({

@@ -5,6 +5,7 @@ import {
   getTrackingSitesAction,
   getTrackingOverviewAction,
   getOpenIssuesAction,
+  getIngestErrorsByClientAction,
 } from "@/domains/tracking/actions"
 import { getMetaConnectionsAction } from "@/domains/meta/actions"
 import { TrackingDashboard } from "./_components/TrackingDashboard"
@@ -28,16 +29,18 @@ export default async function TrackingPage({ params }: Props) {
     redirect("/login")
   }
 
-  const [sitesResult, definitionsResult, issuesResult, metaConnections] = await Promise.all([
+  const [sitesResult, definitionsResult, issuesResult, metaConnections, ingestErrorsResult] = await Promise.all([
     getTrackingSitesAction(id),
     getTrackingOverviewAction(id),
     getOpenIssuesAction(id),
     getMetaConnectionsAction(id),
+    getIngestErrorsByClientAction(id),
   ])
 
   const sites = sitesResult.data ?? []
   const definitions = definitionsResult.data ?? []
   const issues = issuesResult.data ?? []
+  const ingestErrors = ingestErrorsResult.data ?? []
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -48,6 +51,7 @@ export default async function TrackingPage({ params }: Props) {
           definitions={definitions}
           issues={issues}
           metaConnections={metaConnections}
+          ingestErrors={ingestErrors}
         />
       </div>
     </div>

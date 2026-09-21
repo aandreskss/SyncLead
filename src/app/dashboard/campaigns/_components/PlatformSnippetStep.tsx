@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Copy, Check, ChevronLeft, ShoppingCart } from "lucide-react"
+import { TestIngestButton } from "./TestIngestButton"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -711,6 +712,7 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
 
   const platformInfo = PLATFORMS.find((p) => p.id === platform)!
   const allSteps = getSteps(platform, config, appUrl)
+  const firstApiKey = config.mode === "single" ? config.apiKey : config.campaigns[0]?.apiKey ?? ""
   // GTM always shows all steps (purchase steps are informational, not inline code)
   const visibleSteps = platform === "gtm"
     ? allSteps.filter((s) => !s.isPurchase || withPurchase)
@@ -810,6 +812,8 @@ export function PlatformSnippetStep({ config, appUrl, onBack }: Props) {
           <code className="text-ops-blue-t bg-ops-blue/10 px-1 rounded mt-1 inline-block">adset_name={"{{"}adset.name{"}}"}&amp;ad_name={"{{"}ad.name{"}}"}</code>
         </p>
       </div>
+
+      {firstApiKey && <TestIngestButton apiKey={firstApiKey} appUrl={appUrl} />}
     </div>
   )
 }

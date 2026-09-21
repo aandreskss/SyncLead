@@ -14,6 +14,7 @@ import { campaigns, leads, webhookEvents } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
 import { normalizePhone, normalizeCity } from "@/domains/leads/normalize"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
+import { logIngestError } from "@/lib/ingest/errors"
 import { Ratelimit } from "@upstash/ratelimit"
 import { Redis } from "@upstash/redis"
 
@@ -38,7 +39,10 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 
 const IngestPayloadSchema = z.object({
   name: z.string().min(1, "name is required").max(255).trim(),
-  phone: z.string().max(30).optional().nullable(),
+  phone: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z.string().max(30).optional().nullable()
+  ),
   email: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? null : v),
     z.string().email().max(255).optional().nullable()
@@ -110,6 +114,14 @@ export async function POST(req: NextRequest) {
   const parsed = IngestPayloadSchema.safeParse(rawBody)
   if (!parsed.success) {
     const firstError = parsed.error.issues[0]
+    logIngestError({
+      orgId: campaign.orgId,
+      campaignId: campaign.id,
+      clientId: campaign.clientId,
+      source: "legacy",
+      errorType: "validation_error",
+      zodError: parsed.error,
+    })
     return NextResponse.json(
       { error: firstError?.message ?? "Invalid payload" },
       { status: 400, headers: CORS }
