@@ -59,7 +59,7 @@ export function normalizeLeadData(data: LeadData): NormalizedLead {
 
   return {
     name: data.name,
-    email: nullable(data.email),
+    email: nullable(data.email?.toLowerCase()),
     phone,
     city: city || null,
     negocio,
