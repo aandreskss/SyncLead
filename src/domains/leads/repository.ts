@@ -276,6 +276,7 @@ export async function getLeadsByClient(
       inArray(leads.campaignId, campaignIds),
       filters.temperature ? eq(leads.temperature, filters.temperature) : undefined,
       filters.stage ? eq(leads.stage, filters.stage) : undefined,
+      filters.source ? eq(leads.leadSource, filters.source) : undefined,
       convertedCond,
       searchCond,
     ),
@@ -294,20 +295,56 @@ export async function getLeadsByClientWithActivity(
 
   const leadIds = leadRows.map((l) => l.id)
 
-  const convRows = await db
-    .select({
-      leadId: conversions.leadId,
-      amount: conversions.amount,
-      currency: conversions.currency,
-    })
-    .from(conversions)
-    .where(
-      and(
-        eq(conversions.orgId, orgId),
-        inArray(conversions.leadId, leadIds),
-        eq(conversions.status, "confirmed")
+  const [convRows, eventRows, capiRows] = await Promise.all([
+    db
+      .select({
+        leadId: conversions.leadId,
+        amount: conversions.amount,
+        currency: conversions.currency,
+        status: conversions.status,
+        convertedAt: conversions.convertedAt,
+      })
+      .from(conversions)
+      .where(
+        and(
+          eq(conversions.orgId, orgId),
+          inArray(conversions.leadId, leadIds),
+          eq(conversions.status, "confirmed")
+        )
       )
-    )
+      .orderBy(desc(conversions.convertedAt)),
+
+    db
+      .select({
+        leadId: leadBehaviorEvents.leadId,
+        eventType: leadBehaviorEvents.eventType,
+        occurredAt: leadBehaviorEvents.occurredAt,
+      })
+      .from(leadBehaviorEvents)
+      .where(
+        and(
+          eq(leadBehaviorEvents.orgId, orgId),
+          isNotNull(leadBehaviorEvents.leadId),
+          inArray(leadBehaviorEvents.leadId, leadIds)
+        )
+      ),
+
+    db
+      .select({ leadId: metaEvents.leadId })
+      .from(metaEvents)
+      .where(
+        and(
+          eq(metaEvents.orgId, orgId),
+          isNotNull(metaEvents.leadId),
+          inArray(metaEvents.leadId, leadIds),
+          or(eq(metaEvents.status, "pending"), eq(metaEvents.status, "retrying"))
+        )
+      ),
+  ])
+
+  const pendingCapiLeadIds = new Set<string>(
+    capiRows.map((r) => r.leadId).filter((id): id is string => id !== null)
+  )
 
   const convsByLead = new Map<string, typeof convRows>()
   for (const c of convRows) {
@@ -326,17 +363,41 @@ export async function getLeadsByClientWithActivity(
     }
   }
 
-  return leadRows.map((lead) => {
+  const eventMap = new Map<string, LeadActivitySummary>()
+  for (const e of eventRows) {
+    if (!e.leadId) continue
+    if (!eventMap.has(e.leadId)) eventMap.set(e.leadId, emptyActivity())
+    const a = eventMap.get(e.leadId)!
+    if (e.eventType === "begin_checkout") a.hasCheckout = true
+    if (e.eventType === "checkout_abandoned") a.hasAbandonedCart = true
+    if (e.eventType === "form_submitted") a.hasFormSubmit = true
+    if (e.eventType === "info_requested") a.hasInfoRequest = true
+    if (e.eventType === "add_to_cart") a.hasAddToCart = true
+    if (!a.lastEventAt || (e.occurredAt && e.occurredAt > a.lastEventAt)) {
+      a.lastEventAt = e.occurredAt
+    }
+  }
+
+  let result: LeadWithActivity[] = leadRows.map((lead) => {
     const sale = saleSummary.get(lead.id) ?? { count: 0, totalAmount: null, currency: null }
     return {
       ...lead,
       saleCount: sale.count,
       saleTotalAmount: sale.totalAmount,
       saleCurrency: sale.currency,
-      hasPendingCapi: false,
-      activity: emptyActivity(),
+      hasPendingCapi: pendingCapiLeadIds.has(lead.id),
+      activity: eventMap.get(lead.id) ?? emptyActivity(),
     }
   })
+
+  if (filters.activity === "has_sale") result = result.filter((l) => l.saleCount > 0)
+  else if (filters.activity === "pending_capi") result = result.filter((l) => l.hasPendingCapi)
+  else if (filters.activity === "checkout") result = result.filter((l) => l.activity.hasCheckout)
+  else if (filters.activity === "cart_abandoned") result = result.filter((l) => l.activity.hasAbandonedCart)
+  else if (filters.activity === "form_submitted") result = result.filter((l) => l.activity.hasFormSubmit)
+  else if (filters.activity === "info_requested") result = result.filter((l) => l.activity.hasInfoRequest)
+
+  return result
 }
 
 export async function getLeadDetail(
