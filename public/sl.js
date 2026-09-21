@@ -93,6 +93,7 @@
     for (var k in data) {
       if (Object.prototype.hasOwnProperty.call(data, k)) payload[k] = data[k];
     }
+    payload._key = key;
     if (!payload.landing_url) payload.landing_url = location.href;
     if (!payload.event_id) {
       try { payload.event_id = crypto.randomUUID(); } catch (e) {
@@ -100,9 +101,16 @@
       }
     }
 
+    // sendBeacon garantiza entrega aunque la página navegue inmediatamente
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      navigator.sendBeacon(host + '/api/leads/ingest', blob);
+      return Promise.resolve({ queued: true });
+    }
+
     return fetch(host + '/api/leads/ingest', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Campaign-Key': key },
+      headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
     }).then(function (r) { return r.json(); });
   }
