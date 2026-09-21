@@ -15,7 +15,7 @@ import {
 } from "./repository"
 import { db } from "@/lib/db"
 import { leads, campaigns } from "@/lib/db/schema"
-import { eq, and } from "drizzle-orm"
+import { eq, and, ne } from "drizzle-orm"
 import type { QualificationClass } from "./types"
 import {
   getActiveProfileForCampaign,
@@ -144,9 +144,18 @@ export async function autoQualifyLeadInternal(
   }
 
   // ── Step 3: Behavior-based fallback (no profile, no rule set configured) ──
-  // If a lead showed engagement intent (form submit, checkout start, or cart
-  // abandoned) but nothing promoted them, nudge to warm — never downgrade hot.
+  // purchase → hot (never downgrade); engagement signals → warm if still cold.
   const eventData = await getEventDataForLead(leadId, orgId).catch((): Record<string, unknown> => ({}))
+
+  if (eventData.ecom_purchased) {
+    await db
+      .update(leads)
+      .set({ temperature: "hot", updatedAt: new Date() })
+      .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId), ne(leads.temperature, "hot")))
+      .catch(() => undefined)
+    return
+  }
+
   const hasEngagement =
     eventData.ecom_form_submitted ||
     eventData.ecom_checkout_started ||

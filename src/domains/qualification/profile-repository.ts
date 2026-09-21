@@ -623,6 +623,9 @@ export async function getEventDataForLead(
   // ecom_info_requested: any event_type='info_requested'
   result.ecom_info_requested = events.some((e) => e.eventType === "info_requested")
 
+  // ecom_purchased: any event_type='purchase'
+  result.ecom_purchased = events.some((e) => e.eventType === "purchase")
+
   // ecom_payment_failed: any event_type='payment_failed'
   result.ecom_payment_failed = events.some((e) => e.eventType === "payment_failed")
 

@@ -21,6 +21,7 @@ const BEHAVIOR_EVENT_TYPES = [
   "info_requested",
   "view_product",
   "payment_failed",
+  "purchase",
 ] as const
 
 const BehaviorEventSchema = z
@@ -124,8 +125,16 @@ export async function POST(req: NextRequest) {
     })
     .onConflictDoNothing()
 
-  // Re-qualify the lead so behavior events (checkout, form, etc.) update temperature
-  if (lead?.id && lead.campaignId) {
+  // A completed purchase always promotes to hot — skip the qualification engine
+  if (data.eventType === "purchase" && lead?.id) {
+    db.update(leads)
+      .set({ temperature: "hot", updatedAt: new Date() })
+      .where(and(eq(leads.id, lead.id), eq(leads.orgId, orgId)))
+      .catch(() => undefined)
+  }
+
+  // Re-qualify for all other events so behavior (checkout, form, etc.) updates temperature
+  if (lead?.id && lead.campaignId && data.eventType !== "purchase") {
     autoQualifyLeadInternal(lead.id, orgId, lead.campaignId).catch(() => undefined)
   }
 
