@@ -290,6 +290,64 @@ export async function archiveProfile(
     )
 }
 
+/** Returns an archived profile to 'draft' so it can be edited and re-published. */
+export async function reactivateProfile(
+  orgId: string,
+  profileId: string,
+): Promise<void> {
+  const [existing] = await db
+    .select({ id: qualificationProfiles.id, status: qualificationProfiles.status })
+    .from(qualificationProfiles)
+    .where(
+      and(
+        eq(qualificationProfiles.id, profileId),
+        eq(qualificationProfiles.orgId, orgId),
+      )
+    )
+    .limit(1)
+
+  if (!existing) throw new Error("Profile not found or access denied")
+  if (existing.status !== "archived") throw new Error("Only archived profiles can be reactivated")
+
+  await db
+    .update(qualificationProfiles)
+    .set({ status: "draft", updatedAt: new Date() })
+    .where(
+      and(
+        eq(qualificationProfiles.id, profileId),
+        eq(qualificationProfiles.orgId, orgId),
+      )
+    )
+}
+
+/** Permanently deletes a profile and all its rules (cascade). */
+export async function deleteProfile(
+  orgId: string,
+  profileId: string,
+): Promise<void> {
+  const [existing] = await db
+    .select({ id: qualificationProfiles.id })
+    .from(qualificationProfiles)
+    .where(
+      and(
+        eq(qualificationProfiles.id, profileId),
+        eq(qualificationProfiles.orgId, orgId),
+      )
+    )
+    .limit(1)
+
+  if (!existing) throw new Error("Profile not found or access denied")
+
+  await db
+    .delete(qualificationProfiles)
+    .where(
+      and(
+        eq(qualificationProfiles.id, profileId),
+        eq(qualificationProfiles.orgId, orgId),
+      )
+    )
+}
+
 /**
  * Clones a profile and all its rules into a new draft.
  * Returns the new profile id.
