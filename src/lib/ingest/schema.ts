@@ -11,6 +11,12 @@ const optUrl = z
   .optional()
   .nullable()
 const optStr = (max: number) => z.string().max(max).optional().nullable()
+// Converts empty strings to null before email validation so forms that send
+// email="" (empty optional field) don't fail the schema.
+const optEmail = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+  z.string().email().max(255).optional().nullable()
+)
 
 /**
  * Shared lead data accepted by both ingest modes.
@@ -19,7 +25,7 @@ const optStr = (max: number) => z.string().max(max).optional().nullable()
 export const LeadDataSchema = z.object({
   name: z.string().min(1, "name is required").max(255).trim(),
   phone: z.string().max(30).optional().nullable(),
-  email: z.string().email().max(255).optional().nullable(),
+  email: optEmail,
   city: z.string().max(100).optional().default(""),
   negocio: z.union([z.boolean(), z.string(), z.number()]).optional(),
 
