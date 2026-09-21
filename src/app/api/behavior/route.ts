@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
 
   // A completed purchase always promotes to hot — skip the qualification engine
   if (data.eventType === "purchase" && lead?.id) {
-    db.update(leads)
+    await db.update(leads)
       .set({ temperature: "hot", updatedAt: new Date() })
       .where(and(eq(leads.id, lead.id), eq(leads.orgId, orgId)))
       .catch(() => undefined)

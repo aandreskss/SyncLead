@@ -202,7 +202,7 @@ export async function registerSaleAction(
       input.convertedAt, ctx.userId
     ).catch(() => undefined)
 
-    db.update(leads)
+    await db.update(leads)
       .set({ temperature: "hot", updatedAt: new Date() })
       .where(and(eq(leads.id, leadId), eq(leads.orgId, ctx.orgId)))
       .catch(() => undefined)
