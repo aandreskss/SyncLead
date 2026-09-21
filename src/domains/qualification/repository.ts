@@ -1,6 +1,6 @@
 import "server-only"
 
-import { eq, and, desc } from "drizzle-orm"
+import { eq, and, desc, ne } from "drizzle-orm"
 import { db } from "@/lib/db"
 import {
   qualificationRuleSets,
@@ -223,14 +223,25 @@ export async function refreshEffectiveQualClass(
   }
   const newTemperature = effectiveClass ? temperatureMap[effectiveClass] : undefined
 
+  // Always update the effectiveQualClass cache
   await db
     .update(leads)
-    .set({
-      effectiveQualClass: effectiveClass,
-      ...(newTemperature ? { temperature: newTemperature } : {}),
-      updatedAt: new Date(),
-    })
+    .set({ effectiveQualClass: effectiveClass, updatedAt: new Date() })
     .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId)))
+
+  // Update temperature, but never downgrade a lead that was promoted to hot by a
+  // confirmed sale — a re-qualification of "cold" must not erase a purchase signal.
+  if (newTemperature) {
+    await db
+      .update(leads)
+      .set({ temperature: newTemperature })
+      .where(
+        newTemperature === "hot"
+          ? and(eq(leads.id, leadId), eq(leads.orgId, orgId))
+          : and(eq(leads.id, leadId), eq(leads.orgId, orgId), ne(leads.temperature, "hot")),
+      )
+      .catch(() => undefined)
+  }
 }
 
 // ─── Validation helper ────────────────────────────────────────────────────────
