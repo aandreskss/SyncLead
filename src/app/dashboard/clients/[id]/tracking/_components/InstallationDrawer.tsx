@@ -86,12 +86,21 @@ function buildSyncLeadSnippet(def: ConversionDefinitionPublic): string {
     if (!v) { v = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2,9); localStorage.setItem(k,v); }
     return v;
   }
-  // Captura UTMs en el primer clic (first-touch)
+  function getCookie(name) {
+    var c = document.cookie.split('; ').find(function(r) { return r.indexOf(name + '=') === 0; });
+    return c ? c.slice(name.length + 1) : null;
+  }
+  // Captura UTMs y fbclid en el primer clic (first-touch)
   (function () {
     var p = new URLSearchParams(location.search);
     ['utm_source','utm_medium','utm_campaign','utm_content'].forEach(function(k) {
       var v = p.get(k); if (v && !localStorage.getItem('_sl_'+k)) localStorage.setItem('_sl_'+k,v);
     });
+    // Si hay fbclid y no hay _fbc del Meta Pixel, construimos uno propio
+    var fbclid = p.get('fbclid');
+    if (fbclid && !getCookie('_fbc') && !localStorage.getItem('_sl_fbc')) {
+      localStorage.setItem('_sl_fbc', 'fb.1.' + Date.now() + '.' + fbclid);
+    }
   })();
   window.slTrack = function (eventName, params, token) {
     navigator.sendBeacon(
@@ -104,6 +113,8 @@ function buildSyncLeadSnippet(def: ConversionDefinitionPublic): string {
         utmMedium: localStorage.getItem('_sl_utm_medium'),
         utmCampaign: localStorage.getItem('_sl_utm_campaign'),
         referrer: document.referrer || null,
+        fbc: getCookie('_fbc') || localStorage.getItem('_sl_fbc'),
+        fbp: getCookie('_fbp'),
         parameters: params || {},
       })], { type: 'application/json' })
     );

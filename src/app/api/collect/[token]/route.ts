@@ -31,6 +31,8 @@ const CollectEventSchema = z.object({
   utmMedium: z.string().max(200).optional(),
   utmCampaign: z.string().max(200).optional(),
   referrer: z.string().max(500).optional(),
+  fbc: z.string().max(500).optional(),
+  fbp: z.string().max(500).optional(),
 })
 
 function extractVisitorGeo(req: NextRequest): { city: string | null; country: string | null } {
@@ -129,7 +131,11 @@ export async function POST(
     )
   }
 
-  const { eventName, eventId, pageUrl, environment, parameters, visitorId, utmSource, utmMedium, utmCampaign, referrer } = parsed.data
+  const { eventName, eventId, pageUrl, environment, parameters, visitorId, utmSource, utmMedium, utmCampaign, referrer, fbc } = parsed.data
+
+  // fbc (Facebook click cookie, 90-day) proves a Facebook ad click even weeks later
+  const resolvedUtmSource = utmSource ?? null
+  const resolvedUtmMedium = utmMedium ?? null
 
   const tokenHash = hashToken(token)
 
@@ -168,6 +174,10 @@ export async function POST(
     const geo = extractVisitorGeo(request)
     const urlUtms = extractUtmsFromUrl(pageUrl)
 
+    // fbc present = visitor previously clicked a Facebook ad (cookie persists 90 days)
+    const finalUtmSource = resolvedUtmSource ?? urlUtms.utmSource ?? (fbc ? "facebook" : null)
+    const finalUtmMedium = resolvedUtmMedium ?? urlUtms.utmMedium ?? (fbc && !resolvedUtmSource && !urlUtms.utmSource ? "cpc" : null)
+
     // Try to match the event name against a conversion definition for this site
     const definition = await getDefinitionByEventNameForSite(site.id, site.orgId, eventName)
     const requiredParams: string[] = definition?.requiredParameters ?? []
@@ -189,9 +199,9 @@ export async function POST(
       visitorId: visitorId ?? null,
       visitorCity: geo.city,
       visitorCountry: geo.country,
-      utmSource: utmSource ?? urlUtms.utmSource,
-      utmMedium: utmMedium ?? urlUtms.utmMedium,
-      utmCampaign: utmCampaign ?? urlUtms.utmCampaign,
+      utmSource: finalUtmSource,
+      utmMedium: finalUtmMedium,
+      utmCampaign: utmCampaign ?? urlUtms.utmCampaign ?? null,
       referrer: referrer ?? null,
       environment: environment as "production" | "staging" | "development",
       parametersPresent: parameters,
@@ -237,6 +247,9 @@ export async function POST(
   const geo = extractVisitorGeo(request)
   const urlUtms = extractUtmsFromUrl(pageUrl)
 
+  const sessionFinalUtmSource = resolvedUtmSource ?? urlUtms.utmSource ?? (fbc ? "facebook" : null)
+  const sessionFinalUtmMedium = resolvedUtmMedium ?? urlUtms.utmMedium ?? (fbc && !resolvedUtmSource && !urlUtms.utmSource ? "cpc" : null)
+
   const definition = session.conversionDefinition
   const requiredParams: string[] = definition?.requiredParameters ?? []
   const validationResult: Record<string, unknown> = {}
@@ -259,9 +272,9 @@ export async function POST(
     visitorId: visitorId ?? null,
     visitorCity: geo.city,
     visitorCountry: geo.country,
-    utmSource: utmSource ?? urlUtms.utmSource,
-    utmMedium: utmMedium ?? urlUtms.utmMedium,
-    utmCampaign: utmCampaign ?? urlUtms.utmCampaign,
+    utmSource: sessionFinalUtmSource,
+    utmMedium: sessionFinalUtmMedium,
+    utmCampaign: utmCampaign ?? urlUtms.utmCampaign ?? null,
     referrer: referrer ?? null,
     environment: environment as "production" | "staging" | "development",
     parametersPresent: parameters,
