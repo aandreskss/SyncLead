@@ -28,7 +28,6 @@ export async function getOrgForAdmin(orgId: string) {
 }
 
 export async function getOrgMembersForAdmin(orgId: string) {
-  const { users } = await import("@/lib/db/schema")
   return db
     .select({
       userId: orgMembers.userId,
@@ -45,34 +44,36 @@ export async function getOrgMembersForAdmin(orgId: string) {
 
 export async function searchUsersByEmail(email: string) {
   if (!email.trim()) return []
-  return db
+  const rows = await db
     .select({
       id: users.id,
       name: users.name,
       email: users.email,
       emailVerified: users.emailVerified,
-      hasPassword: sql<boolean>`(${users.password} is not null)`,
-      createdAt: sql<Date>`(select min(created_at) from org_members where user_id = ${users.id})`,
+      password: users.password,
     })
     .from(users)
     .where(ilike(users.email, `%${email.trim()}%`))
     .limit(20)
+  return rows.map(({ password, ...u }) => ({ ...u, hasPassword: password !== null }))
 }
 
 export async function getUserWithDetailsForAdmin(userId: string) {
-  const [user] = await db
+  const [row] = await db
     .select({
       id: users.id,
       name: users.name,
       email: users.email,
       emailVerified: users.emailVerified,
-      hasPassword: sql<boolean>`(${users.password} is not null)`,
+      password: users.password,
     })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)
 
-  if (!user) return null
+  if (!row) return null
+  const { password, ...user } = row
+  const hasPassword = password !== null
 
   const linkedAccounts = await db
     .select({ provider: accounts.provider, providerAccountId: accounts.providerAccountId })
@@ -91,7 +92,7 @@ export async function getUserWithDetailsForAdmin(userId: string) {
     .innerJoin(organizations, eq(organizations.id, orgMembers.orgId))
     .where(eq(orgMembers.userId, userId))
 
-  return { ...user, linkedAccounts, memberships }
+  return { ...user, hasPassword, linkedAccounts, memberships }
 }
 
 export async function getOrgStatsForAdmin(orgId: string) {
