@@ -26,6 +26,11 @@ const CollectEventSchema = z.object({
   ),
   environment: z.enum(["production", "staging", "development"]).default("production"),
   parameters: z.record(z.string(), z.boolean()).optional().default({}),
+  visitorId: z.string().max(128).optional(),
+  utmSource: z.string().max(200).optional(),
+  utmMedium: z.string().max(200).optional(),
+  utmCampaign: z.string().max(200).optional(),
+  referrer: z.string().max(500).optional(),
 })
 
 function extractVisitorGeo(req: NextRequest): { city: string | null; country: string | null } {
@@ -103,7 +108,7 @@ export async function POST(
     )
   }
 
-  const { eventName, eventId, pageUrl, environment, parameters } = parsed.data
+  const { eventName, eventId, pageUrl, environment, parameters, visitorId, utmSource, utmMedium, utmCampaign, referrer } = parsed.data
 
   const tokenHash = hashToken(token)
 
@@ -159,8 +164,13 @@ export async function POST(
       eventName,
       eventIdHash,
       pageUrl: sanitizedUrl,
+      visitorId: visitorId ?? null,
       visitorCity: geo.city,
       visitorCountry: geo.country,
+      utmSource: utmSource ?? null,
+      utmMedium: utmMedium ?? null,
+      utmCampaign: utmCampaign ?? null,
+      referrer: referrer ?? null,
       environment: environment as "production" | "staging" | "development",
       parametersPresent: parameters,
       validationResult,
@@ -223,8 +233,13 @@ export async function POST(
     eventName,
     eventIdHash,
     pageUrl: sanitizedUrl,
+    visitorId: visitorId ?? null,
     visitorCity: geo.city,
     visitorCountry: geo.country,
+    utmSource: utmSource ?? null,
+    utmMedium: utmMedium ?? null,
+    utmCampaign: utmCampaign ?? null,
+    referrer: referrer ?? null,
     environment: environment as "production" | "staging" | "development",
     parametersPresent: parameters,
     validationResult,

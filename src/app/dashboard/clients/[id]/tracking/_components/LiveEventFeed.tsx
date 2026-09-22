@@ -46,6 +46,38 @@ function SourceBadge({ source }: { source: LiveEvent["source"] }) {
   )
 }
 
+type TrafficInfo = { label: string; cls: string }
+
+function resolveTrafficSource(utmSource: string | null, referrer: string | null): TrafficInfo | null {
+  const src = (utmSource ?? "").toLowerCase()
+  const ref = (referrer ?? "").toLowerCase()
+  if (src.includes("google") || ref.includes("google.com"))
+    return { label: "Google", cls: "text-blue-400 bg-blue-400/10 border-blue-800" }
+  if (src.includes("facebook") || src.includes("fb") || ref.includes("facebook.com"))
+    return { label: "Facebook", cls: "text-blue-300 bg-blue-300/10 border-blue-700" }
+  if (src.includes("instagram") || ref.includes("instagram.com"))
+    return { label: "Instagram", cls: "text-pink-400 bg-pink-400/10 border-pink-800" }
+  if (src.includes("tiktok") || ref.includes("tiktok.com"))
+    return { label: "TikTok", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
+  if (src.includes("whatsapp") || ref.includes("whatsapp.com") || ref.includes("wa.me"))
+    return { label: "WhatsApp", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-800" }
+  if (src.includes("twitter") || src.includes("x.com") || ref.includes("x.com"))
+    return { label: "X / Twitter", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
+  if (!utmSource && !referrer) return { label: "Directo", cls: "text-ops-tx3 bg-ops-s2 border-ops-bd" }
+  if (utmSource) return { label: utmSource, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
+  return null
+}
+
+function TrafficBadge({ utmSource, referrer }: { utmSource: string | null; referrer: string | null }) {
+  const info = resolveTrafficSource(utmSource, referrer)
+  if (!info) return null
+  return (
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium ${info.cls}`}>
+      {info.label}
+    </span>
+  )
+}
+
 function EventRow({ event, isNew }: { event: LiveEvent; isNew: boolean }) {
   return (
     <li
@@ -68,6 +100,7 @@ function EventRow({ event, isNew }: { event: LiveEvent; isNew: boolean }) {
           </span>
           <span className="text-xs text-ops-tx3 font-mono">{event.eventName}</span>
           <SourceBadge source={event.source} />
+          <TrafficBadge utmSource={event.utmSource} referrer={event.referrer} />
           {event.environment !== "production" && (
             <Badge className="text-xs bg-ops-s2 text-ops-tx2 border-ops-bd">
               {event.environment}

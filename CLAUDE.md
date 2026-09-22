@@ -61,6 +61,12 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`import "server-only"`** en `crypto.ts`, `meta-capi.ts`, `audit.ts` — garantía en tiempo de compilación de que estos módulos no entran al bundle del navegador
 - **VERCEL_ENV vs NODE_ENV**: Vercel pone `NODE_ENV=production` en todos los deploys (incluyendo preview). El check correcto es `NODE_ENV !== "production" || VERCEL_ENV === "preview"`. En `worker.ts`, `test_event_code` se añade solo si esa condición es verdadera.
 - **`META_CONNECTION_MODE=internal_manual`** — único modo funcional durante beta. `external_oauth` bloqueado hasta App Review de Meta aprobado.
+- **`action_source: "crm"` para eventos Purchase**: ventas registradas manualmente en SyncLead usan `action_source: "crm"` (no `"website"`). `"website"` se conserva solo en `sendLeadEvent()` y `sendContactEvent()`. Ver `src/domains/conversions/payload.ts` y `src/lib/meta-capi.ts`.
+- **Meta Lead Ads webhook**: single endpoint `/api/webhook/meta-leads` con routing multi-tenant via tabla `meta_lead_ad_sources`. El campo `(page_id, form_id)` mapea a `(campaign_id, org_id)`. Si `form_id` es null en la tabla, acepta cualquier form del page. Webhook retorna 200 inmediatamente; todo el procesamiento es fire-and-forget. Idempotencia via `webhook_events(campaign_id, event_id)` donde `event_id = leadgen_id`.
+- **Page Access Token para Lead Ads**: token separado del token CAPI — requiere permisos `leads_retrieval + pages_manage_ads`. Se cifra con `encryptTokenVersioned()` igual que los tokens CAPI. Se usa SOLO para llamar `GET /{apiVersion}/{leadgen_id}?fields=field_data,created_time` en la Graph API.
+- **`leadSource` values**: `"meta_ads"` para leads del webhook Lead Ads, `"manual"` para leads creados manualmente desde el dashboard. `"form"` para ingest Modo A/B.
+- **Leads manuales no tienen `fbc`/`fbp`**: solo PII matching cuando se registra venta. No hay `externalEventId` ni `metaCampaign*` fields. `leadSource: "manual"` sirve como señal para filtros/badges.
+- **`mapMetaFields()` en webhook**: normaliza campos Meta → SyncLead. Maneja `full_name` ó `first_name`+`last_name`, `phone_number`/`phone`, `city`/`ciudad`, negocio variants (`negocio`, `tiene_negocio`, `business`, `servicio`).
 - **Semántica de fechas en métricas**: "Leads creados" filtra por `leads.created_at`; "Ventas del periodo" e "Ingresos del periodo" filtran por `conversions.converted_at`. Nunca mezclar las dos fechas en un mismo cálculo.
 - **`null` = N/D (dato no disponible); `0` = cero real** — ROAS, convRate y KPIs mixtos devuelven `null` cuando la moneda no es uniforme o no hay datos suficientes, no `0`.
 - **CSV formula injection**: sanitizar valores que empiecen con `=`, `+`, `-`, `@`, `\t`, `\r` añadiendo un prefijo `'` antes de serializar. Ver `sanitizeCsv()` en `PerformanceView.tsx`.
@@ -114,10 +120,12 @@ Ver matriz completa en `docs/AUTHORIZATION.md`.
 ## Dominio del negocio
 - Usuarios de Meta Ads capturan leads vía landing pages externas
 - Cada usuario gestiona múltiples clientes (marcas/negocios)
-- Leads entran por dos endpoints nuevos + uno legacy:
+- Leads entran por tres fuentes:
   - `POST /api/ingest/form` — Modo A: token público para formularios de navegador
   - `POST /api/ingest/server` — Modo B: API key secreta para servidor a servidor
+  - `POST /api/webhook/meta-leads` — Meta Lead Ads webhook (GET verify + POST process)
   - `POST /api/leads/ingest` — **@deprecated**: sigue funcionando, migrar a Modo B
+  - Creación manual desde el dashboard (campaña o cliente)
 - El `meta_access_token` se cifra AES-256-GCM antes de guardarse en DB
 - Al marcar venta: server action llama a Meta Conversions API con evento `Purchase`
 - Datos PII (email, phone, name, city) se hashean SHA-256 antes de enviar a Meta
@@ -161,7 +169,7 @@ src/
       campaigns/
         page.tsx + _components/         ← CRUD campañas
         [id]/leads/
-          page.tsx + _components/       ← LeadsView + LeadDrawer (AssignmentPanel + WhatsAppPanel + VentaPanel + CAPIPanel)
+          page.tsx + _components/       ← LeadsView (+ LeadAdsPanel + CreateLeadDialog) + LeadDrawer (AssignmentPanel + WhatsAppPanel + VentaPanel + CAPIPanel)
       performance/
         page.tsx + _components/         ← tabla rendimiento + SummaryCards + CSV export con sanitizeCsv
       funnels/
@@ -179,6 +187,7 @@ src/
       leads/ingest/route.ts             ← @deprecated: legacy X-Campaign-Key adapter; temperature="cold" (calculateTemperature eliminado); llama autoQualifyLeadInternal fire-and-forget
       auth/[...nextauth]/route.ts       ← Auth.js handler
       webhook/whatsapp/[clientId]/route.ts ← webhook proveedor WA (verificación de firma)
+      webhook/meta-leads/route.ts         ← GET: hub.verify_token challenge; POST: HMAC-SHA256 verify + processEntries fire-and-forget
       cron/
         cleanup/route.ts                ← limpia webhook_events >30 días
         meta-outbox/route.ts            ← procesa cola CAPI (batchSize param, maxDuration=60)
@@ -192,7 +201,7 @@ src/
     leads/
       normalize.ts  ← normalizePhone, normalizeCity (calculateTemperature eliminado — no se usa en ningún flujo de ingest)
       repository.ts ← getLeadsByCampaign, getLeadsByCampaignWithActivity (4 queries: leads+conversions+behavior+metaEvents pending/retrying), getLeadDetail, updateLeadTemperature/Stage/Notes/assign; LeadWithActivity: saleCount/saleTotalAmount/saleCurrency/hasPendingCapi/activity
-      actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }; deleteLeadsAction(ids[]), deleteLeadsByCampaignAction(campaignId), deleteLeadsByClientAction(clientId)
+      actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }; deleteLeadsAction(ids[]), deleteLeadsByCampaignAction(campaignId), deleteLeadsByClientAction(clientId); createLeadManuallyAction(campaignId, input)
     analytics/
       types.ts      ← Metric = number | null, DashboardKPIs, PerformanceRow
       repository.ts ← getKPIMetrics() (converted_at), getPerformanceTable(), getLeadsByDay(), getLeadsByCampaignChart()
@@ -232,6 +241,9 @@ src/
       types.ts      ← IWhatsAppProvider (interfaz sin implementación concreta aún)
       repository.ts ← getWaClientConfig, getMessageTemplates, CRUD wa_messages
       actions.ts    ← prepareWaLinkAction, confirmWaSentAction, handleProviderWebhookAction
+    lead-ads/
+      repository.ts ← getLeadAdSourceByCampaign, getLeadAdSourceByPage (webhook routing), upsertLeadAdSource, deleteLeadAdSource
+      actions.ts    ← saveLeadAdSourceAction (cifra Page Access Token), deleteLeadAdSourceAction, getLeadAdSourceAction
     health/
       repository.ts ← getHealthSnapshot(orgId): DB ping, meta connections, CAPI queue, imports, cron runs, stuck runs
       actions.ts    ← retryFailedCapiEventsAction(), retryFailedImportAction(batchId), resolveStuckCronRunsAction()
@@ -366,6 +378,8 @@ src/proxy.ts  ← protege /dashboard/*, applySecurityHeaders() (CSP+nonce, X-Fra
 | `ENABLE_EXTERNAL_META_OAUTH` | `false` — bloquear hasta App Review aprobado | ✓ |
 | `META_ALLOWED_AD_ACCOUNTS` | Lista separada por comas de ad_account_id autorizados para beta | opcional |
 | `NEXT_PUBLIC_APP_URL` | URL pública de la app | ✓ |
+| `META_LEAD_ADS_VERIFY_TOKEN` | Token para verificar webhook Meta Lead Ads (generar: `openssl rand -hex 20`) | Lead Ads |
+| `META_APP_SECRET` | App Secret de la Meta App para verificar `X-Hub-Signature-256` (Meta → Settings → Basic) | Lead Ads |
 
 ## Seguridad crítica
 - `ENCRYPTION_KEY` nunca en el repo. Solo en Vercel env vars.
@@ -391,7 +405,7 @@ npm run dev              # desarrollo
 npm run build            # build de producción
 npm run lint             # ESLint
 npx tsc --noEmit         # typecheck
-npx vitest run           # unit tests (817 tests en 24 suites)
+npx vitest run           # unit tests (910 tests en 24 suites)
 npm run preflight        # verifica env vars obligatorias (exit 0/1)
 npm run preflight:full   # también verifica DB y migraciones aplicadas
 npm run seed:launch      # seed beta: 2 orgs completas (idempotente)
@@ -566,3 +580,22 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] `src/domains/leads/repository.ts` — `getLeadsByCampaignWithActivity()` ahora 4 queries (+ metaEvents pending/retrying); `LeadWithActivity.hasPendingCapi: boolean`; `LeadFilters.activity` incluye `"pending_capi"`; `getLeadsByClientWithActivity` y `funnels/repository.ts` devuelven `hasPendingCapi: false`
   - [x] `src/domains/leads/actions.ts` — `deleteLeadsAction(ids[])`, `deleteLeadsByCampaignAction(campaignId)`, `deleteLeadsByClientAction(clientId)`; todas validan `ctx.orgId`; FK cascade limpia tablas relacionadas automáticamente; `meta_events.leadId` queda en NULL (set null)
   - [x] `src/app/dashboard/campaigns/[id]/leads/_components/LeadsView.tsx` — checkboxes con indeterminate state, barra de selección masiva con confirmación inline, botones "Campaña" / "Cliente" en header con confirmación, opción "CAPI pendiente" en filtro de actividad, icono ⚡ (amber) en `ActivityBadges` cuando `hasPendingCapi`
+- [x] Fix `action_source` para eventos Purchase
+  - [x] `src/domains/conversions/payload.ts` — `PurchaseEvent.action_source` y `buildPurchasePayload()`: `"website"` → `"crm"` (ventas manuales en CRM, no actividad web real)
+  - [x] `src/lib/meta-capi.ts` — `sendPurchaseEvent()`: `"website"` → `"crm"`; `sendLeadEvent()` y `sendContactEvent()` mantienen `"website"` (correcto para esos tipos)
+  - [x] `src/__tests__/conversion-payload.test.ts` — expectativa actualizada a `"crm"`
+- [x] Creación manual de leads
+  - [x] `src/domains/leads/actions.ts` — `createLeadManuallyAction(campaignId, input)`: auth via `requireCampaignAccess`, inserta con `leadSource: "manual"`, `temperature: "cold"`, `stage: "new"`, activity `actorType: "user"`, `activityType: "created"`, llama `autoQualifyLeadInternal` fire-and-forget; retorna `{ success, leadId?, error? }`
+  - [x] `src/app/dashboard/campaigns/[id]/leads/_components/CreateLeadDialog.tsx` — dialog campaña: campos name/phone/email/city/negocio (select si/no); llama `createLeadManuallyAction(campaignId, input)`
+  - [x] `src/app/dashboard/clients/[id]/_components/CreateLeadDialog.tsx` — dialog cliente: mismos campos + dropdown de campaña; `defaultCampaignId` desde URL
+  - [x] `LeadsView.tsx` — botón "Nuevo lead" (UserPlus icon, azul) siempre visible; badge "WA" morado para `source === "manual"`; filtro `SOURCES` incluye `"manual"`
+  - [x] `ClientLeadsTab.tsx` — botón "Nuevo lead" (solo si hay campañas); badge violeta para `"manual"`
+- [x] Meta Lead Ads — integración completa
+  - [x] `src/lib/db/schema.ts` — tabla `metaLeadAdSources` con unique index `(page_id, form_id)`; relaciones `metaLeadAdSourcesRelations`
+  - [x] `src/domains/lead-ads/repository.ts` — `getLeadAdSourceByCampaign`, `getLeadAdSourceByPage` (match específico form ó fallback null-form), `upsertLeadAdSource` (ON CONFLICT DO UPDATE), `deleteLeadAdSource`
+  - [x] `src/domains/lead-ads/actions.ts` — `saveLeadAdSourceAction` (cifra Page Access Token con `encryptTokenVersioned`), `deleteLeadAdSourceAction`, `getLeadAdSourceAction` (nunca devuelve token)
+  - [x] `src/app/api/webhook/meta-leads/route.ts` — GET: verifica `hub.verify_token` vs `META_LEAD_ADS_VERIFY_TOKEN`; POST: HMAC-SHA256 con `META_APP_SECRET`, routing via `getLeadAdSourceByPage`, idempotencia via `webhook_events`, fetch lead data Graph API, insert lead + touchpoint + activity + mark processed + `autoQualifyLeadInternal`; `leadSource: "meta_ads"`, `externalEventId: leadgen_id`, `metaCampaignName/metaAdsetName/metaAdName` desde webhook payload
+  - [x] `src/app/dashboard/campaigns/[id]/leads/_components/LeadAdsPanel.tsx` — panel colapsable; formulario Page ID / Form ID / Page Access Token (password show/hide); instrucciones setup 6 pasos con URL webhook usando `NEXT_PUBLIC_APP_URL`; Desconectar con confirm dos pasos
+  - [x] `src/app/dashboard/campaigns/[id]/leads/page.tsx` — carga `getLeadAdSourceByCampaign` en paralelo; pasa `leadAdSource` (sin token) a `LeadsView`
+  - [x] `scripts/apply-lead-ads.ts` — migración aplicada a Neon: tabla + 3 índices ✓
+  - [x] `.env.example` — `META_LEAD_ADS_VERIFY_TOKEN` + `META_APP_SECRET` documentados

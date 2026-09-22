@@ -18,7 +18,7 @@ import {
   type ConversionIssue,
   type NewConversionIssue,
 } from "@/lib/db/schema"
-import { eq, and, desc, lt, isNull, or, ne, sql } from "drizzle-orm"
+import { eq, and, desc, asc, lt, gte, isNull, isNotNull, or, ne, sql } from "drizzle-orm"
 
 // ─── Tracking Sites ───────────────────────────────────────────────────────────
 
@@ -461,6 +461,91 @@ export async function acknowledgeIssue(id: string, orgId: string): Promise<void>
     .update(conversionIssues)
     .set({ status: "acknowledged" })
     .where(and(eq(conversionIssues.id, id), eq(conversionIssues.orgId, orgId)))
+}
+
+// ─── Visitor sessions ─────────────────────────────────────────────────────────
+
+export type VisitorSessionRow = {
+  visitorId: string
+  eventCount: number
+  firstSeen: Date
+  lastSeen: Date
+  firstEventName: string
+  utmSource: string | null
+  utmMedium: string | null
+  utmCampaign: string | null
+  referrer: string | null
+  visitorCity: string | null
+  visitorCountry: string | null
+}
+
+export async function getVisitorSessionsByClient(
+  orgId: string,
+  clientId: string,
+  limit = 100
+): Promise<VisitorSessionRow[]> {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+  const rows = await db
+    .select()
+    .from(conversionObservations)
+    .where(
+      and(
+        eq(conversionObservations.orgId, orgId),
+        eq(conversionObservations.clientId, clientId),
+        isNotNull(conversionObservations.visitorId),
+        gte(conversionObservations.observedAt, thirtyDaysAgo)
+      )
+    )
+    .orderBy(asc(conversionObservations.observedAt))
+    .limit(5000)
+
+  const map = new Map<string, VisitorSessionRow>()
+  for (const obs of rows) {
+    const vid = obs.visitorId!
+    const existing = map.get(vid)
+    if (!existing) {
+      map.set(vid, {
+        visitorId: vid,
+        eventCount: 1,
+        firstSeen: obs.observedAt,
+        lastSeen: obs.observedAt,
+        firstEventName: obs.eventName,
+        utmSource: obs.utmSource,
+        utmMedium: obs.utmMedium,
+        utmCampaign: obs.utmCampaign,
+        referrer: obs.referrer,
+        visitorCity: obs.visitorCity,
+        visitorCountry: obs.visitorCountry,
+      })
+    } else {
+      existing.eventCount++
+      if (obs.observedAt > existing.lastSeen) existing.lastSeen = obs.observedAt
+    }
+  }
+
+  return Array.from(map.values())
+    .sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime())
+    .slice(0, limit)
+}
+
+export async function getObservationsByVisitor(
+  orgId: string,
+  clientId: string,
+  visitorId: string
+): Promise<ConversionObservation[]> {
+  return db
+    .select()
+    .from(conversionObservations)
+    .where(
+      and(
+        eq(conversionObservations.orgId, orgId),
+        eq(conversionObservations.clientId, clientId),
+        eq(conversionObservations.visitorId, visitorId)
+      )
+    )
+    .orderBy(asc(conversionObservations.observedAt))
+    .limit(500)
 }
 
 // ─── Permanent site-level collect token ──────────────────────────────────────
