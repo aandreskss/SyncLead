@@ -31,8 +31,8 @@ const CollectEventSchema = z.object({
   utmMedium: z.string().max(200).optional(),
   utmCampaign: z.string().max(200).optional(),
   referrer: z.string().max(500).optional(),
-  fbc: z.string().max(500).optional(),
-  fbp: z.string().max(500).optional(),
+  fbc: z.string().max(500).nullish(),
+  fbp: z.string().max(500).nullish(),
 })
 
 function extractVisitorGeo(req: NextRequest): { city: string | null; country: string | null } {
