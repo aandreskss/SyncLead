@@ -28,8 +28,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     isAdmin = ctx.role === "owner" || ctx.role === "admin"
     roleLabel = ROLE_LABELS[ctx.role] ?? "Miembro"
   } catch (e) {
-    if (e instanceof AuthError) redirect("/login")
-    if (e instanceof ForbiddenError) redirect("/login")
+    if (e instanceof AuthError) redirect("/api/auth/force-logout")
+    if (e instanceof ForbiddenError) redirect("/api/auth/force-logout")
     throw e
   }
 
