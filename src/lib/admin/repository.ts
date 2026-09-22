@@ -1,7 +1,7 @@
 import "server-only"
 import { db } from "@/lib/db"
-import { organizations, orgMembers, leads, campaigns } from "@/lib/db/schema"
-import { sql, eq } from "drizzle-orm"
+import { organizations, orgMembers, leads, campaigns, users, accounts } from "@/lib/db/schema"
+import { sql, eq, ilike } from "drizzle-orm"
 
 export async function getAllOrgsWithStats() {
   return db
@@ -41,6 +41,57 @@ export async function getOrgMembersForAdmin(orgId: string) {
     .innerJoin(users, eq(users.id, orgMembers.userId))
     .where(eq(orgMembers.orgId, orgId))
     .orderBy(orgMembers.createdAt)
+}
+
+export async function searchUsersByEmail(email: string) {
+  if (!email.trim()) return []
+  return db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      emailVerified: users.emailVerified,
+      hasPassword: sql<boolean>`(${users.password} is not null)`,
+      createdAt: sql<Date>`(select min(created_at) from org_members where user_id = ${users.id})`,
+    })
+    .from(users)
+    .where(ilike(users.email, `%${email.trim()}%`))
+    .limit(20)
+}
+
+export async function getUserWithDetailsForAdmin(userId: string) {
+  const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      emailVerified: users.emailVerified,
+      hasPassword: sql<boolean>`(${users.password} is not null)`,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+
+  if (!user) return null
+
+  const linkedAccounts = await db
+    .select({ provider: accounts.provider, providerAccountId: accounts.providerAccountId })
+    .from(accounts)
+    .where(eq(accounts.userId, userId))
+
+  const memberships = await db
+    .select({
+      orgId: orgMembers.orgId,
+      role: orgMembers.role,
+      orgName: organizations.name,
+      orgPlan: organizations.plan,
+      orgSuspended: organizations.suspended,
+    })
+    .from(orgMembers)
+    .innerJoin(organizations, eq(organizations.id, orgMembers.orgId))
+    .where(eq(orgMembers.userId, userId))
+
+  return { ...user, linkedAccounts, memberships }
 }
 
 export async function getOrgStatsForAdmin(orgId: string) {

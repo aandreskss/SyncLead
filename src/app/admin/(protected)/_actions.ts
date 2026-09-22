@@ -1,11 +1,12 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { organizations } from "@/lib/db/schema"
+import { organizations, users } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { requireAdminAuth } from "@/lib/admin/auth"
 import { revalidatePath } from "next/cache"
 import { PLAN_OPTIONS } from "@/lib/admin/definitions"
+import { hash } from "bcryptjs"
 
 type Result = { error?: string }
 
@@ -33,5 +34,26 @@ export async function updateOrgFeaturesAction(
   try { await requireAdminAuth() } catch { return { error: "No autorizado" } }
   await db.update(organizations).set({ features }).where(eq(organizations.id, orgId))
   revalidatePath(`/admin/orgs/${orgId}`)
+  return {}
+}
+
+export async function setUserPasswordAction(
+  userId: string,
+  newPassword: string,
+): Promise<Result> {
+  try { await requireAdminAuth() } catch { return { error: "No autorizado" } }
+  if (!newPassword || newPassword.length < 8) return { error: "La contraseña debe tener al menos 8 caracteres" }
+  const hashed = await hash(newPassword, 12)
+  await db.update(users).set({ password: hashed }).where(eq(users.id, userId))
+  revalidatePath("/admin/users")
+  return {}
+}
+
+export async function deleteUserAction(userId: string): Promise<Result> {
+  try { await requireAdminAuth() } catch { return { error: "No autorizado" } }
+  // Cascades: accounts, org_members, organizations (and all their data via cascade)
+  await db.delete(users).where(eq(users.id, userId))
+  revalidatePath("/admin/users")
+  revalidatePath("/admin")
   return {}
 }
