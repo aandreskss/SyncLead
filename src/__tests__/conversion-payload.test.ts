@@ -152,7 +152,7 @@ describe("buildPurchasePayload", () => {
   it("sets correct event_name and action_source", () => {
     const p = buildPurchasePayload(baseInput)
     expect(p.event_name).toBe("Purchase")
-    expect(p.action_source).toBe("website")
+    expect(p.action_source).toBe("crm")
   })
 
   it("derives event_id from conversionId (stable, deterministic)", () => {

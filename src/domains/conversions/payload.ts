@@ -63,7 +63,7 @@ export interface PurchaseEvent {
   event_name: "Purchase"
   event_time: number
   event_id: string
-  action_source: "website"
+  action_source: "crm"
   event_source_url?: string
   user_data: Record<string, unknown>
   custom_data: Record<string, unknown>
@@ -106,7 +106,7 @@ export function buildPurchasePayload(input: BuildPayloadInput): PurchaseEvent {
     event_name: "Purchase",
     event_time: Math.floor(convertedAt.getTime() / 1000),
     event_id: `purchase_${conversionId}`,
-    action_source: "website",
+    action_source: "crm",
     user_data: userData,
     custom_data: {
       currency: currency.toUpperCase(),
