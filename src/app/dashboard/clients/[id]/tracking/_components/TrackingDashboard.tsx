@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button"
 import { ConversionList } from "./ConversionList"
 import { LiveEventFeed } from "./LiveEventFeed"
 import { IngestErrorsPanel } from "./IngestErrorsPanel"
-import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, XCircle, ExternalLink } from "lucide-react"
+import Link from "next/link"
+import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, XCircle, ExternalLink, Users } from "lucide-react"
 import { createTrackingSiteAction, applyBusinessTemplateAction } from "@/domains/tracking/actions"
 
 type Props = {
@@ -615,6 +616,23 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
       </div>
 
       <LiveEventFeed clientId={clientId} />
+
+      {/* Visitor journey link */}
+      <Link
+        href={`/dashboard/clients/${clientId}/tracking/visitors`}
+        className="flex items-center justify-between rounded-lg border border-ops-line bg-ops-s1 px-5 py-4 hover:bg-ops-s2 transition-colors group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ops-blue/10">
+            <Users className="h-4 w-4 text-ops-blue" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-ops-tx">Visitantes</p>
+            <p className="text-xs text-ops-tx3">Ver recorridos y fuentes de tráfico · últimos 30 días</p>
+          </div>
+        </div>
+        <ExternalLink className="h-4 w-4 text-ops-tx3 group-hover:text-ops-tx2 transition-colors" />
+      </Link>
     </div>
   )
 }

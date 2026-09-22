@@ -32,7 +32,10 @@ import {
   createObservation,
   getRecentObservationsWithMeta,
   setTrackingSiteCollectToken,
+  getVisitorSessionsByClient,
+  getObservationsByVisitor,
   type ObservationWithMeta,
+  type VisitorSessionRow,
 } from "./repository"
 import {
   CreateTrackingSiteSchema,
@@ -640,8 +643,11 @@ export type LiveEvent = {
   eventName: string
   definitionDisplayName: string | null
   pageUrl: string | null
+  visitorId: string | null
   visitorCity: string | null
   visitorCountry: string | null
+  utmSource: string | null
+  referrer: string | null
   environment: string
   allParamsOk: boolean
   missingParams: string[]
@@ -668,8 +674,11 @@ export async function getLiveEventsAction(
       eventName: obs.eventName,
       definitionDisplayName: obs.definitionDisplayName,
       pageUrl: obs.pageUrl,
+      visitorId: obs.visitorId,
       visitorCity: obs.visitorCity,
       visitorCountry: obs.visitorCountry,
+      utmSource: obs.utmSource,
+      referrer: obs.referrer,
       environment: obs.environment ?? "production",
       allParamsOk: missing.length === 0,
       missingParams: missing,
@@ -726,6 +735,31 @@ export async function simulateObservationAction(input: {
   }).catch(() => undefined)
 
   return { data: toObservationPublic(obs) }
+}
+
+// ─── Visitor Sessions ─────────────────────────────────────────────────────────
+
+export type { VisitorSessionRow }
+
+export async function getVisitorSessionsAction(
+  clientId: string
+): Promise<{ error?: string; data?: VisitorSessionRow[] }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch { return { error: "No autorizado" } }
+
+  const data = await getVisitorSessionsByClient(ctx.orgId, clientId)
+  return { data }
+}
+
+export async function getVisitorJourneyAction(
+  clientId: string,
+  visitorId: string
+): Promise<{ error?: string; data?: ConversionObservation[] }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch { return { error: "No autorizado" } }
+
+  const data = await getObservationsByVisitor(ctx.orgId, clientId, visitorId)
+  return { data }
 }
 
 // ─── Issues ───────────────────────────────────────────────────────────────────
