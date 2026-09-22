@@ -7,6 +7,7 @@ import { db } from "@/lib/db"
 import { users, accounts, sessions, verificationTokens } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { compare } from "bcryptjs"
+import { getPlatformConfig } from "@/lib/admin/platform-config"
 
 async function fetchFreshUserToken(token: JWT): Promise<JWT> {
   if (!token.sub) return token
@@ -76,6 +77,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ account }) {
+      if (account?.provider === "google") {
+        const enabled = await getPlatformConfig("googleLoginEnabled", false)
+        if (!enabled) return false
+      }
+      return true
+    },
     // Persist user.id into the JWT on first login; re-fetch profile on update()
     async jwt({ token, user, trigger }: { token: JWT; user?: { id?: string }; trigger?: string }) {
       if (user?.id) token.sub = user.id
