@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { importBatches, importRows } from "@/lib/db/schema"
-import { eq, and, inArray, sql } from "drizzle-orm"
+import { eq, and, inArray, isNull, isNotNull, sql } from "drizzle-orm"
 import type { ColumnMapping, BatchStatus } from "./types"
 
 // ─── Batch operations ─────────────────────────────────────────────────────────
@@ -185,6 +185,35 @@ export async function findImportedRowByFingerprint(orgId: string, fingerprint: s
     ),
     columns: { id: true, leadId: true, batchId: true },
   })
+}
+
+// Count import_rows matching these dedupeKeys that still have an active lead (leadId IS NOT NULL).
+// Used to decide whether a re-upload of the same file should be allowed.
+export async function countRowsWithActiveLead(dedupeKeys: string[], orgId: string): Promise<number> {
+  if (dedupeKeys.length === 0) return 0
+  const result = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(importRows)
+    .where(and(
+      eq(importRows.orgId, orgId),
+      inArray(importRows.dedupeKey, dedupeKeys),
+      isNotNull(importRows.leadId),
+    ))
+  return result[0]?.count ?? 0
+}
+
+// Delete import_rows whose leads were deleted (leadId set to NULL via cascade).
+// Only removes orphaned rows so that the same file can be re-imported after lead deletion.
+export async function deleteOrphanedImportRows(dedupeKeys: string[], orgId: string): Promise<number> {
+  if (dedupeKeys.length === 0) return 0
+  const result = await db.delete(importRows)
+    .where(and(
+      eq(importRows.orgId, orgId),
+      inArray(importRows.dedupeKey, dedupeKeys),
+      isNull(importRows.leadId),
+    ))
+    .returning({ id: importRows.id })
+  return result.length
 }
 
 // Count rows in a batch grouped by status, for polling

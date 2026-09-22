@@ -12,6 +12,7 @@ import { autoDetectMapping } from "./mapper"
 import {
   createImportBatch, insertImportRows, updateBatchMapping,
   getBatchStatus, getBatchById,
+  countRowsWithActiveLead, deleteOrphanedImportRows,
 } from "./repository"
 import { runDryRun, runImport, buildImportReport } from "./processor"
 
@@ -116,7 +117,23 @@ export async function uploadImportFileAction(formData: FormData): Promise<
   }
 
   if (insertedCount === 0 && parsed.rowCount > 0) {
-    return { error: "Este archivo ya fue importado anteriormente (todas las filas son duplicadas)." }
+    // All dedupeKeys already exist. Check if any still have live leads.
+    const dedupeKeys = rowsToInsert.map((r) => r.dedupeKey)
+    const activeCount = await countRowsWithActiveLead(dedupeKeys, ctx.orgId)
+    if (activeCount > 0) {
+      return { error: "Este archivo ya fue importado anteriormente (todas las filas son duplicadas)." }
+    }
+    // All leads were deleted — purge orphaned rows and re-insert.
+    await deleteOrphanedImportRows(dedupeKeys, ctx.orgId)
+    try {
+      insertedCount = await insertImportRows(rowsToInsert)
+    } catch (e) {
+      console.error("[uploadImportFileAction:reinsertRows]", e instanceof Error ? e.message : String(e))
+      return { error: "Error al guardar las filas del archivo. Intenta de nuevo." }
+    }
+    if (insertedCount === 0) {
+      return { error: "Este archivo ya fue importado anteriormente (todas las filas son duplicadas)." }
+    }
   }
 
   const suggestedMapping = autoDetectMapping(parsed.columns)
