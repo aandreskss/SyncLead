@@ -9,10 +9,11 @@ type Props = {
   onClose: () => void
 }
 
-type TabKey = "javascript" | "gtm" | "nextjs" | "capi"
+type TabKey = "synclead" | "javascript" | "gtm" | "nextjs" | "capi"
 
 const TAB_LABELS: Record<TabKey, string> = {
-  javascript: "JavaScript",
+  synclead: "SyncLead Pixel",
+  javascript: "JavaScript (fbq)",
   gtm: "Google Tag Manager",
   nextjs: "Next.js / React",
   capi: "Meta CAPI (servidor)",
@@ -69,6 +70,54 @@ function buildEventIdHelper(internalKey: string): string {
   return `function generateEventId() {
   return '${internalKey}_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }`
+}
+
+function buildSyncLeadSnippet(def: ConversionDefinitionPublic): string {
+  const paramsObj = def.requiredParameters.length > 0
+    ? def.requiredParameters.map((p) => `      ${p}: true`).join(",\n")
+    : "      // sin parámetros requeridos"
+
+  const triggerComment = buildTriggerComment(def.triggerType, def.internalKey)
+
+  return `// ── 1. Helper SyncLead — pega esto UNA VEZ en tu sitio (p. ej. en <head>) ──
+(function () {
+  function getVisitorId() {
+    var k = '_sl_vid', v = localStorage.getItem(k);
+    if (!v) { v = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2,9); localStorage.setItem(k,v); }
+    return v;
+  }
+  // Captura UTMs en el primer clic (first-touch)
+  (function () {
+    var p = new URLSearchParams(location.search);
+    ['utm_source','utm_medium','utm_campaign','utm_content'].forEach(function(k) {
+      var v = p.get(k); if (v && !localStorage.getItem('_sl_'+k)) localStorage.setItem('_sl_'+k,v);
+    });
+  })();
+  window.slTrack = function (eventName, params, token) {
+    navigator.sendBeacon(
+      'https://app.synclead.io/api/collect/' + token,
+      new Blob([JSON.stringify({
+        eventName: eventName,
+        pageUrl: location.href,
+        visitorId: getVisitorId(),
+        utmSource: localStorage.getItem('_sl_utm_source'),
+        utmMedium: localStorage.getItem('_sl_utm_medium'),
+        utmCampaign: localStorage.getItem('_sl_utm_campaign'),
+        referrer: document.referrer || null,
+        parameters: params || {},
+      })], { type: 'application/json' })
+    );
+  };
+})();
+
+// ── 2. Dispara el evento "${def.internalKey}" ──────────────────────────────
+// Obtén tu token en: Diagnóstico → Visitantes → (ícono de código del sitio)
+var SYNCLEAD_TOKEN = 'TU_TOKEN_AQUI';
+
+${triggerComment}
+window.slTrack('${def.internalKey}', {
+${paramsObj}
+}, SYNCLEAD_TOKEN);`
 }
 
 function buildJsSnippet(def: ConversionDefinitionPublic): string {
@@ -238,9 +287,10 @@ async function send${def.internalKey.replace(/_([a-z])/g, (_, c) => c.toUpperCas
 }
 
 export function InstallationDrawer({ definition, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<TabKey>("javascript")
+  const [activeTab, setActiveTab] = useState<TabKey>("synclead")
 
   const snippets: Record<TabKey, string> = {
+    synclead: buildSyncLeadSnippet(definition),
     javascript: buildJsSnippet(definition),
     gtm: buildGtmSnippet(definition),
     nextjs: buildNextjsSnippet(definition),
@@ -283,6 +333,16 @@ export function InstallationDrawer({ definition, onClose }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        {activeTab === "synclead" && (
+          <div className="rounded border border-ops-blue/30 bg-ops-blue/10 px-4 py-3 text-sm text-ops-tx2">
+            <strong className="text-ops-tx">SyncLead Pixel</strong> — este snippet envía cada evento
+            directamente al colector de SyncLead con el ID del visitante y los UTMs capturados.
+            Úsalo cuando quieras rastrear el recorrido completo del visitante (fuente → eventos → conversión).{" "}
+            <span className="text-ops-tx3">
+              Tu token de sitio está disponible en Diagnóstico → botón de código del sitio.
+            </span>
+          </div>
+        )}
         {activeTab === "capi" && (
           <div className="rounded border border-orange-900 bg-orange-950 px-4 py-3 text-sm text-orange-300">
             <strong className="text-orange-200">Importante:</strong> El token de Meta (<code>META_ACCESS_TOKEN</code>)
