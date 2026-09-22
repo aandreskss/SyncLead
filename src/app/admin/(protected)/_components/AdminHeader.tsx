@@ -33,6 +33,23 @@ export function AdminHeader() {
           fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4,
           textTransform: "uppercase", letterSpacing: "0.06em",
         }}>Panel de control</span>
+        <nav style={{ display: "flex", gap: 4, marginLeft: 12 }}>
+          {[
+            { href: "/admin", label: "Organizaciones" },
+            { href: "/admin/users", label: "Usuarios" },
+          ].map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              style={{
+                fontSize: 13, color: "#71717a", textDecoration: "none",
+                padding: "4px 10px", borderRadius: 6,
+              }}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
