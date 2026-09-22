@@ -136,12 +136,21 @@ export default async function VisitorsPage({
         </div>
 
         {sessions.length === 0 ? (
-          <div className="px-4 py-16 text-center space-y-2">
+          <div className="px-4 py-16 text-center space-y-3">
             <Users className="h-8 w-8 text-ops-tx3 mx-auto" />
             <p className="text-sm text-ops-tx3">Sin visitantes aún</p>
-            <p className="text-xs text-ops-tx3">
-              Los visitantes aparecerán cuando el pixel envíe eventos con <code className="text-ops-tx2">visitorId</code>
-            </p>
+            <div className="max-w-sm mx-auto rounded-lg border border-ops-bd bg-ops-s2 px-4 py-3 text-left space-y-1.5">
+              <p className="text-xs font-semibold text-ops-tx2">¿Por qué el feed tiene eventos pero aquí sale vacío?</p>
+              <p className="text-xs text-ops-tx3">
+                El feed muestra todos los eventos históricos. Esta sección solo agrupa eventos que incluyen
+                un <code className="text-ops-tx2">visitorId</code>, que es generado por el snippet actualizado de SyncLead Pixel.
+              </p>
+              <p className="text-xs text-ops-tx3">
+                Para ver recorridos de visitantes, instala el snippet desde{" "}
+                <span className="text-ops-tx2">Diagnóstico → ícono de código ⟨⟩ → pestaña SyncLead Pixel</span>.
+                Los nuevos eventos empezarán a aparecer aquí.
+              </p>
+            </div>
           </div>
         ) : (
           <ul className="divide-y divide-ops-line/50">
