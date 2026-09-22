@@ -29,8 +29,9 @@ const CollectEventSchema = z.object({
 })
 
 function extractVisitorGeo(req: NextRequest): { city: string | null; country: string | null } {
-  const country = req.headers.get("cf-ipcountry")
-  const city = req.headers.get("cf-ipcity")
+  // Vercel expone geo como x-vercel-ip-* ; fallback a cf-ip* para otros proxies
+  const country = req.headers.get("x-vercel-ip-country") ?? req.headers.get("cf-ipcountry")
+  const city = req.headers.get("x-vercel-ip-city") ?? req.headers.get("cf-ipcity")
   return {
     country: country && country !== "XX" && country !== "T1" ? country : null,
     city: city || null,
