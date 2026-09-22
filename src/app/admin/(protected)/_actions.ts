@@ -7,6 +7,7 @@ import { requireAdminAuth } from "@/lib/admin/auth"
 import { revalidatePath } from "next/cache"
 import { PLAN_OPTIONS } from "@/lib/admin/definitions"
 import { hash } from "bcryptjs"
+import { setPlatformConfig } from "@/lib/admin/platform-config"
 
 type Result = { error?: string }
 
@@ -34,6 +35,16 @@ export async function updateOrgFeaturesAction(
   try { await requireAdminAuth() } catch { return { error: "No autorizado" } }
   await db.update(organizations).set({ features }).where(eq(organizations.id, orgId))
   revalidatePath(`/admin/orgs/${orgId}`)
+  return {}
+}
+
+export async function updatePlatformConfigAction(
+  key: string,
+  value: unknown,
+): Promise<Result> {
+  try { await requireAdminAuth() } catch { return { error: "No autorizado" } }
+  await setPlatformConfig(key, value)
+  revalidatePath("/admin/platform")
   return {}
 }
 

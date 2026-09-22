@@ -37,6 +37,7 @@ export function AdminHeader() {
           {[
             { href: "/admin", label: "Organizaciones" },
             { href: "/admin/users", label: "Usuarios" },
+            { href: "/admin/platform", label: "Plataforma" },
           ].map((link) => (
             <Link
               key={link.href}

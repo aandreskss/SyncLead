@@ -1146,6 +1146,15 @@ export const auditLogs = pgTable(
   ]
 )
 
+// ─── Platform Config ──────────────────────────────────────────────────────────
+// Global key-value settings for the SyncLead platform (not per-org).
+
+export const platformConfig = pgTable("platform_config", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<unknown>().notNull().default(null as unknown as never),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // ─── Cron Runs ────────────────────────────────────────────────────────────────
 // Observability record for every cron execution. Enables health dashboard and runbooks.
 
