@@ -1473,6 +1473,30 @@ export const metaCatalogAds = pgTable(
   ]
 )
 
+// ─── Meta Lead Ad Sources ─────────────────────────────────────────────────────
+// Maps a Meta Page + Lead Form → a SyncLead campaign.
+// When Meta sends a leadgen webhook for this page/form, the lead is routed here.
+
+export const metaLeadAdSources = pgTable(
+  "meta_lead_ad_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+    pageId: text("page_id").notNull(),
+    formId: text("form_id"), // null = accept any form from this page
+    pageAccessTokenEnc: text("page_access_token_enc"),
+    keyVersion: integer("key_version").notNull().default(1),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("meta_lead_ad_sources_org_idx").on(t.orgId),
+    index("meta_lead_ad_sources_campaign_idx").on(t.campaignId),
+    uniqueIndex("meta_lead_ad_sources_page_form_idx").on(t.pageId, t.formId),
+  ]
+)
+
 // Kept for backward compatibility with existing Kanban UI.
 
 export interface FunnelStageConfig {
@@ -1685,6 +1709,11 @@ export const waProviderEventsRelations = relations(waProviderEvents, ({ one }) =
 export const metaAdAccountAllowlistRelations = relations(metaAdAccountAllowlist, ({ one }) => ({
   organization: one(organizations, { fields: [metaAdAccountAllowlist.orgId], references: [organizations.id] }),
   addedBy: one(users, { fields: [metaAdAccountAllowlist.addedById], references: [users.id] }),
+}))
+
+export const metaLeadAdSourcesRelations = relations(metaLeadAdSources, ({ one }) => ({
+  organization: one(organizations, { fields: [metaLeadAdSources.orgId], references: [organizations.id] }),
+  campaign: one(campaigns, { fields: [metaLeadAdSources.campaignId], references: [campaigns.id] }),
 }))
 
 export const metaCatalogCampaignsRelations = relations(metaCatalogCampaigns, ({ one }) => ({
@@ -1998,6 +2027,8 @@ export type MetaCatalogAdset = typeof metaCatalogAdsets.$inferSelect
 export type NewMetaCatalogAdset = typeof metaCatalogAdsets.$inferInsert
 export type MetaCatalogAd = typeof metaCatalogAds.$inferSelect
 export type NewMetaCatalogAd = typeof metaCatalogAds.$inferInsert
+export type MetaLeadAdSource = typeof metaLeadAdSources.$inferSelect
+export type NewMetaLeadAdSource = typeof metaLeadAdSources.$inferInsert
 
 // Enum value types
 export type MemberRole = typeof memberRoleEnum.enumValues[number]
