@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign, Trash2, Zap, Target, Globe, Upload, UserPlus } from "lucide-react"
 import { LeadDrawer } from "./LeadDrawer"
 import { CreateLeadDialog } from "./CreateLeadDialog"
+import { LeadAdsPanel } from "./LeadAdsPanel"
 import { cn } from "@/lib/utils"
 import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField } from "@/components/app/ops"
 import type { Campaign, Client, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
@@ -23,6 +24,7 @@ interface Props {
   orgName: string
   salesReps?: SalesRep[]
   currentUserId?: string
+  leadAdSource?: { pageId: string; formId?: string | null; active?: boolean } | null
 }
 
 const TEMPERATURES: { value: Temperature | ""; label: string }[] = [
@@ -170,7 +172,7 @@ function ActivityBadges({
   )
 }
 
-export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId }: Props) {
+export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId, leadAdSource }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -382,6 +384,8 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
           </div>
         ))}
       </div>
+
+      <LeadAdsPanel campaignId={campaign.id} existing={leadAdSource ?? null} />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">

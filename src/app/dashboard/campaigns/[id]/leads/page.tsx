@@ -5,6 +5,7 @@ import { getOrganizationById } from "@/domains/organizations/repository"
 import { getCampaignWithClientById } from "@/domains/campaigns/repository"
 import { getLeadsByCampaignWithActivity } from "@/domains/leads/repository"
 import { listSalesReps } from "@/domains/team/repository"
+import { getLeadAdSourceByCampaign } from "@/domains/lead-ads/repository"
 import type { LeadFilters } from "@/domains/leads/repository"
 import type { Temperature, LeadStage } from "@/lib/db/schema"
 import { LeadsView } from "./_components/LeadsView"
@@ -41,12 +42,17 @@ export default async function LeadsPage({
     source: (sp.source as LeadFilters["source"]) || undefined,
   }
 
-  const [leads, salesReps] = await Promise.all([
+  const [leads, salesReps, leadAdSource] = await Promise.all([
     getLeadsByCampaignWithActivity(id, ctx.orgId, filters),
     campaign.clientId
       ? listSalesReps(ctx.orgId, campaign.clientId)
       : Promise.resolve([]),
+    getLeadAdSourceByCampaign(id, ctx.orgId),
   ])
+
+  const leadAdSourcePublic = leadAdSource
+    ? { pageId: leadAdSource.pageId, formId: leadAdSource.formId, active: leadAdSource.active }
+    : null
 
   return (
     <LeadsView
@@ -56,6 +62,7 @@ export default async function LeadsPage({
       orgName={org.name}
       salesReps={salesReps}
       currentUserId={ctx.userId}
+      leadAdSource={leadAdSourcePublic}
     />
   )
 }
