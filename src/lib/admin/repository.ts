@@ -3,8 +3,8 @@ import { db } from "@/lib/db"
 import { organizations, orgMembers, leads, campaigns, users, accounts } from "@/lib/db/schema"
 import { sql, eq, ilike } from "drizzle-orm"
 
-export async function getAllOrgsWithStats() {
-  return db
+export async function getAllOrgsWithStats(search?: string) {
+  const query = db
     .select({
       id: organizations.id,
       name: organizations.name,
@@ -19,6 +19,15 @@ export async function getAllOrgsWithStats() {
     .leftJoin(orgMembers, eq(orgMembers.orgId, organizations.id))
     .groupBy(organizations.id)
     .orderBy(organizations.createdAt)
+
+  if (search?.trim()) {
+    return (await query).filter(
+      (o) =>
+        o.name.toLowerCase().includes(search.trim().toLowerCase()) ||
+        o.slug.toLowerCase().includes(search.trim().toLowerCase()),
+    )
+  }
+  return query
 }
 
 export async function getOrgForAdmin(orgId: string) {
@@ -42,8 +51,7 @@ export async function getOrgMembersForAdmin(orgId: string) {
     .orderBy(orgMembers.createdAt)
 }
 
-export async function searchUsersByEmail(email: string) {
-  if (!email.trim()) return []
+export async function getAllUsersWithProviders(search?: string) {
   const rows = await db
     .select({
       id: users.id,
@@ -51,11 +59,33 @@ export async function searchUsersByEmail(email: string) {
       email: users.email,
       emailVerified: users.emailVerified,
       password: users.password,
+      provider: accounts.provider,
     })
     .from(users)
-    .where(ilike(users.email, `%${email.trim()}%`))
-    .limit(20)
-  return rows.map(({ password, ...u }) => ({ ...u, hasPassword: password !== null }))
+    .leftJoin(accounts, eq(accounts.userId, users.id))
+    .where(search?.trim() ? ilike(users.email, `%${search.trim()}%`) : undefined)
+    .orderBy(users.email)
+    .limit(100)
+
+  // Collapse multiple provider rows per user into one entry
+  const map = new Map<string, {
+    id: string; name: string | null; email: string | null
+    emailVerified: Date | null; hasPassword: boolean; providers: string[]
+  }>()
+  for (const row of rows) {
+    if (!map.has(row.id)) {
+      map.set(row.id, {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        emailVerified: row.emailVerified,
+        hasPassword: row.password !== null,
+        providers: [],
+      })
+    }
+    if (row.provider) map.get(row.id)!.providers.push(row.provider)
+  }
+  return [...map.values()]
 }
 
 export async function getUserWithDetailsForAdmin(userId: string) {
