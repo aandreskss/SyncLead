@@ -183,7 +183,7 @@ export async function sendPurchaseEvent(params: PurchaseEventParams): Promise<{
     event_name: "Purchase",
     event_time: Math.floor(conversionDate.getTime() / 1000),
     event_id: lead.eventId ?? `purchase_${lead.id}`,
-    action_source: "website",
+    action_source: "crm",
     user_data: userData,
     custom_data: {
       currency: currency.toUpperCase(),
