@@ -28,6 +28,15 @@ const CollectEventSchema = z.object({
   parameters: z.record(z.string(), z.boolean()).optional().default({}),
 })
 
+function extractVisitorGeo(req: NextRequest): { city: string | null; country: string | null } {
+  const country = req.headers.get("cf-ipcountry")
+  const city = req.headers.get("cf-ipcity")
+  return {
+    country: country && country !== "XX" && country !== "T1" ? country : null,
+    city: city || null,
+  }
+}
+
 function sanitizePageUrl(raw: string): string | null {
   try {
     const u = new URL(raw)
@@ -129,6 +138,7 @@ export async function POST(
 
     const sanitizedUrl = sanitizePageUrl(pageUrl)
     const eventIdHash = eventId ? hashEventId(eventId) : null
+    const geo = extractVisitorGeo(request)
 
     // Try to match the event name against a conversion definition for this site
     const definition = await getDefinitionByEventNameForSite(site.id, site.orgId, eventName)
@@ -148,6 +158,8 @@ export async function POST(
       eventName,
       eventIdHash,
       pageUrl: sanitizedUrl,
+      visitorCity: geo.city,
+      visitorCountry: geo.country,
       environment: environment as "production" | "staging" | "development",
       parametersPresent: parameters,
       validationResult,
@@ -189,6 +201,7 @@ export async function POST(
   }
 
   const sanitizedUrl = sanitizePageUrl(pageUrl)
+  const geo = extractVisitorGeo(request)
 
   const definition = session.conversionDefinition
   const requiredParams: string[] = definition?.requiredParameters ?? []
@@ -209,6 +222,8 @@ export async function POST(
     eventName,
     eventIdHash,
     pageUrl: sanitizedUrl,
+    visitorCity: geo.city,
+    visitorCountry: geo.country,
     environment: environment as "production" | "staging" | "development",
     parametersPresent: parameters,
     validationResult,

@@ -1876,6 +1876,8 @@ export const conversionObservations = pgTable(
     eventName: text("event_name").notNull(),
     eventIdHash: text("event_id_hash"),
     pageUrl: text("page_url"),
+    visitorCity: text("visitor_city"),
+    visitorCountry: text("visitor_country"),
     environment: siteEnvironmentEnum("environment").notNull().default("production"),
     parametersPresent: jsonb("parameters_present").$type<Record<string, boolean>>().notNull().default({}),
     validationResult: jsonb("validation_result").$type<Record<string, unknown>>().notNull().default({}),
