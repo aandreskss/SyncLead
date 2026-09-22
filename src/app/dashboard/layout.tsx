@@ -23,6 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const ctx = await requireOrganizationMembership()
     const org = await getOrganizationById(ctx.orgId)
     if (!org) redirect("/login")
+    if (org.suspended) redirect("/suspended")
     orgName = org.name
     isAdmin = ctx.role === "owner" || ctx.role === "admin"
     roleLabel = ROLE_LABELS[ctx.role] ?? "Miembro"
