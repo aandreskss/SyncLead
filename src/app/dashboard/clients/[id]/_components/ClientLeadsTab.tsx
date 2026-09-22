@@ -4,12 +4,13 @@ import { useState, useEffect, useTransition, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Search, Users, BadgeDollarSign, Trash2, Zap,
-  Target, Globe, Upload, ShoppingCart, FileText, Info, CheckCircle,
+  Target, Globe, Upload, ShoppingCart, FileText, Info, CheckCircle, UserPlus,
 } from "lucide-react"
 import { LeadDrawer } from "@/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer"
 import type { Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
 import type { LeadWithActivity } from "@/domains/leads/repository"
 import { deleteLeadsAction, deleteLeadsByClientAction } from "@/domains/leads/actions"
+import { CreateLeadDialog } from "./CreateLeadDialog"
 
 interface Props {
   clientId: string
@@ -59,6 +60,7 @@ const SOURCES = [
   { value: "meta_ads", label: "Meta Ads" },
   { value: "organic", label: "Orgánico" },
   { value: "imported", label: "Importado" },
+  { value: "manual", label: "Manual" },
 ]
 
 const ACTIVITIES = [
@@ -138,6 +140,14 @@ function SourceBadge({ source }: { source: string }) {
       </span>
     )
   }
+  if (source === "manual") {
+    return (
+      <span title="Lead manual" className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium bg-violet-500/20 text-violet-400 border border-violet-500/30">
+        <UserPlus className="h-2.5 w-2.5" />
+        WA
+      </span>
+    )
+  }
   return (
     <span title="Orgánico" className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium bg-emerald-500/20 text-ops-green border border-emerald-500/30">
       <Globe className="h-2.5 w-2.5" />
@@ -194,6 +204,7 @@ export function ClientLeadsTab({
   const [searchInput, setSearchInput] = useState(filters.search)
   const [drawerLead, setDrawerLead] = useState<LeadWithActivity | null>(null)
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<"selected" | "client" | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -325,9 +336,19 @@ export function ClientLeadsTab({
         </div>
       </div>
 
-      {/* Header with delete-all button */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-ops-tx3">{leads.length} leads mostrados</p>
+        <div className="flex items-center gap-2">
+          {campaigns.length > 0 && (
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-ops-blue px-3 text-xs font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-ops-blue"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Nuevo lead
+            </button>
+          )}
         {leads.length > 0 && (
           <div className="flex items-center gap-2">
             {deleteError && deleteConfirm === "client" && (
@@ -363,6 +384,7 @@ export function ClientLeadsTab({
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* Bulk action bar */}
@@ -643,6 +665,14 @@ export function ClientLeadsTab({
         clientId={clientId}
         salesReps={salesReps}
       />
+
+      {showCreateDialog && (
+        <CreateLeadDialog
+          campaigns={campaigns}
+          defaultCampaignId={filters.campaignId || undefined}
+          onClose={() => setShowCreateDialog(false)}
+        />
+      )}
     </div>
   )
 }
