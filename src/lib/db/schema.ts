@@ -133,6 +133,8 @@ export const organizations = pgTable("organizations", {
   plan: text("plan").notNull().default("free"),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   monthlyReportEmail: boolean("monthly_report_email").notNull().default(false),
+  suspended: boolean("suspended").notNull().default(false),
+  features: jsonb("features").$type<Record<string, boolean>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
