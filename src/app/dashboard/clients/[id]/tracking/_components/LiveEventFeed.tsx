@@ -5,6 +5,15 @@ import { getLiveEventsAction, type LiveEvent } from "@/domains/tracking/actions"
 import { Badge } from "@/components/ui/badge"
 import { Radio, CheckCircle2, AlertCircle, Monitor, Globe, Zap, Wifi, WifiOff } from "lucide-react"
 
+function countryFlag(code: string): string {
+  if (!code || code.length !== 2) return ""
+  const base = 0x1F1E6 - 0x41
+  return String.fromCodePoint(
+    base + code.toUpperCase().charCodeAt(0),
+    base + code.toUpperCase().charCodeAt(1)
+  )
+}
+
 const POLL_INTERVAL_MS = 4000
 
 const SOURCE_CONFIG = {
@@ -66,14 +75,40 @@ function EventRow({ event, isNew }: { event: LiveEvent; isNew: boolean }) {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs text-ops-tx3">
+        <div className="space-y-0.5">
           {event.pageUrl && (
-            <span className="truncate max-w-[240px]">{event.pageUrl}</span>
+            <div className="flex items-center gap-2 text-xs text-ops-tx3">
+              <a
+                href={event.pageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate hover:text-ops-tx hover:underline"
+                title={event.pageUrl}
+              >
+                {event.pageUrl}
+              </a>
+              {(event.visitorCity || event.visitorCountry) && (
+                <span className="shrink-0 flex items-center gap-1">
+                  {event.visitorCountry && (
+                    <span>{countryFlag(event.visitorCountry)}</span>
+                  )}
+                  <span>
+                    {[event.visitorCity, event.visitorCountry].filter(Boolean).join(", ")}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+          {!event.pageUrl && (event.visitorCity || event.visitorCountry) && (
+            <div className="text-xs text-ops-tx3 flex items-center gap-1">
+              {event.visitorCountry && <span>{countryFlag(event.visitorCountry)}</span>}
+              <span>{[event.visitorCity, event.visitorCountry].filter(Boolean).join(", ")}</span>
+            </div>
           )}
           {event.missingParams.length > 0 && (
-            <span className="text-ops-amber">
+            <div className="text-xs text-ops-amber">
               Faltan: {event.missingParams.join(", ")}
-            </span>
+            </div>
           )}
         </div>
       </div>

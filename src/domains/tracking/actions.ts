@@ -640,6 +640,8 @@ export type LiveEvent = {
   eventName: string
   definitionDisplayName: string | null
   pageUrl: string | null
+  visitorCity: string | null
+  visitorCountry: string | null
   environment: string
   allParamsOk: boolean
   missingParams: string[]
@@ -666,6 +668,8 @@ export async function getLiveEventsAction(
       eventName: obs.eventName,
       definitionDisplayName: obs.definitionDisplayName,
       pageUrl: obs.pageUrl,
+      visitorCity: obs.visitorCity,
+      visitorCountry: obs.visitorCountry,
       environment: obs.environment ?? "production",
       allParamsOk: missing.length === 0,
       missingParams: missing,
