@@ -52,6 +52,27 @@ function sanitizePageUrl(raw: string): string | null {
   }
 }
 
+function extractUtmsFromUrl(raw: string): {
+  utmSource: string | null
+  utmMedium: string | null
+  utmCampaign: string | null
+  referrer: string | null
+} {
+  try {
+    const p = new URL(raw).searchParams
+    // Facebook traffic without UTMs often carries fbclid
+    const hasFbclid = p.has("fbclid")
+    return {
+      utmSource: p.get("utm_source") ?? (hasFbclid ? "facebook" : null),
+      utmMedium: p.get("utm_medium") ?? (hasFbclid ? "cpc" : null),
+      utmCampaign: p.get("utm_campaign"),
+      referrer: null,
+    }
+  } catch {
+    return { utmSource: null, utmMedium: null, utmCampaign: null, referrer: null }
+  }
+}
+
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex")
 }
@@ -145,6 +166,7 @@ export async function POST(
     const sanitizedUrl = sanitizePageUrl(pageUrl)
     const eventIdHash = eventId ? hashEventId(eventId) : null
     const geo = extractVisitorGeo(request)
+    const urlUtms = extractUtmsFromUrl(pageUrl)
 
     // Try to match the event name against a conversion definition for this site
     const definition = await getDefinitionByEventNameForSite(site.id, site.orgId, eventName)
@@ -167,9 +189,9 @@ export async function POST(
       visitorId: visitorId ?? null,
       visitorCity: geo.city,
       visitorCountry: geo.country,
-      utmSource: utmSource ?? null,
-      utmMedium: utmMedium ?? null,
-      utmCampaign: utmCampaign ?? null,
+      utmSource: utmSource ?? urlUtms.utmSource,
+      utmMedium: utmMedium ?? urlUtms.utmMedium,
+      utmCampaign: utmCampaign ?? urlUtms.utmCampaign,
       referrer: referrer ?? null,
       environment: environment as "production" | "staging" | "development",
       parametersPresent: parameters,
@@ -213,6 +235,7 @@ export async function POST(
 
   const sanitizedUrl = sanitizePageUrl(pageUrl)
   const geo = extractVisitorGeo(request)
+  const urlUtms = extractUtmsFromUrl(pageUrl)
 
   const definition = session.conversionDefinition
   const requiredParams: string[] = definition?.requiredParameters ?? []
@@ -236,9 +259,9 @@ export async function POST(
     visitorId: visitorId ?? null,
     visitorCity: geo.city,
     visitorCountry: geo.country,
-    utmSource: utmSource ?? null,
-    utmMedium: utmMedium ?? null,
-    utmCampaign: utmCampaign ?? null,
+    utmSource: utmSource ?? urlUtms.utmSource,
+    utmMedium: utmMedium ?? urlUtms.utmMedium,
+    utmCampaign: utmCampaign ?? urlUtms.utmCampaign,
     referrer: referrer ?? null,
     environment: environment as "production" | "staging" | "development",
     parametersPresent: parameters,

@@ -63,7 +63,8 @@ function resolveTrafficSource(utmSource: string | null, referrer: string | null)
     return { label: "WhatsApp", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-800" }
   if (src.includes("twitter") || src.includes("x.com") || ref.includes("x.com"))
     return { label: "X / Twitter", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
-  if (!utmSource && !referrer) return { label: "Directo", cls: "text-ops-tx3 bg-ops-s2 border-ops-bd" }
+  // No attribution data collected — don't show anything (data was never sent)
+  if (!utmSource && !referrer) return null
   if (utmSource) return { label: utmSource, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
   return null
 }
