@@ -113,8 +113,8 @@ function buildSyncLeadSnippet(def: ConversionDefinitionPublic): string {
         utmMedium: localStorage.getItem('_sl_utm_medium'),
         utmCampaign: localStorage.getItem('_sl_utm_campaign'),
         referrer: document.referrer || null,
-        fbc: getCookie('_fbc') || localStorage.getItem('_sl_fbc'),
-        fbp: getCookie('_fbp'),
+        fbc: getCookie('_fbc') || localStorage.getItem('_sl_fbc') || undefined,
+        fbp: getCookie('_fbp') || undefined,
         parameters: params || {},
       })], { type: 'application/json' })
     );
