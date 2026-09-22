@@ -3,8 +3,9 @@
 import { useState, useEffect, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign, Trash2, Zap, Target, Globe, Upload } from "lucide-react"
+import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign, Trash2, Zap, Target, Globe, Upload, UserPlus } from "lucide-react"
 import { LeadDrawer } from "./LeadDrawer"
+import { CreateLeadDialog } from "./CreateLeadDialog"
 import { cn } from "@/lib/utils"
 import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField } from "@/components/app/ops"
 import type { Campaign, Client, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
@@ -46,6 +47,7 @@ const SOURCES: { value: string; label: string }[] = [
   { value: "meta_ads", label: "Meta Ads" },
   { value: "organic", label: "Orgánico" },
   { value: "imported", label: "Importado" },
+  { value: "manual", label: "Manual" },
 ]
 
 const ACTIVITIES: { value: string; label: string }[] = [
@@ -118,6 +120,12 @@ function SourceBadge({ source }: { source: string }) {
         <Upload className="h-2.5 w-2.5" />CSV
       </span>
     )
+  if (source === "manual")
+    return (
+      <span title="Lead manual" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/30 whitespace-nowrap">
+        <UserPlus className="h-2.5 w-2.5" />WA
+      </span>
+    )
   return (
     <span title="Orgánico" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-ops-green/20 text-ops-green border border-ops-green/30 whitespace-nowrap">
       <Globe className="h-2.5 w-2.5" />Org
@@ -177,6 +185,7 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
 
   const [searchInput, setSearchInput] = useState(currentSearch)
   const [drawerLead, setDrawerLead] = useState<LeadWithActivity | null>(null)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   // Bulk delete state
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
@@ -304,7 +313,15 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
         title={campaign.name}
         subtitle={`${campaign.client?.name ?? orgName} · ${leads.length} leads`}
         actions={
-          leads.length > 0 ? (
+          <>
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3 text-xs font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-ops-blue"
+            >
+              <UserPlus className="h-4 w-4" />
+              Nuevo lead
+            </button>
+            {leads.length > 0 ? (
             deleteConfirm === "campaign" ? (
               <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border border-ops-coral/50 bg-ops-s2 px-3 py-1.5">
                 <span className="text-xs text-ops-tx2">¿Eliminar {leads.length} leads de la campaña?</span>
@@ -347,7 +364,8 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                 )}
               </>
             )
-          ) : undefined
+            ) : null}
+          </>
         }
       />
 
@@ -664,6 +682,13 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
       <p className="text-xs text-ops-tx3">
         Abrir WhatsApp abre la conversación; no envía ningún mensaje por ti.
       </p>
+
+      {showCreateDialog && (
+        <CreateLeadDialog
+          campaignId={campaign.id}
+          onClose={() => setShowCreateDialog(false)}
+        />
+      )}
     </PageShell>
   )
 }

@@ -9,12 +9,14 @@ import {
   assignLead,
   getLeadDetail,
 } from "./repository"
-import { requireOrganizationMembership } from "@/lib/auth/server"
+import { requireOrganizationMembership, requireCampaignAccess } from "@/lib/auth/server"
 import { writeAuditLog } from "@/lib/audit"
 import { db } from "@/lib/db"
-import { leads, campaigns, metaConnections, metaEvents } from "@/lib/db/schema"
+import { leads, campaigns, leadActivities, metaConnections, metaEvents } from "@/lib/db/schema"
 import { and, eq, inArray } from "drizzle-orm"
 import { sendMetaEventDirect } from "@/lib/meta-outbox/worker"
+import { z } from "zod"
+import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 
 export async function updateLeadTemperatureAction(leadId: string, temperature: Temperature) {
   let ctx
@@ -209,5 +211,66 @@ export async function deleteLeadsByClientAction(
     return { deleted: deleted.length }
   } catch {
     return { error: "Error al eliminar los leads." }
+  }
+}
+
+const CreateLeadSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido").max(200),
+  phone: z.string().max(50).optional().nullable(),
+  email: z.string().email("Email inválido").max(300).optional().nullable().or(z.literal("")),
+  city: z.string().max(100).optional().nullable(),
+  negocio: z.string().max(500).optional().nullable(),
+})
+
+export async function createLeadManuallyAction(
+  campaignId: string,
+  input: unknown,
+): Promise<{ success: boolean; leadId?: string; error?: string }> {
+  let ctx
+  try { ctx = await requireCampaignAccess(campaignId) } catch { return { success: false, error: "No autorizado" } }
+
+  const parsed = CreateLeadSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" }
+  }
+
+  const { name, phone, city, negocio } = parsed.data
+  const email = parsed.data.email || null
+
+  try {
+    const [lead] = await db
+      .insert(leads)
+      .values({
+        orgId: ctx.orgId,
+        campaignId,
+        name: name.trim(),
+        email,
+        phone: phone?.trim() || null,
+        city: city?.trim() || null,
+        negocioRaw: negocio?.trim() || null,
+        temperature: "cold",
+        leadSource: "manual",
+        stage: "new",
+      })
+      .returning({ id: leads.id })
+
+    if (!lead) return { success: false, error: "Error al crear el lead" }
+
+    await db
+      .insert(leadActivities)
+      .values({
+        leadId: lead.id,
+        orgId: ctx.orgId,
+        actorType: "user",
+        activityType: "created",
+        metadata: { source: "manual", channel: "direct", hasEmail: !!email, hasPhone: !!phone },
+      })
+      .catch(() => undefined)
+
+    autoQualifyLeadInternal(lead.id, ctx.orgId, campaignId).catch(() => undefined)
+
+    return { success: true, leadId: lead.id }
+  } catch {
+    return { success: false, error: "Error al crear el lead" }
   }
 }
