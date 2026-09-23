@@ -604,7 +604,7 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
           <div className="border-b border-ops-line px-4 py-3">
             <h2 className="text-sm font-medium text-ops-tx">Conversiones configuradas</h2>
           </div>
-          <ConversionList definitions={filteredDefinitions} clientId={clientId} />
+          <ConversionList definitions={filteredDefinitions} clientId={clientId} siteId={selectedSiteId} />
         </div>
       )}
 
