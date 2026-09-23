@@ -136,6 +136,82 @@ export async function sendContactEvent(params: ContactEventParams): Promise<{ se
   }
 }
 
+// ─── Behavior events (ViewContent / AddToCart / InitiateCheckout) ────────────
+
+const BEHAVIOR_EVENT_MAP: Record<string, string> = {
+  view_product:    "ViewContent",
+  add_to_cart:     "AddToCart",
+  begin_checkout:  "InitiateCheckout",
+}
+
+export interface BehaviorCapiParams {
+  pixelId: string
+  accessToken: string
+  graphApiVersion?: string
+  behaviorEventType: "view_product" | "add_to_cart" | "begin_checkout"
+  leadId: string
+  email?: string | null
+  phone?: string | null
+  name?: string | null
+  city?: string | null
+  value?: number | null
+  currency?: string | null
+  contentIds?: string[]
+}
+
+export async function sendBehaviorCapiEvent(
+  params: BehaviorCapiParams
+): Promise<{ sent: boolean; status: string }> {
+  const metaEventName = BEHAVIOR_EVENT_MAP[params.behaviorEventType]
+  if (!metaEventName) return { sent: false, status: "unsupported_event" }
+
+  const { pixelId, accessToken } = params
+  const apiVersion = params.graphApiVersion ?? getApiVersion()
+  const firstName = params.name?.split(" ")[0] ?? params.name
+
+  const userData: Record<string, unknown> = {
+    em: hashIfPresent(params.email),
+    ph: hashIfPresent(params.phone?.replace(/\D/g, "")),
+    fn: hashIfPresent(firstName),
+    ct: hashIfPresent(params.city),
+  }
+
+  const customData: Record<string, unknown> = {}
+  if (params.value) customData.value = params.value
+  if (params.currency) customData.currency = params.currency.toUpperCase()
+  if (params.contentIds?.length) customData.content_ids = params.contentIds
+
+  const eventId = `${params.behaviorEventType}_${params.leadId}_${Math.floor(Date.now() / 60000)}`
+
+  const event = {
+    event_name: metaEventName,
+    event_time: Math.floor(Date.now() / 1000),
+    event_id: eventId,
+    action_source: "website",
+    user_data: userData,
+    ...(Object.keys(customData).length > 0 ? { custom_data: customData } : {}),
+  }
+
+  try {
+    const url = `${META_GRAPH_BASE}/${apiVersion}/${pixelId}/events`
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+      body: JSON.stringify({ data: [event] }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    const json = await res.json() as { events_received?: number; error?: { code?: number } }
+    if (!res.ok) {
+      const code = json.error?.code
+      return { sent: false, status: `error:api_${code ?? "unknown"}` }
+    }
+    return { sent: true, status: `sent:${json.events_received ?? 1}` }
+  } catch (err) {
+    const message = err instanceof Error ? err.message.slice(0, 80) : "network_error"
+    return { sent: false, status: `fetch_error:${message}` }
+  }
+}
+
 // ─── Purchase event ───────────────────────────────────────────────────────────
 
 export interface PurchaseEventParams {

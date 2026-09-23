@@ -34,6 +34,7 @@ import { LeadSourcesPanel } from "./_components/LeadSourcesPanel"
 import { ScriptInstallPanel } from "./_components/ScriptInstallPanel"
 import { TrackingDashboard } from "./tracking/_components/TrackingDashboard"
 import { CapiLogPanel } from "./_components/CapiLogPanel"
+import { AudienceSyncPanel } from "./_components/AudienceSyncPanel"
 import { ArrowLeft, Building2 } from "lucide-react"
 import { PageShell, StatusChip } from "@/components/app/ops"
 import Link from "next/link"
@@ -147,6 +148,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       captureScriptKey: c.captureScriptKey ?? null,
       sendLeadEvents: c.sendLeadEvents,
       sendContactEvents: c.sendContactEvents,
+      sendBehaviorCapi: c.sendBehaviorCapi,
     }))
     tabContent = (
       <LeadSourcesPanel clientId={id} metaConnections={publicConnections} />
@@ -187,6 +189,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       captureScriptKey: c.captureScriptKey ?? null,
       sendLeadEvents: c.sendLeadEvents,
       sendContactEvents: c.sendContactEvents,
+      sendBehaviorCapi: c.sendBehaviorCapi,
     }))
 
     const publicInsightsConnections = insightsConnections.map((c) => ({
@@ -206,6 +209,11 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         <CapiStatusCard clientId={client.id} stats={capiStats} />
         <div className="border-t border-ops-line" />
         <MetaInsightsPanel clientId={client.id} initialConnections={publicInsightsConnections} />
+        <div className="border-t border-ops-line" />
+        <AudienceSyncPanel
+          clientId={client.id}
+          hasAdAccount={metaConnectionsList.some((c) => c.status === "active" && !!c.adAccountId)}
+        />
         <div className="border-t border-ops-line" />
         <QualificationProfilesPanel clientId={client.id} orgId={ctx.orgId} />
         <div className="border-t border-ops-line" />

@@ -470,6 +470,7 @@ export type VisitorSessionRow = {
   eventCount: number
   firstSeen: Date
   lastSeen: Date
+  sessionDurationMs: number
   firstEventName: string
   utmSource: string | null
   utmMedium: string | null
@@ -477,14 +478,19 @@ export type VisitorSessionRow = {
   referrer: string | null
   visitorCity: string | null
   visitorCountry: string | null
+  hasCheckout: boolean
+  hasAddToCart: boolean
+  hasViewProduct: boolean
+  uniquePageCount: number
 }
 
 export async function getVisitorSessionsByClient(
   orgId: string,
   clientId: string,
-  limit = 100
+  limit = 100,
+  days = 30
 ): Promise<VisitorSessionRow[]> {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
   const rows = await db
     .select()
@@ -494,7 +500,7 @@ export async function getVisitorSessionsByClient(
         eq(conversionObservations.orgId, orgId),
         eq(conversionObservations.clientId, clientId),
         isNotNull(conversionObservations.visitorId),
-        gte(conversionObservations.observedAt, thirtyDaysAgo),
+        gte(conversionObservations.observedAt, since),
         or(
           ilike(conversionObservations.utmSource, "%facebook%"),
           ilike(conversionObservations.utmSource, "%instagram%"),
@@ -503,30 +509,55 @@ export async function getVisitorSessionsByClient(
       )
     )
     .orderBy(asc(conversionObservations.observedAt))
-    .limit(5000)
+    .limit(10000)
 
   const map = new Map<string, VisitorSessionRow>()
+  const eventsByVisitor = new Map<string, Set<string>>()
+  const pagesByVisitor = new Map<string, Set<string>>()
+
   for (const obs of rows) {
     const vid = obs.visitorId!
+    const isPing = obs.eventName === "session_ping"
+
+    if (!eventsByVisitor.has(vid)) eventsByVisitor.set(vid, new Set())
+    if (!pagesByVisitor.has(vid)) pagesByVisitor.set(vid, new Set())
+    if (!isPing) eventsByVisitor.get(vid)!.add(obs.eventName)
+    if (obs.pageUrl) pagesByVisitor.get(vid)!.add(obs.pageUrl)
+
     const existing = map.get(vid)
     if (!existing) {
       map.set(vid, {
         visitorId: vid,
-        eventCount: 1,
+        eventCount: isPing ? 0 : 1,
         firstSeen: obs.observedAt,
         lastSeen: obs.observedAt,
-        firstEventName: obs.eventName,
+        sessionDurationMs: 0,
+        firstEventName: isPing ? "PageView" : obs.eventName,
         utmSource: obs.utmSource,
         utmMedium: obs.utmMedium,
         utmCampaign: obs.utmCampaign,
         referrer: obs.referrer,
         visitorCity: obs.visitorCity,
         visitorCountry: obs.visitorCountry,
+        hasCheckout: false,
+        hasAddToCart: false,
+        hasViewProduct: false,
+        uniquePageCount: 0,
       })
     } else {
-      existing.eventCount++
+      if (!isPing) existing.eventCount++
       if (obs.observedAt > existing.lastSeen) existing.lastSeen = obs.observedAt
     }
+  }
+
+  for (const [vid, session] of map) {
+    const events = eventsByVisitor.get(vid) ?? new Set()
+    const pages = pagesByVisitor.get(vid) ?? new Set()
+    session.sessionDurationMs = session.lastSeen.getTime() - session.firstSeen.getTime()
+    session.hasCheckout = events.has("begin_checkout") || events.has("InitiateCheckout")
+    session.hasAddToCart = events.has("add_to_cart") || events.has("AddToCart")
+    session.hasViewProduct = events.has("view_product") || events.has("ViewContent")
+    session.uniquePageCount = pages.size
   }
 
   return Array.from(map.values())

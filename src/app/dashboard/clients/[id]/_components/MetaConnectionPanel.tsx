@@ -75,6 +75,7 @@ function ConnectionCard({
   const [testResult, setTestResult] = useState<string | null>(null)
   const [sendLeadEvents, setSendLeadEvents] = useState(conn.sendLeadEvents)
   const [sendContactEvents, setSendContactEvents] = useState(conn.sendContactEvents)
+  const [sendBehaviorCapi, setSendBehaviorCapi] = useState(conn.sendBehaviorCapi)
 
   function handleToggleLeadEvents(checked: boolean) {
     setSendLeadEvents(checked)
@@ -87,6 +88,13 @@ function ConnectionCard({
     setSendContactEvents(checked)
     startConfig(async () => {
       await updateMetaEventConfigAction(clientId, { sendContactEvents: checked })
+    })
+  }
+
+  function handleToggleBehaviorCapi(checked: boolean) {
+    setSendBehaviorCapi(checked)
+    startConfig(async () => {
+      await updateMetaEventConfigAction(clientId, { sendBehaviorCapi: checked })
     })
   }
 
@@ -208,6 +216,18 @@ function ConnectionCard({
             className="h-3.5 w-3.5 rounded accent-indigo-500"
           />
           <span className="text-xs text-ops-tx2">Enviar evento &ldquo;Contact&rdquo; al contactar un lead</span>
+        </label>
+        <label className={`flex items-center gap-2.5 cursor-pointer ${configPending ? "opacity-60" : ""}`}>
+          <input
+            type="checkbox"
+            checked={sendBehaviorCapi}
+            onChange={(e) => handleToggleBehaviorCapi(e.target.checked)}
+            disabled={configPending}
+            className="h-3.5 w-3.5 rounded accent-indigo-500"
+          />
+          <span className="text-xs text-ops-tx2">
+            Enviar eventos de comportamiento CAPI (Vista, Carrito, Checkout)
+          </span>
         </label>
       </div>
     </div>

@@ -62,6 +62,9 @@ function buildScript(token: string): string {
 
   window.__synclead_collect = sendToDiagnostic;
 
+  // Ping cada 30s — mide tiempo real en página
+  setInterval(function() { sendToDiagnostic('session_ping', {}); }, 30000);
+
   function wrapFbq(original) {
     if (original && original._synclead_wrapped) return original;
     var wrapper = function() {

@@ -14,6 +14,7 @@ import { ConversionList } from "./ConversionList"
 import { LiveEventFeed } from "./LiveEventFeed"
 import { IngestErrorsPanel } from "./IngestErrorsPanel"
 import { CheckoutFunnelWidget } from "./CheckoutFunnelWidget"
+import { SignalQualityCard } from "./SignalQualityCard"
 import Link from "next/link"
 import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, XCircle, ExternalLink, Users } from "lucide-react"
 import { createTrackingSiteAction, applyBusinessTemplateAction } from "@/domains/tracking/actions"
@@ -614,6 +615,8 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
       {issues.length > 0 && <IssuesList issues={issues} />}
 
       <CheckoutFunnelWidget clientId={clientId} initial={checkoutFunnel} />
+
+      <SignalQualityCard clientId={clientId} />
 
       <div className="space-y-2">
         <h2 className="text-sm font-medium text-ops-tx2 uppercase tracking-wide">Errores de integración</h2>
