@@ -38,7 +38,9 @@ export async function searchMetaAds(params: {
   const appId = process.env.META_AD_LIBRARY_APP_ID
   const appSecret = process.env.META_APP_SECRET
 
-  if (!appId || !appSecret) return []
+  if (!appId || !appSecret) {
+    throw new Error('META_AD_LIBRARY_APP_ID o META_APP_SECRET no están configurados.')
+  }
 
   const token = `${appId}|${appSecret}`
   const controller = new AbortController()
@@ -53,6 +55,7 @@ export async function searchMetaAds(params: {
       search_terms: params.searchTerms || '',
       ad_reached_countries: JSON.stringify(params.countries),
       ad_active_status: params.activeOnly ? 'ACTIVE' : 'ALL',
+      ad_type: 'ALL',
       limit: String(Math.min(params.limit ?? 20, 100)),
       fields: 'id,page_name,page_id,ad_delivery_start_time,ad_delivery_stop_time,ad_creative_bodies,ad_creative_link_titles,ad_snapshot_url,impressions,spend,media_type',
     })
@@ -70,10 +73,12 @@ export async function searchMetaAds(params: {
     const url = `https://graph.facebook.com/${apiVersion}/ads_archive?${qs.toString()}`
 
     const res = await fetch(url, { signal: controller.signal })
+    const json = await res.json() as { data?: unknown[]; error?: { message?: string; code?: number } }
 
-    if (!res.ok) return []
+    if (!res.ok || json.error) {
+      throw new Error(json.error?.message ?? `Meta API error ${res.status}`)
+    }
 
-    const json = await res.json() as { data?: unknown[] }
     if (!Array.isArray(json.data)) return []
 
     const results: MetaAdResult[] = json.data.map((raw: unknown) => {
