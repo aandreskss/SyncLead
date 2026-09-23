@@ -52,16 +52,20 @@ document.addEventListener('submit',function(e){
 var _q=(window.SyncLead&&window.SyncLead._q)||[];
 window.SyncLead={
   lead:function(d){lead(d||{});},
-  purchase:function(d){behavior('purchase',d||{});},
-  event:function(t,d){behavior(t,d||{});},
+  // event + purchase: dual-send — collect (live feed/visitors) + behavior (lead qualification)
+  purchase:function(d){collect('purchase',d||{});behavior('purchase',d||{});},
+  event:function(t,d){collect(t,d||{});behavior(t,d||{});},
   track:function(n,d){collect(n,d||{});},
 };
+// Backward compat: old per-site script exposed window.__synclead_collect
+window.__synclead_collect=function(n,d){collect(n,d||{});};
 for(var _i=0;_i<_q.length;_i++){
   var _c=_q[_i];
   if(_c[0]==='lead')lead(_c[1]||{});
-  else if(_c[0]==='event')behavior(_c[1],_c[2]||{});
-  else if(_c[0]==='purchase')behavior('purchase',_c[1]||{});
+  else if(_c[0]==='event'){collect(_c[1],_c[2]||{});behavior(_c[1],_c[2]||{});}
+  else if(_c[0]==='purchase'){collect('purchase',_c[1]||{});behavior('purchase',_c[1]||{});}
   else if(_c[0]==='track')collect(_c[1],_c[2]||{});
+  else if(_c[0]==='__synclead_collect')collect(_c[1],_c[2]||{});
 }
 })();`
 }

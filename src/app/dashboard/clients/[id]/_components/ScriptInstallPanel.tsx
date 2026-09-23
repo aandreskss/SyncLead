@@ -81,7 +81,7 @@ window.SyncLead.event("begin_checkout", {
 function TokenRevealBanner({ token, onDismiss }: { token: string; onDismiss: () => void }) {
   const [confirmed, setConfirmed] = useState(false)
   const [visible, setVisible] = useState(false)
-  const stub = `<script>\nwindow.SyncLead={_q:[],lead:function(d){this._q.push(['lead',d])},event:function(t,d){this._q.push(['event',t,d])},purchase:function(d){this._q.push(['purchase',d])},track:function(n,d){this._q.push(['track',n,d])}};\n</script>`
+  const stub = `<script>\nwindow.SyncLead={_q:[],lead:function(d){this._q.push(['lead',d])},event:function(t,d){this._q.push(['event',t,d])},purchase:function(d){this._q.push(['purchase',d])},track:function(n,d){this._q.push(['track',n,d])}};\nwindow.__synclead_collect=function(n,d){window.SyncLead._q.push(['__synclead_collect',n,d]);};\n</script>`
   const pixelTag = `<script src="${APP_URL}/pixel.js" data-token="${token}" async></script>`
   const scriptTag = `${stub}\n${pixelTag}`
 
@@ -328,6 +328,7 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
               const TOKEN_PLACEHOLDER = `${active.keyPrefix}…`
               const stubScript = `<script>
 window.SyncLead={_q:[],lead:function(d){this._q.push(['lead',d])},event:function(t,d){this._q.push(['event',t,d])},purchase:function(d){this._q.push(['purchase',d])},track:function(n,d){this._q.push(['track',n,d])}};
+window.__synclead_collect=function(n,d){window.SyncLead._q.push(['__synclead_collect',n,d]);};
 </script>`
               const pixelScript = `<script src="${APP_URL}/pixel.js" data-token="${TOKEN_PLACEHOLDER}" async></script>`
               const fullSnippet = `${stubScript}\n${pixelScript}`
