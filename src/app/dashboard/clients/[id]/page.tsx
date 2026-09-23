@@ -224,6 +224,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         <MessageTemplatesPanel clientId={client.id} initialTemplates={templates} />
         <div className="border-t border-ops-line" />
         <ScriptInstallPanel
+          clientId={client.id}
           sites={trackingSitesData.map((s) => ({
             id: s.id,
             name: s.name,

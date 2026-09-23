@@ -2,14 +2,40 @@
 
 import { useState, useTransition } from "react"
 import { getOrCreateSiteCollectTokenAction } from "@/domains/tracking/actions"
-import { Copy, CheckCircle2, Code2, Shield, Zap, AlertCircle, Loader2, Globe } from "lucide-react"
+import {
+  listClientIngestionCredentialsAction,
+  createClientIngestionCredentialAction,
+  revokeClientIngestionCredentialAction,
+  type IngestionCredentialPublic,
+} from "@/domains/campaigns/actions"
+import {
+  Copy, CheckCircle2, Code2, Shield, Zap, AlertCircle, Loader2, Globe,
+  Key, Plus, Trash2, Eye, EyeOff
+} from "lucide-react"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.synclead.io"
+
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text)
+  }
+  return new Promise((resolve) => {
+    const ta = document.createElement("textarea")
+    ta.value = text
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none"
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    document.execCommand("copy")
+    document.body.removeChild(ta)
+    resolve()
+  })
+}
 
 function CopyBtn({ text, label = "Copiar" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false)
   function handleCopy() {
-    navigator.clipboard.writeText(text).then(() => {
+    copyToClipboard(text).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -28,9 +54,9 @@ function CopyBtn({ text, label = "Copiar" }: { text: string; label?: string }) {
   )
 }
 
-const PIXEL_SCRIPT_TAG = `<script src="${APP_URL}/pixel.js" data-token="pub_xxxx..." async></script>`
 const CSP_SNIPPET = `script-src ${APP_URL};
 connect-src ${APP_URL};`
+
 const API_EXAMPLES = `// Captura un lead manualmente (p. ej. al enviar un formulario)
 window.SyncLead.lead({
   name: "Ana García",
@@ -51,84 +77,244 @@ window.SyncLead.event("begin_checkout", {
   currency: "USD",
 });`
 
-function UniversalPixelCard() {
+// ── Token reveal dialog shown once after creation ─────────────────────────────
+function TokenRevealBanner({ token, onDismiss }: { token: string; onDismiss: () => void }) {
+  const [confirmed, setConfirmed] = useState(false)
+  const [visible, setVisible] = useState(false)
+  const scriptTag = `<script src="${APP_URL}/pixel.js" data-token="${token}" async></script>`
+
+  return (
+    <div className="rounded-lg border border-amber-700/50 bg-amber-950/20 p-4 space-y-3">
+      <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
+        <AlertCircle className="h-3.5 w-3.5" />
+        Copia este token ahora — no se vuelve a mostrar
+      </p>
+
+      <div className="space-y-2">
+        <p className="text-xs text-ops-tx3">Token completo:</p>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 rounded bg-ops-bg border border-ops-line p-2 font-mono text-xs text-amber-300 flex items-center gap-2 min-w-0">
+            <span className="flex-1 truncate select-all">{visible ? token : "pub_" + "•".repeat(40)}</span>
+            <button onClick={() => setVisible(v => !v)} className="text-ops-tx3 hover:text-ops-tx2 shrink-0">
+              {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+          <CopyBtn text={token} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs text-ops-tx3">Script listo para copiar:</p>
+        <div className="flex items-start gap-2">
+          <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-2 text-xs text-indigo-300 font-mono overflow-x-auto whitespace-pre select-all">
+            {scriptTag}
+          </pre>
+          <CopyBtn text={scriptTag} />
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={confirmed}
+          onChange={e => setConfirmed(e.target.checked)}
+          className="rounded border-ops-bd"
+        />
+        <span className="text-xs text-ops-tx2">Ya copié el token</span>
+      </label>
+
+      <button
+        onClick={onDismiss}
+        disabled={!confirmed}
+        className="text-xs px-3 py-1.5 rounded border border-ops-bd bg-ops-s2 text-ops-tx2 hover:bg-ops-sel disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        Cerrar
+      </button>
+    </div>
+  )
+}
+
+// ── Client-level multi-campaign pixel credential section ──────────────────────
+function ClientCredentialsSection({ clientId }: { clientId: string }) {
+  const [creds, setCreds] = useState<IngestionCredentialPublic[] | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [newToken, setNewToken] = useState<string | null>(null)
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null)
+  const [isPending, start] = useTransition()
+  const [err, setErr] = useState("")
+
+  function load() {
+    start(async () => {
+      const r = await listClientIngestionCredentialsAction(clientId)
+      if (r.data) { setCreds(r.data); setLoaded(true) }
+      else setErr(r.error ?? "error")
+    })
+  }
+
+  function handleCreate() {
+    setErr("")
+    start(async () => {
+      const r = await createClientIngestionCredentialAction(clientId)
+      if (r.error) { setErr(r.error); return }
+      if (r.token) {
+        setNewToken(r.token)
+        // Refresh list
+        const list = await listClientIngestionCredentialsAction(clientId)
+        if (list.data) setCreds(list.data)
+      }
+    })
+  }
+
+  function handleRevoke(id: string) {
+    start(async () => {
+      await revokeClientIngestionCredentialAction(id, clientId)
+      const list = await listClientIngestionCredentialsAction(clientId)
+      if (list.data) setCreds(list.data)
+      setConfirmRevokeId(null)
+    })
+  }
+
   return (
     <div className="rounded-lg border border-indigo-800/40 bg-indigo-950/20 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-indigo-800/30">
         <Globe className="h-4 w-4 text-indigo-400 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-ops-tx">Pixel Universal (recomendado)</p>
-          <p className="text-xs text-ops-tx3">Un solo script para tracking, leads y eventos de comportamiento</p>
+          <p className="text-xs text-ops-tx3">Un token por cliente que funciona para todas sus campañas</p>
         </div>
       </div>
 
       <div className="p-4 space-y-5">
-        {/* Step 1 */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">1</span>
-            Agrega el script en el <code className="text-ops-tx">&lt;head&gt;</code> de tu sitio
-          </p>
-          <div className="flex items-start gap-2">
-            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-indigo-300 font-mono overflow-x-auto whitespace-pre select-all">
-              {PIXEL_SCRIPT_TAG}
-            </pre>
-            <CopyBtn text={PIXEL_SCRIPT_TAG} />
-          </div>
-          <div className="rounded border border-ops-bd bg-ops-s2 px-3 py-2 text-xs text-ops-tx3 space-y-1">
-            <p>
-              <span className="text-ops-tx2 font-medium">¿Dónde obtengo el token?</span>{" "}
-              Ve a <span className="text-ops-tx2">Campañas → [tu campaña] → Credenciales de ingesta</span> y copia el token{" "}
-              <code className="text-ops-tx2">pub_xxx</code>. Se muestra una sola vez al crearlo.
-            </p>
-          </div>
+        {/* What it does */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {[
+            ["PageView automático", "Registra cada visita con país, UTMs y referrer"],
+            ["Captura first-touch", "UTMs + fbclid en el primer clic del visitante"],
+            ["Ping de sesión c/30s", "Mide tiempo real en página"],
+            ["Auto-captura de forms", "Detecta email/teléfono en formularios al enviarlos"],
+          ].map(([title, desc]) => (
+            <div key={title} className="flex items-start gap-1.5 rounded border border-ops-bd bg-ops-s2 p-2">
+              <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0 mt-px" />
+              <div>
+                <p className="text-xs text-ops-tx2 font-medium leading-tight">{title}</p>
+                <p className="text-xs text-ops-tx3 leading-tight mt-0.5">{desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Step 2 */}
+        {/* Multi-campaign routing note */}
+        <div className="rounded border border-ops-bd bg-ops-s2 px-3 py-2 text-xs text-ops-tx3 space-y-1">
+          <p>
+            <span className="text-ops-tx2 font-medium">Enrutamiento automático:</span>{" "}
+            Los leads se asignan a la campaña activa del cliente. Para forzar una campaña específica,
+            agrega el atributo <code className="text-ops-tx2">data-campaign="ID_DE_CAMPAÑA"</code> al script.
+          </p>
+        </div>
+
+        {/* Token management */}
+        {!loaded ? (
+          <button
+            onClick={load}
+            disabled={isPending}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-ops-bd bg-ops-s2 text-ops-tx2 hover:bg-ops-sel transition-colors disabled:opacity-50"
+          >
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Key className="h-4 w-4" />}
+            {isPending ? "Cargando…" : "Ver / crear token de pixel"}
+          </button>
+        ) : (
+          <div className="space-y-3">
+            {/* New token reveal */}
+            {newToken && (
+              <TokenRevealBanner token={newToken} onDismiss={() => setNewToken(null)} />
+            )}
+
+            {/* Credentials list */}
+            {creds && creds.length > 0 && (
+              <div className="space-y-2">
+                {creds.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2 rounded border border-ops-line bg-ops-s2 px-3 py-2"
+                  >
+                    <Key className="h-3.5 w-3.5 text-ops-tx3 shrink-0" />
+                    <code className="flex-1 text-xs font-mono text-ops-tx2 truncate">{c.keyPrefix}…</code>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      c.status === "active" ? "bg-emerald-900/40 text-emerald-400" : "bg-ops-s3 text-ops-tx3"
+                    }`}>
+                      {c.status === "active" ? "activo" : "revocado"}
+                    </span>
+                    <span className="text-xs text-ops-tx3 shrink-0">
+                      {new Date(c.createdAt).toLocaleDateString("es-VE", { day: "2-digit", month: "short", year: "2-digit" })}
+                    </span>
+                    {c.status === "active" && (
+                      confirmRevokeId === c.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleRevoke(c.id)}
+                            disabled={isPending}
+                            className="text-xs px-2 py-0.5 rounded bg-red-900/40 text-red-400 hover:bg-red-900/60 transition-colors disabled:opacity-50"
+                          >
+                            Confirmar
+                          </button>
+                          <button
+                            onClick={() => setConfirmRevokeId(null)}
+                            className="text-xs px-2 py-0.5 rounded bg-ops-s3 text-ops-tx3 hover:bg-ops-sel transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmRevokeId(c.id)}
+                          className="text-ops-tx3 hover:text-red-400 transition-colors"
+                          title="Revocar"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Create button */}
+            {err && (
+              <p className="text-xs text-ops-coral flex items-center gap-1">
+                <AlertCircle className="h-3.5 w-3.5" />{err}
+              </p>
+            )}
+            <button
+              onClick={handleCreate}
+              disabled={isPending}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-700 hover:bg-indigo-600 text-white transition-colors disabled:opacity-50"
+            >
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {isPending ? "Creando…" : "Crear nuevo token de pixel"}
+            </button>
+          </div>
+        )}
+
+        {/* CSP */}
         <div className="space-y-2">
-          <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">2</span>
-            Permite el dominio de SyncLead en tu CSP <span className="text-ops-tx3">(solo si usas Content-Security-Policy)</span>
+          <p className="text-xs font-medium text-ops-tx3 flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" />
+            CSP — solo si usas Content-Security-Policy
           </p>
           <div className="flex items-start gap-2">
-            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-emerald-400 font-mono overflow-x-auto whitespace-pre select-all">
+            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-2 text-xs text-emerald-400 font-mono overflow-x-auto whitespace-pre select-all">
               {CSP_SNIPPET}
             </pre>
             <CopyBtn text={CSP_SNIPPET} />
           </div>
         </div>
 
-        {/* What it does */}
-        <div>
-          <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Shield className="h-3.5 w-3.5" />Incluye automáticamente
-          </p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {[
-              ["PageView automático", "Registra cada visita con país, UTMs y referrer"],
-              ["Captura first-touch", "UTMs + fbclid en el primer clic del visitante"],
-              ["Ping de sesión c/30s", "Mide tiempo real en página para análisis de calidad"],
-              ["Auto-captura de forms", "Detecta email/teléfono en formularios al enviarlos"],
-            ].map(([title, desc]) => (
-              <div key={title} className="flex items-start gap-1.5 rounded border border-ops-bd bg-ops-s2 p-2">
-                <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0 mt-px" />
-                <div>
-                  <p className="text-xs text-ops-tx2 font-medium leading-tight">{title}</p>
-                  <p className="text-xs text-ops-tx3 leading-tight mt-0.5">{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Step 3 — API */}
+        {/* API */}
         <div className="space-y-2">
-          <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">3</span>
-            API disponible (opcional)
-          </p>
+          <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider">API disponible (opcional)</p>
           <div className="flex items-start gap-2">
-            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre select-all leading-relaxed">
+            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-2 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre select-all leading-relaxed">
               {API_EXAMPLES}
             </pre>
             <CopyBtn text={API_EXAMPLES} />
@@ -211,7 +397,7 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
 
   function handleCopy() {
     if (!script) return
-    navigator.clipboard.writeText(script).then(() => {
+    copyToClipboard(script).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -268,10 +454,11 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
 }
 
 interface Props {
+  clientId: string
   sites: SiteEntry[]
 }
 
-export function ScriptInstallPanel({ sites }: Props) {
+export function ScriptInstallPanel({ clientId, sites }: Props) {
   return (
     <div className="space-y-6">
       <div>
@@ -281,7 +468,7 @@ export function ScriptInstallPanel({ sites }: Props) {
         </p>
       </div>
 
-      <UniversalPixelCard />
+      <ClientCredentialsSection clientId={clientId} />
 
       {sites.length > 0 && (
         <div className="space-y-3">

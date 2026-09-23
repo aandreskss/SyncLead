@@ -7,6 +7,9 @@ import { normalizeLeadData, extractTrustedIp, extractTrustedUserAgent, anonymize
 import { verifyTurnstile, checkHoneypot, checkSubmitTime } from "@/lib/ingest/bot"
 import { persistLead } from "@/lib/ingest/persist"
 import { logIngestError } from "@/lib/ingest/errors"
+import { db } from "@/lib/db"
+import { campaigns } from "@/lib/db/schema"
+import { and, eq } from "drizzle-orm"
 
 // ─── Rate limiter: 20 submissions per token+anonIP per minute ────────────────
 let ratelimit: Ratelimit | null = null
@@ -74,7 +77,15 @@ export async function POST(req: NextRequest) {
   // ─ 4. Resolve credential (public_form type only) ─────────────────────────────
   const cred = await lookupCredential(token)
   if (!cred || cred.credentialType !== "public_form") return publicError(correlationId, 401)
-  if (!cred.campaignActive) return publicError(correlationId, 403)
+
+  // For client-scoped credentials, resolve campaign: prefer body.campaign_id,
+  // then fall back to first active campaign for the client.
+  let resolvedCampaignId = cred.campaignId
+  if (!resolvedCampaignId) {
+    // Body not yet parsed — resolve after Zod parse below; set a sentinel for now.
+    resolvedCampaignId = null
+  }
+  if (cred.campaignId && !cred.campaignActive) return publicError(correlationId, 403)
 
   // ─ 5. Origin validation ───────────────────────────────────────────────────────
   if (!isOriginAllowed(origin, cred.allowedOrigins)) {
@@ -110,7 +121,7 @@ export async function POST(req: NextRequest) {
     const issue = parsed.error.issues[0]
     logIngestError({
       orgId: cred.orgId,
-      campaignId: cred.campaignId,
+      campaignId: cred.campaignId ?? resolvedCampaignId ?? "unknown",
       clientId: cred.clientId,
       source: "form",
       errorType: "validation_error",
@@ -124,20 +135,43 @@ export async function POST(req: NextRequest) {
 
   const payload = parsed.data
 
-  // ─ 9. Bot protection ──────────────────────────────────────────────────────────
+  // ─ 9. Resolve campaign for client-scoped credentials ─────────────────────────
+  if (!resolvedCampaignId) {
+    // Try campaign_id from body first (pixel passes data-campaign as campaign_id field)
+    const bodyCampaignId = (rawBody as Record<string, unknown>)?.campaign_id as string | undefined
+    if (bodyCampaignId) {
+      const bodycamp = await db.query.campaigns.findFirst({
+        where: and(eq(campaigns.id, bodyCampaignId), eq(campaigns.orgId, cred.orgId), eq(campaigns.clientId, cred.clientId)),
+        columns: { id: true, active: true },
+      })
+      if (bodycamp) resolvedCampaignId = bodycamp.id
+    }
+    if (!resolvedCampaignId) {
+      // Fall back to first active campaign for the client
+      const fallback = await db.query.campaigns.findFirst({
+        where: and(eq(campaigns.clientId, cred.clientId), eq(campaigns.orgId, cred.orgId), eq(campaigns.active, true)),
+        columns: { id: true },
+        orderBy: (t, { asc }) => [asc(t.createdAt)],
+      })
+      if (fallback) resolvedCampaignId = fallback.id
+    }
+    if (!resolvedCampaignId) return publicError(correlationId, 422)
+  }
+
+  // ─ 10. Bot protection ──────────────────────────────────────────────────────────
   if (!checkHoneypot(payload._hp)) return silentSuccess(correlationId)
   if (!checkSubmitTime(payload._t)) return silentSuccess(correlationId)
 
   const turnstileOk = await verifyTurnstile(payload["cf-turnstile-response"], realIp)
   if (!turnstileOk) return silentSuccess(correlationId)
 
-  // ─ 10. Normalize ──────────────────────────────────────────────────────────────
+  // ─ 11. Normalize ──────────────────────────────────────────────────────────────
   const normalizedLead = normalizeLeadData(payload)
   const userAgent = extractTrustedUserAgent(req)
 
-  // ─ 11. Persist ────────────────────────────────────────────────────────────────
+  // ─ 12. Persist ────────────────────────────────────────────────────────────────
   const result = await persistLead({
-    credential: { credentialId: cred.credentialId, orgId: cred.orgId, campaignId: cred.campaignId },
+    credential: { credentialId: cred.credentialId, orgId: cred.orgId, campaignId: resolvedCampaignId! },
     lead: normalizedLead,
     ip: realIp,
     userAgent,

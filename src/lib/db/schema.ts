@@ -279,9 +279,13 @@ export const ingestionCredentials = pgTable(
     orgId: uuid("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
+    // Exactly one of campaignId / clientId must be set.
+    // campaignId = credential scoped to one campaign (legacy default).
+    // clientId   = credential scoped to all campaigns of a client (pixel multi-campaign).
     campaignId: uuid("campaign_id")
-      .notNull()
       .references(() => campaigns.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .references(() => clients.id, { onDelete: "cascade" }),
     type: credentialTypeEnum("type").notNull().default("server_secret"),
     keyHash: text("key_hash").notNull(),
     keyPrefix: text("key_prefix").notNull(),
@@ -297,10 +301,8 @@ export const ingestionCredentials = pgTable(
   (t) => [
     index("ingestion_cred_org_id_idx").on(t.orgId),
     index("ingestion_cred_campaign_id_idx").on(t.campaignId),
+    index("ingestion_cred_client_id_idx").on(t.clientId),
     uniqueIndex("ingestion_cred_key_hash_idx").on(t.keyHash),
-    index("ingestion_cred_active_idx")
-      .on(t.campaignId)
-      .where(sql`status = 'active'`),
   ]
 )
 
@@ -1587,6 +1589,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   salesReps: many(salesReps),
   waClientConfig: many(waClientConfig),
   messageTemplates: many(messageTemplates),
+  ingestionCredentials: many(ingestionCredentials),
 }))
 
 export const metaConnectionsRelations = relations(metaConnections, ({ one, many }) => ({
@@ -1602,6 +1605,12 @@ export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
   webhookEvents: many(webhookEvents),
   ingestionCredentials: many(ingestionCredentials),
   conversions: many(conversions),
+}))
+
+export const ingestionCredentialsRelations = relations(ingestionCredentials, ({ one }) => ({
+  organization: one(organizations, { fields: [ingestionCredentials.orgId], references: [organizations.id] }),
+  campaign: one(campaigns, { fields: [ingestionCredentials.campaignId], references: [campaigns.id] }),
+  client: one(clients, { fields: [ingestionCredentials.clientId], references: [clients.id] }),
 }))
 
 export const pipelinesRelations = relations(pipelines, ({ one, many }) => ({
