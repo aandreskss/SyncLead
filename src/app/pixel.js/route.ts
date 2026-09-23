@@ -24,7 +24,7 @@ try{
 
 function post(url,headers,body){try{fetch(url,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},headers),body:JSON.stringify(body),keepalive:true}).catch(function(){});}catch(e){}}
 function collect(n,x){post(B+'/api/collect/'+TOKEN,{},Object.assign({eventName:n,pageUrl:location.href,environment:'production',parameters:{}},ctx(),x||{}));}
-function behavior(t,d){post(B+'/api/behavior',{Authorization:'Bearer '+TOKEN},Object.assign({eventType:t},d||{}));}
+function behavior(t,d){post(B+'/api/behavior',{Authorization:'Bearer '+TOKEN},Object.assign({eventType:t,visitorId:vid()},d||{}));}
 function utms(){return compact({utm_source:localStorage.getItem('_sl_utm_source'),utm_medium:localStorage.getItem('_sl_utm_medium'),utm_campaign:localStorage.getItem('_sl_utm_campaign'),utm_content:localStorage.getItem('_sl_utm_content')});}
 function lead(d){post(B+'/api/ingest/form',{'X-Ingest-Token':TOKEN},Object.assign(CAMPAIGN?{campaign_id:CAMPAIGN}:{},utms(),d||{}));}
 
