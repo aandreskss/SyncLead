@@ -41,7 +41,9 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
   const thumbnailUrl = 'thumbnailUrl' in ad ? ad.thumbnailUrl : null
   const mediaType = ad.mediaType
 
-  const firstImage = mediaUrls[0] ?? thumbnailUrl
+  const firstMedia = mediaUrls[0] ?? thumbnailUrl
+  const isDirectVideo = firstMedia ? /\.(mp4|webm|mov|avi|m4v)/i.test(firstMedia) : false
+  const isVideo = isDirectVideo || mediaType === 'video'
 
   const daysRunning = isAdResult(ad)
     ? (ad as { daysRunning?: number }).daysRunning ?? null
@@ -131,33 +133,58 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
         )}
       </div>
 
-      {firstImage ? (
-        <div className="relative aspect-video bg-ops-line overflow-hidden" style={{ background: "var(--sg-s2)" }}>
-          <img
-            src={firstImage}
-            alt=""
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-          {(mediaType === 'video' || mediaType === 'unknown') && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-10 w-10 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(0,0,0,0.5)" }}
-              >
-                <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] border-l-white ml-1" />
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div
-          className="aspect-video flex items-center justify-center"
-          style={{ background: "var(--sg-s2)" }}
-        >
-          <span className="text-xs" style={{ color: "var(--sg-subtle)" }}>Sin preview</span>
-        </div>
-      )}
+      <div className="relative aspect-video overflow-hidden" style={{ background: "var(--sg-s2)" }}>
+        {firstMedia ? (
+          isDirectVideo ? (
+            <video
+              src={firstMedia}
+              className="w-full h-full object-cover"
+              controls
+              muted
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            <>
+              <img
+                src={firstMedia}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              {isVideo && snapshotUrl && (
+                <a
+                  href={snapshotUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <div
+                    className="h-12 w-12 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                    style={{ background: "rgba(0,0,0,0.6)" }}
+                  >
+                    <div className="w-0 h-0 border-t-[9px] border-t-transparent border-b-[9px] border-b-transparent border-l-[16px] border-l-white ml-1" />
+                  </div>
+                </a>
+              )}
+              {isVideo && !snapshotUrl && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div
+                    className="h-12 w-12 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(0,0,0,0.5)" }}
+                  >
+                    <div className="w-0 h-0 border-t-[9px] border-t-transparent border-b-[9px] border-b-transparent border-l-[16px] border-l-white ml-1" />
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xs" style={{ color: "var(--sg-subtle)" }}>Sin preview</span>
+          </div>
+        )}
+      </div>
 
       <div className="p-3 flex flex-col gap-1.5 flex-1">
         <p className="text-sm font-semibold truncate" style={{ color: "var(--sg-ink)" }}>
