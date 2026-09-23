@@ -12,6 +12,7 @@ import {
   deleteCollection,
   updateSavedAdNotes,
   moveToCollection,
+  importAdFromUrl,
 } from "./repository"
 import type { AdPlatform, AdResult, SavedAd, AdCollection } from "./types"
 
@@ -223,6 +224,32 @@ export async function updateAdNotesAction(id: string, notes: string): Promise<Ac
   } catch (e) {
     console.error("[updateAdNotesAction]", e)
     return { error: "Error al actualizar notas." }
+  }
+}
+
+export async function importAdFromUrlAction(input: {
+  url: string
+  platform: AdPlatform
+  advertiserName: string
+  adTitle?: string | null
+  adBody?: string | null
+  collectionId?: string | null
+  tags?: string[]
+  notes?: string | null
+}): Promise<ActionResult<SavedAd>> {
+  let ctx
+  try {
+    ctx = await requireOrganizationMembership()
+  } catch {
+    return { error: "Sin acceso." }
+  }
+
+  try {
+    const saved = await importAdFromUrl(ctx.orgId, { ...input, savedBy: ctx.userId })
+    return { data: saved }
+  } catch (e) {
+    console.error("[importAdFromUrlAction]", e)
+    return { error: "Error al importar el anuncio." }
   }
 }
 
