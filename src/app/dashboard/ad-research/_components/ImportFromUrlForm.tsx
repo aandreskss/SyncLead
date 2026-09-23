@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { Link, X } from "lucide-react"
+import { useState, useTransition, useEffect, useRef } from "react"
+import { Link, X, Image as ImageIcon, Loader2 } from "lucide-react"
 import { importAdFromUrlAction } from "@/domains/ad-research/actions"
+import { fetchAdPreviewAction } from "@/domains/ad-research/fetch-preview"
 import type { AdPlatform, SavedAd, AdCollection } from "@/domains/ad-research/types"
 
 function detectPlatform(url: string): AdPlatform {
@@ -27,13 +28,37 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
   const [advertiserName, setAdvertiserName] = useState("")
   const [adTitle, setAdTitle] = useState("")
   const [adBody, setAdBody] = useState("")
+  const [mediaUrl, setMediaUrl] = useState("")
   const [notes, setNotes] = useState("")
   const [tagsRaw, setTagsRaw] = useState("")
   const [collectionId, setCollectionId] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
+  const [fetchingPreview, setFetchingPreview] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const detectedPlatform = url.trim() ? detectPlatform(url.trim()) : null
+
+  // Auto-fetch OG preview when URL changes
+  useEffect(() => {
+    const trimmed = url.trim()
+    if (!trimmed || !trimmed.startsWith("http")) return
+
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      setFetchingPreview(true)
+      try {
+        const meta = await fetchAdPreviewAction(trimmed)
+        if (meta.imageUrl && !mediaUrl) setMediaUrl(meta.imageUrl)
+        if (meta.title && !adTitle) setAdTitle(meta.title)
+        if (meta.description && !adBody) setAdBody(meta.description)
+      } catch {}
+      setFetchingPreview(false)
+    }, 800)
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -48,6 +73,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
         advertiserName: advertiserName.trim(),
         adTitle: adTitle.trim() || null,
         adBody: adBody.trim() || null,
+        mediaUrl: mediaUrl.trim() || null,
         notes: notes.trim() || null,
         collectionId: collectionId || null,
         tags,
@@ -90,22 +116,82 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               required
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none pr-28"
+              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none pr-36"
               style={{
                 background: "var(--sg-s2)",
                 border: "1px solid var(--sg-border)",
                 color: "var(--sg-ink)",
               }}
             />
-            {detectedPlatform && (
-              <span
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ background: "var(--sg-s3)", color: "var(--sg-muted)" }}
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              {fetchingPreview && (
+                <Loader2 className="h-3 w-3 animate-spin" style={{ color: "var(--sg-muted)" }} />
+              )}
+              {detectedPlatform && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: "var(--sg-s3)", color: "var(--sg-muted)" }}
+                >
+                  {platformLabel(detectedPlatform)}
+                </span>
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Media preview + field */}
+        <div className="space-y-1">
+          <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: "var(--sg-muted)" }}>
+            <ImageIcon className="h-3 w-3" />
+            URL de imagen / video
+            <span className="font-normal opacity-70">(se detecta automáticamente o pega la URL directa)</span>
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              placeholder="https://scontent.fbcdn.net/... o cualquier imagen directa"
+              value={mediaUrl}
+              onChange={(e) => setMediaUrl(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none"
+              style={{
+                background: "var(--sg-s2)",
+                border: "1px solid var(--sg-border)",
+                color: "var(--sg-ink)",
+              }}
+            />
+            {mediaUrl && (
+              <button
+                type="button"
+                onClick={() => setMediaUrl("")}
+                className="px-2 rounded-lg"
+                style={{ color: "var(--sg-muted)", background: "var(--sg-s2)", border: "1px solid var(--sg-border)" }}
               >
-                {platformLabel(detectedPlatform)}
-              </span>
+                <X className="h-3.5 w-3.5" />
+              </button>
             )}
           </div>
+          {mediaUrl && (
+            <div
+              className="mt-2 rounded-lg overflow-hidden aspect-video relative"
+              style={{ background: "var(--sg-s2)", border: "1px solid var(--sg-border)" }}
+            >
+              {/\.(mp4|webm|mov|avi)/i.test(mediaUrl) ? (
+                <video
+                  src={mediaUrl}
+                  className="w-full h-full object-cover"
+                  controls
+                  muted
+                />
+              ) : (
+                <img
+                  src={mediaUrl}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                  onError={() => setMediaUrl("")}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Advertiser + Title in 2 cols */}
