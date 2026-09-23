@@ -42,8 +42,9 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
   const mediaType = ad.mediaType
 
   const firstMedia = mediaUrls[0] ?? thumbnailUrl
-  const isDirectVideo = firstMedia ? /\.(mp4|webm|mov|avi|m4v)/i.test(firstMedia) : false
+  const isDirectVideo = firstMedia ? /\.(mp4|webm|mov|avi|m4v)(\?|$)/i.test(firstMedia) : false
   const isVideo = isDirectVideo || mediaType === 'video'
+  const [videoError, setVideoError] = useState(false)
 
   const daysRunning = isAdResult(ad)
     ? (ad as { daysRunning?: number }).daysRunning ?? null
@@ -135,7 +136,7 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
 
       <div className="relative aspect-video overflow-hidden" style={{ background: "var(--sg-s2)" }}>
         {firstMedia ? (
-          isDirectVideo ? (
+          isDirectVideo && !videoError ? (
             <video
               src={firstMedia}
               className="w-full h-full object-cover"
@@ -143,6 +144,7 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
               muted
               playsInline
               preload="metadata"
+              onError={() => setVideoError(true)}
             />
           ) : (
             <>
@@ -179,6 +181,26 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
               )}
             </>
           )
+        ) : videoError ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+            <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "var(--sg-s3)" }}>
+              <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] ml-1" style={{ borderLeftColor: "var(--sg-muted)" }} />
+            </div>
+            <p className="text-xs text-center" style={{ color: "var(--sg-muted)" }}>
+              Video restringido por CORS
+            </p>
+            {(snapshotUrl ?? firstMedia) && (
+              <a
+                href={snapshotUrl ?? firstMedia!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs px-3 py-1.5 rounded-lg font-medium"
+                style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+              >
+                Ver video →
+              </a>
+            )}
+          </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-xs" style={{ color: "var(--sg-subtle)" }}>Sin preview</span>

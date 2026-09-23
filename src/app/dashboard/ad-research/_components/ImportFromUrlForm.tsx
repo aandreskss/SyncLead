@@ -6,6 +6,55 @@ import { importAdFromUrlAction } from "@/domains/ad-research/actions"
 import { fetchAdPreviewAction } from "@/domains/ad-research/fetch-preview"
 import type { AdPlatform, SavedAd, AdCollection } from "@/domains/ad-research/types"
 
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|avi|m4v)(\?|$)/i.test(url)
+}
+
+function MediaPreview({ url, onClear }: { url: string; onClear: () => void }) {
+  const [videoFailed, setVideoFailed] = useState(false)
+  const isVid = isVideoUrl(url)
+
+  return (
+    <div
+      className="mt-2 rounded-lg overflow-hidden aspect-video relative"
+      style={{ background: "var(--sg-s2)", border: "1px solid var(--sg-border)" }}
+    >
+      {isVid && !videoFailed ? (
+        <video
+          src={url}
+          className="w-full h-full object-cover"
+          controls
+          muted
+          playsInline
+          onError={() => setVideoFailed(true)}
+        />
+      ) : isVid && videoFailed ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          <p className="text-xs" style={{ color: "var(--sg-muted)" }}>
+            Video restringido (CORS) — se guardará el enlace
+          </p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs px-3 py-1.5 rounded-lg font-medium"
+            style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+          >
+            Ver video →
+          </a>
+        </div>
+      ) : (
+        <img
+          src={url}
+          alt="Preview"
+          className="w-full h-full object-cover"
+          onError={onClear}
+        />
+      )}
+    </div>
+  )
+}
+
 function detectPlatform(url: string): AdPlatform {
   if (/facebook\.com|fb\.watch/i.test(url)) return 'meta'
   if (/instagram\.com/i.test(url)) return 'meta'
@@ -171,26 +220,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
             )}
           </div>
           {mediaUrl && (
-            <div
-              className="mt-2 rounded-lg overflow-hidden aspect-video relative"
-              style={{ background: "var(--sg-s2)", border: "1px solid var(--sg-border)" }}
-            >
-              {/\.(mp4|webm|mov|avi)/i.test(mediaUrl) ? (
-                <video
-                  src={mediaUrl}
-                  className="w-full h-full object-cover"
-                  controls
-                  muted
-                />
-              ) : (
-                <img
-                  src={mediaUrl}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                  onError={() => setMediaUrl("")}
-                />
-              )}
-            </div>
+            <MediaPreview url={mediaUrl} onClear={() => setMediaUrl("")} />
           )}
         </div>
 
