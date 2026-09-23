@@ -81,7 +81,9 @@ window.SyncLead.event("begin_checkout", {
 function TokenRevealBanner({ token, onDismiss }: { token: string; onDismiss: () => void }) {
   const [confirmed, setConfirmed] = useState(false)
   const [visible, setVisible] = useState(false)
-  const scriptTag = `<script src="${APP_URL}/pixel.js" data-token="${token}" async></script>`
+  const stub = `<script>\nwindow.SyncLead={_q:[],lead:function(d){this._q.push(['lead',d])},event:function(t,d){this._q.push(['event',t,d])},purchase:function(d){this._q.push(['purchase',d])},track:function(n,d){this._q.push(['track',n,d])}};\n</script>`
+  const pixelTag = `<script src="${APP_URL}/pixel.js" data-token="${token}" async></script>`
+  const scriptTag = `${stub}\n${pixelTag}`
 
   return (
     <div className="rounded-lg border border-amber-700/50 bg-amber-950/20 p-4 space-y-3">
@@ -323,7 +325,12 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
             {/* Installation steps — shown when there's at least one active token */}
             {creds && creds.some((c) => c.status === "active") && (() => {
               const active = creds.find((c) => c.status === "active")!
-              const scriptTag = `<script\n  src="${APP_URL}/pixel.js"\n  data-token="${active.keyPrefix}…"\n  async\n></script>`
+              const TOKEN_PLACEHOLDER = `${active.keyPrefix}…`
+              const stubScript = `<script>
+window.SyncLead={_q:[],lead:function(d){this._q.push(['lead',d])},event:function(t,d){this._q.push(['event',t,d])},purchase:function(d){this._q.push(['purchase',d])},track:function(n,d){this._q.push(['track',n,d])}};
+</script>`
+              const pixelScript = `<script src="${APP_URL}/pixel.js" data-token="${TOKEN_PLACEHOLDER}" async></script>`
+              const fullSnippet = `${stubScript}\n${pixelScript}`
               return (
                 <div className="space-y-4 pt-1">
                   <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider">Instrucciones de instalación</p>
@@ -332,18 +339,25 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
                       <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">1</span>
-                      Agrega este script en el <code className="text-ops-tx">&lt;head&gt;</code> de tu sitio
+                      Agrega estos 2 scripts en el <code className="text-ops-tx">&lt;head&gt;</code> de tu sitio
                     </p>
                     <div className="flex items-start gap-2">
                       <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-indigo-300 font-mono overflow-x-auto whitespace-pre select-all">
-                        {scriptTag}
+                        {fullSnippet}
                       </pre>
-                      <CopyBtn text={scriptTag} />
+                      <CopyBtn text={fullSnippet} />
                     </div>
-                    <p className="text-xs text-ops-tx3">
-                      Reemplaza <code className="text-ops-tx2">{active.keyPrefix}…</code> con el token completo que copiaste al crearlo.
-                      Si no lo tienes, revoca este token y crea uno nuevo.
-                    </p>
+                    <div className="rounded border border-ops-bd bg-ops-s2 px-3 py-2 space-y-1">
+                      <p className="text-xs text-ops-tx3">
+                        <span className="text-ops-tx2 font-medium">Primer script (stub):</span>{" "}
+                        permite usar <code className="text-ops-tx2">window.SyncLead.event()</code> desde cualquier parte de tu sitio aunque el pixel aún no haya cargado.
+                      </p>
+                      <p className="text-xs text-ops-tx3">
+                        <span className="text-ops-tx2 font-medium">Segundo script (pixel):</span>{" "}
+                        reemplaza <code className="text-ops-tx2">{TOKEN_PLACEHOLDER}</code> con el token completo que copiaste al crearlo.
+                        Si no lo tienes, revoca este token y crea uno nuevo.
+                      </p>
+                    </div>
                   </div>
 
                   {/* Step 2 — CSP */}
@@ -365,7 +379,7 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
                       <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-ops-s3 text-[10px] font-bold text-ops-tx3 shrink-0">3</span>
-                      API JavaScript <span className="text-ops-tx3 font-normal">(opcional — para eventos manuales)</span>
+                      Eventos desde tu código JavaScript <span className="text-ops-tx3 font-normal">(en cualquier parte de la página)</span>
                     </p>
                     <div className="flex items-start gap-2">
                       <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre select-all leading-relaxed">

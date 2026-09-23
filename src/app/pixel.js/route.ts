@@ -48,12 +48,21 @@ document.addEventListener('submit',function(e){
   if((em||ph)&&nm){lead(compact({name:nm,email:em||undefined,phone:ph||undefined}));}
 },true);
 
+// Drain any calls queued before the pixel loaded (stub pattern)
+var _q=(window.SyncLead&&window.SyncLead._q)||[];
 window.SyncLead={
   lead:function(d){lead(d||{});},
   purchase:function(d){behavior('purchase',d||{});},
   event:function(t,d){behavior(t,d||{});},
   track:function(n,d){collect(n,d||{});},
 };
+for(var _i=0;_i<_q.length;_i++){
+  var _c=_q[_i];
+  if(_c[0]==='lead')lead(_c[1]||{});
+  else if(_c[0]==='event')behavior(_c[1],_c[2]||{});
+  else if(_c[0]==='purchase')behavior('purchase',_c[1]||{});
+  else if(_c[0]==='track')collect(_c[1],_c[2]||{});
+}
 })();`
 }
 
