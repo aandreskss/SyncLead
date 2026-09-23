@@ -270,8 +270,8 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
             {isPending ? "Cargando…" : "Ver / crear token de pixel"}
           </button>
         ) : (
-          <div className="space-y-3">
-            {/* New token reveal */}
+          <div className="space-y-4">
+            {/* New token reveal (shown once after creation) */}
             {newToken && (
               <TokenRevealBanner token={newToken} onDismiss={() => setNewToken(null)} />
             )}
@@ -279,14 +279,16 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
             {/* Credentials list */}
             {creds && creds.length > 0 && (
               <div className="space-y-2">
+                <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider flex items-center gap-1.5">
+                  <Key className="h-3.5 w-3.5" />Tokens activos
+                </p>
                 {creds.map((c) => (
                   <div
                     key={c.id}
                     className="flex items-center gap-2 rounded border border-ops-line bg-ops-s2 px-3 py-2"
                   >
-                    <Key className="h-3.5 w-3.5 text-ops-tx3 shrink-0" />
                     <code className="flex-1 text-xs font-mono text-ops-tx2 truncate">{c.keyPrefix}…</code>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
                       c.status === "active" ? "bg-emerald-900/40 text-emerald-400" : "bg-ops-s3 text-ops-tx3"
                     }`}>
                       {c.status === "active" ? "activo" : "revocado"}
@@ -296,27 +298,19 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
                     </span>
                     {c.status === "active" && (
                       confirmRevokeId === c.id ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleRevoke(c.id)}
-                            disabled={isPending}
-                            className="text-xs px-2 py-0.5 rounded bg-red-900/40 text-red-400 hover:bg-red-900/60 transition-colors disabled:opacity-50"
-                          >
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button onClick={() => handleRevoke(c.id)} disabled={isPending}
+                            className="text-xs px-2 py-0.5 rounded bg-red-900/40 text-red-400 hover:bg-red-900/60 transition-colors disabled:opacity-50">
                             Confirmar
                           </button>
-                          <button
-                            onClick={() => setConfirmRevokeId(null)}
-                            className="text-xs px-2 py-0.5 rounded bg-ops-s3 text-ops-tx3 hover:bg-ops-sel transition-colors"
-                          >
+                          <button onClick={() => setConfirmRevokeId(null)}
+                            className="text-xs px-2 py-0.5 rounded bg-ops-s3 text-ops-tx3 hover:bg-ops-sel transition-colors">
                             Cancelar
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => setConfirmRevokeId(c.id)}
-                          className="text-ops-tx3 hover:text-red-400 transition-colors"
-                          title="Revocar"
-                        >
+                        <button onClick={() => setConfirmRevokeId(c.id)}
+                          className="text-ops-tx3 hover:text-red-400 transition-colors shrink-0" title="Revocar">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )
@@ -325,6 +319,64 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
                 ))}
               </div>
             )}
+
+            {/* Installation steps — shown when there's at least one active token */}
+            {creds && creds.some((c) => c.status === "active") && (() => {
+              const active = creds.find((c) => c.status === "active")!
+              const scriptTag = `<script\n  src="${APP_URL}/pixel.js"\n  data-token="${active.keyPrefix}…"\n  async\n></script>`
+              return (
+                <div className="space-y-4 pt-1">
+                  <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider">Instrucciones de instalación</p>
+
+                  {/* Step 1 */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">1</span>
+                      Agrega este script en el <code className="text-ops-tx">&lt;head&gt;</code> de tu sitio
+                    </p>
+                    <div className="flex items-start gap-2">
+                      <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-indigo-300 font-mono overflow-x-auto whitespace-pre select-all">
+                        {scriptTag}
+                      </pre>
+                      <CopyBtn text={scriptTag} />
+                    </div>
+                    <p className="text-xs text-ops-tx3">
+                      Reemplaza <code className="text-ops-tx2">{active.keyPrefix}…</code> con el token completo que copiaste al crearlo.
+                      Si no lo tienes, revoca este token y crea uno nuevo.
+                    </p>
+                  </div>
+
+                  {/* Step 2 — CSP */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">2</span>
+                      <Shield className="h-3.5 w-3.5 text-ops-tx3" />
+                      Permite SyncLead en tu CSP <span className="text-ops-tx3 font-normal">(solo si tienes Content-Security-Policy)</span>
+                    </p>
+                    <div className="flex items-start gap-2">
+                      <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-emerald-400 font-mono overflow-x-auto whitespace-pre select-all">
+                        {CSP_SNIPPET}
+                      </pre>
+                      <CopyBtn text={CSP_SNIPPET} />
+                    </div>
+                  </div>
+
+                  {/* Step 3 — API */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
+                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-ops-s3 text-[10px] font-bold text-ops-tx3 shrink-0">3</span>
+                      API JavaScript <span className="text-ops-tx3 font-normal">(opcional — para eventos manuales)</span>
+                    </p>
+                    <div className="flex items-start gap-2">
+                      <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre select-all leading-relaxed">
+                        {API_EXAMPLES}
+                      </pre>
+                      <CopyBtn text={API_EXAMPLES} />
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Create button */}
             {err && (
@@ -342,31 +394,6 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
             </button>
           </div>
         )}
-
-        {/* CSP */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-ops-tx3 flex items-center gap-1.5">
-            <Shield className="h-3.5 w-3.5" />
-            CSP — solo si usas Content-Security-Policy
-          </p>
-          <div className="flex items-start gap-2">
-            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-2 text-xs text-emerald-400 font-mono overflow-x-auto whitespace-pre select-all">
-              {CSP_SNIPPET}
-            </pre>
-            <CopyBtn text={CSP_SNIPPET} />
-          </div>
-        </div>
-
-        {/* API */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider">API disponible (opcional)</p>
-          <div className="flex items-start gap-2">
-            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-2 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre select-all leading-relaxed">
-              {API_EXAMPLES}
-            </pre>
-            <CopyBtn text={API_EXAMPLES} />
-          </div>
-        </div>
       </div>
     </div>
   )
