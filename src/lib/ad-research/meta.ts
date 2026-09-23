@@ -35,14 +35,17 @@ export async function searchMetaAds(params: {
   mediaType?: 'ALL' | 'IMAGE' | 'VIDEO'
   limit?: number
 }): Promise<MetaAdResult[]> {
+  // Prefer long-lived user token (requires Ads Library API access approval)
+  // Fallback to App Token (APP_ID|APP_SECRET) — both need Ads Library API access
+  const userToken = process.env.META_USER_ACCESS_TOKEN
   const appId = process.env.META_AD_LIBRARY_APP_ID
   const appSecret = process.env.META_APP_SECRET
 
-  if (!appId || !appSecret) {
-    throw new Error('META_AD_LIBRARY_APP_ID o META_APP_SECRET no están configurados.')
-  }
+  const token = userToken ?? (appId && appSecret ? `${appId}|${appSecret}` : null)
 
-  const token = `${appId}|${appSecret}`
+  if (!token) {
+    throw new Error('META_USER_ACCESS_TOKEN no está configurado.')
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 10_000)
 
@@ -76,6 +79,10 @@ export async function searchMetaAds(params: {
     const json = await res.json() as { data?: unknown[]; error?: { message?: string; code?: number } }
 
     if (!res.ok || json.error) {
+      const subcode = json.error?.code
+      if (subcode === 10) {
+        throw new Error('META_ACCESS_PENDING')
+      }
       throw new Error(json.error?.message ?? `Meta API error ${res.status}`)
     }
 

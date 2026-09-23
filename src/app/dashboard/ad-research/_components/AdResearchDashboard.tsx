@@ -20,6 +20,7 @@ export function AdResearchDashboard({ initialCollections, initialSavedAds }: Pro
   const [results, setResults] = useState<AdResult[]>([])
   const [searchCountry, setSearchCountry] = useState<string>('VE')
   const [error, setError] = useState<string | null>(null)
+  const [pendingAccess, setPendingAccess] = useState(false)
   const [loading, startTransition] = useTransition()
 
   const [collections, setCollections] = useState<AdCollection[]>(initialCollections)
@@ -30,6 +31,7 @@ export function AdResearchDashboard({ initialCollections, initialSavedAds }: Pro
     startTransition(async () => {
       try {
         setError(null)
+        setPendingAccess(false)
         const res = await searchAdsAction({
           query: params.query,
           countries: params.countries,
@@ -37,9 +39,10 @@ export function AdResearchDashboard({ initialCollections, initialSavedAds }: Pro
           activeOnly: params.activeOnly,
           period: params.period,
         })
+        if (res.pendingAccess) { setPendingAccess(true); setResults([]); return }
         if (res.error) { setError(res.error); return }
         setResults(res.data ?? [])
-      } catch (e) {
+      } catch {
         setError("Error al buscar anuncios.")
       }
     })
@@ -83,10 +86,33 @@ export function AdResearchDashboard({ initialCollections, initialSavedAds }: Pro
       </div>
 
       {activeTab === 'search' && (
-        <div className="space-y-2">
+        <div className="space-y-4">
           <AdSearchForm onSearch={handleSearch} loading={loading} />
           {error && (
             <p className="text-sm" style={{ color: "var(--sg-danger)" }}>{error}</p>
+          )}
+          {pendingAccess && (
+            <div
+              className="rounded-xl border p-6 text-center space-y-3"
+              style={{ borderColor: "var(--sg-border)", background: "var(--sg-s1)" }}
+            >
+              <p className="text-sm font-medium" style={{ color: "var(--sg-ink)" }}>
+                Acceso a Meta Ad Library pendiente de aprobación
+              </p>
+              <p className="text-sm" style={{ color: "var(--sg-muted)" }}>
+                Para buscar anuncios de competidores necesitas solicitar acceso al API de Meta Ad Library.
+                El proceso toma entre 1 y 7 días.
+              </p>
+              <a
+                href="https://www.facebook.com/ads/library/api/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+              >
+                Solicitar acceso en Meta →
+              </a>
+            </div>
           )}
           <AdResultsGrid
             results={results}

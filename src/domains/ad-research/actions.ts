@@ -15,7 +15,7 @@ import {
 } from "./repository"
 import type { AdPlatform, AdResult, SavedAd, AdCollection } from "./types"
 
-type ActionResult<T> = { data?: T; error?: string }
+type ActionResult<T> = { data?: T; error?: string; pendingAccess?: boolean }
 
 export async function searchAdsAction(params: {
   query?: string
@@ -37,6 +37,7 @@ export async function searchAdsAction(params: {
 
   const tasks: Promise<AdResult[]>[] = []
   const errors: string[] = []
+  let metaAccessPending = false
 
   if (platforms.includes('meta')) {
     tasks.push(
@@ -47,7 +48,12 @@ export async function searchAdsAction(params: {
         activeOnly,
         limit: 20,
       }).catch((e: unknown) => {
-        errors.push(`Meta: ${e instanceof Error ? e.message : 'Error desconocido'}`)
+        const msg = e instanceof Error ? e.message : 'Error desconocido'
+        if (msg === 'META_ACCESS_PENDING') {
+          metaAccessPending = true
+        } else {
+          errors.push(`Meta: ${msg}`)
+        }
         return []
       })
     )
@@ -69,6 +75,10 @@ export async function searchAdsAction(params: {
 
   const results = await Promise.all(tasks)
   const combined = results.flat()
+
+  if (combined.length === 0 && metaAccessPending) {
+    return { pendingAccess: true, data: [] }
+  }
 
   if (combined.length === 0 && errors.length > 0) {
     return { error: errors.join(' | ') }
