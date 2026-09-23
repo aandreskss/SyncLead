@@ -6,6 +6,7 @@ import {
   getTrackingOverviewAction,
   getOpenIssuesAction,
   getIngestErrorsByClientAction,
+  getCheckoutFunnelAction,
 } from "@/domains/tracking/actions"
 import { getMetaConnectionsAction } from "@/domains/meta/actions"
 import { TrackingDashboard } from "./_components/TrackingDashboard"
@@ -29,18 +30,20 @@ export default async function TrackingPage({ params }: Props) {
     redirect("/login")
   }
 
-  const [sitesResult, definitionsResult, issuesResult, metaConnections, ingestErrorsResult] = await Promise.all([
+  const [sitesResult, definitionsResult, issuesResult, metaConnections, ingestErrorsResult, funnelResult] = await Promise.all([
     getTrackingSitesAction(id),
     getTrackingOverviewAction(id),
     getOpenIssuesAction(id),
     getMetaConnectionsAction(id),
     getIngestErrorsByClientAction(id),
+    getCheckoutFunnelAction(id, 30),
   ])
 
   const sites = sitesResult.data ?? []
   const definitions = definitionsResult.data ?? []
   const issues = issuesResult.data ?? []
   const ingestErrors = ingestErrorsResult.data ?? []
+  const checkoutFunnel = funnelResult.data ?? { startedCount: 0, completedCount: 0, abandonedCount: 0, abandonmentRate: 0, bySource: [] }
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -52,6 +55,7 @@ export default async function TrackingPage({ params }: Props) {
           issues={issues}
           metaConnections={metaConnections}
           ingestErrors={ingestErrors}
+          checkoutFunnel={checkoutFunnel}
         />
       </div>
     </div>

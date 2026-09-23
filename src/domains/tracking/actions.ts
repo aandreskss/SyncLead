@@ -34,8 +34,10 @@ import {
   setTrackingSiteCollectToken,
   getVisitorSessionsByClient,
   getObservationsByVisitor,
+  getCheckoutFunnelMetrics,
   type ObservationWithMeta,
   type VisitorSessionRow,
+  type CheckoutFunnelMetrics,
 } from "./repository"
 import {
   CreateTrackingSiteSchema,
@@ -872,5 +874,20 @@ export async function getIngestErrorsByClientAction(
     occurredAt: r.occurredAt,
   }))
 
+  return { data }
+}
+
+// ─── Checkout Funnel ──────────────────────────────────────────────────────────
+
+export { type CheckoutFunnelMetrics }
+
+export async function getCheckoutFunnelAction(
+  clientId: string,
+  days: number = 30
+): Promise<{ error?: string; data?: CheckoutFunnelMetrics }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch { return { error: "No autorizado" } }
+
+  const data = await getCheckoutFunnelMetrics(clientId, ctx.orgId, days)
   return { data }
 }
