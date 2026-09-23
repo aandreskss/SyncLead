@@ -18,7 +18,7 @@ import {
   type ConversionIssue,
   type NewConversionIssue,
 } from "@/lib/db/schema"
-import { eq, and, desc, asc, lt, gte, isNull, isNotNull, or, ne, sql } from "drizzle-orm"
+import { eq, and, desc, asc, lt, gte, isNull, isNotNull, or, ne, sql, inArray, ilike } from "drizzle-orm"
 
 // ─── Tracking Sites ───────────────────────────────────────────────────────────
 
@@ -494,7 +494,8 @@ export async function getVisitorSessionsByClient(
         eq(conversionObservations.orgId, orgId),
         eq(conversionObservations.clientId, clientId),
         isNotNull(conversionObservations.visitorId),
-        gte(conversionObservations.observedAt, thirtyDaysAgo)
+        gte(conversionObservations.observedAt, thirtyDaysAgo),
+        ilike(conversionObservations.utmSource, "%facebook%")
       )
     )
     .orderBy(asc(conversionObservations.observedAt))
@@ -674,4 +675,86 @@ export async function computeDiagStatus(
   }
 
   return "unknown"
+}
+
+// ─── Checkout Funnel ──────────────────────────────────────────────────────────
+
+export type CheckoutFunnelBySource = {
+  source: string
+  started: number
+  completed: number
+  abandoned: number
+}
+
+export type CheckoutFunnelMetrics = {
+  startedCount: number
+  completedCount: number
+  abandonedCount: number
+  abandonmentRate: number
+  bySource: CheckoutFunnelBySource[]
+}
+
+export async function getCheckoutFunnelMetrics(
+  clientId: string,
+  orgId: string,
+  days: number = 30
+): Promise<CheckoutFunnelMetrics> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
+  const rows = await db
+    .select({
+      visitorId: conversionObservations.visitorId,
+      eventName: conversionObservations.eventName,
+      utmSource: conversionObservations.utmSource,
+    })
+    .from(conversionObservations)
+    .where(
+      and(
+        eq(conversionObservations.clientId, clientId),
+        eq(conversionObservations.orgId, orgId),
+        gte(conversionObservations.observedAt, since),
+        inArray(conversionObservations.eventName, ["begin_checkout", "checkout_completed"]),
+        isNotNull(conversionObservations.visitorId)
+      )
+    )
+
+  // Group in memory — typically small datasets (checkout events, not page views)
+  const starters = new Map<string, string | null>()  // visitorId → utmSource (first-touch)
+  const completers = new Set<string>()
+
+  for (const row of rows) {
+    if (!row.visitorId) continue
+    if (row.eventName === "begin_checkout" && !starters.has(row.visitorId)) {
+      starters.set(row.visitorId, row.utmSource ?? null)
+    } else if (row.eventName === "checkout_completed") {
+      completers.add(row.visitorId)
+    }
+  }
+
+  const startedCount = starters.size
+  const completedCount = Array.from(starters.keys()).filter((v) => completers.has(v)).length
+  const abandonedCount = startedCount - completedCount
+
+  // Top 5 sources by abandonment
+  const bySourceMap = new Map<string, { started: number; completed: number }>()
+  for (const [visitorId, utm] of starters) {
+    const key = utm ?? "(directo)"
+    const entry = bySourceMap.get(key) ?? { started: 0, completed: 0 }
+    entry.started++
+    if (completers.has(visitorId)) entry.completed++
+    bySourceMap.set(key, entry)
+  }
+
+  const bySource: CheckoutFunnelBySource[] = Array.from(bySourceMap.entries())
+    .map(([source, c]) => ({ source, started: c.started, completed: c.completed, abandoned: c.started - c.completed }))
+    .sort((a, b) => b.abandoned - a.abandoned)
+    .slice(0, 5)
+
+  return {
+    startedCount,
+    completedCount,
+    abandonedCount,
+    abandonmentRate: startedCount > 0 ? abandonedCount / startedCount : 0,
+    bySource,
+  }
 }

@@ -94,8 +94,8 @@ export default async function VisitorsPage({
             <Users className="h-5 w-5 text-ops-blue" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-ops-tx">Visitantes</h1>
-            <p className="text-sm text-ops-tx3">Recorridos y fuentes de tráfico · últimos 30 días</p>
+            <h1 className="text-xl font-bold text-ops-tx">Visitantes de Facebook</h1>
+            <p className="text-sm text-ops-tx3">Recorridos de visitantes provenientes de campañas · últimos 30 días</p>
           </div>
         </div>
       </div>
@@ -140,15 +140,15 @@ export default async function VisitorsPage({
             <Users className="h-8 w-8 text-ops-tx3 mx-auto" />
             <p className="text-sm text-ops-tx3">Sin visitantes aún</p>
             <div className="max-w-sm mx-auto rounded-lg border border-ops-bd bg-ops-s2 px-4 py-3 text-left space-y-1.5">
-              <p className="text-xs font-semibold text-ops-tx2">¿Por qué el feed tiene eventos pero aquí sale vacío?</p>
+              <p className="text-xs font-semibold text-ops-tx2">Solo aparecen visitantes de campañas de Facebook</p>
               <p className="text-xs text-ops-tx3">
-                El feed muestra todos los eventos históricos. Esta sección solo agrupa eventos que incluyen
-                un <code className="text-ops-tx2">visitorId</code>, que es generado por el snippet actualizado de SyncLead Pixel.
+                El feed en vivo muestra todos los visitantes (orgánico, directo, paid).
+                Esta sección filtra solo los que llegaron vía Facebook Ads — identificados por
+                fbclid, cookie <code className="text-ops-tx2">_fbc</code>, o <code className="text-ops-tx2">utm_source=facebook</code>.
               </p>
               <p className="text-xs text-ops-tx3">
-                Para ver recorridos de visitantes, instala el snippet desde{" "}
-                <span className="text-ops-tx2">Diagnóstico → ícono de código ⟨⟩ → pestaña SyncLead Pixel</span>.
-                Los nuevos eventos empezarán a aparecer aquí.
+                Si no aparece nadie, verifica que el script de instalación esté activo en el sitio del cliente
+                y que haya tráfico de campañas de Facebook en los últimos 30 días.
               </p>
             </div>
           </div>
