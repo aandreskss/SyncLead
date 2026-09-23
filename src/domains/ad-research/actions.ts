@@ -234,6 +234,7 @@ export async function importAdFromUrlAction(input: {
   adTitle?: string | null
   adBody?: string | null
   mediaUrl?: string | null
+  thumbnailUrl?: string | null
   collectionId?: string | null
   tags?: string[]
   notes?: string | null
@@ -246,7 +247,7 @@ export async function importAdFromUrlAction(input: {
   }
 
   try {
-    const saved = await importAdFromUrl(ctx.orgId, { ...input, savedBy: ctx.userId })
+    const saved = await importAdFromUrl(ctx.orgId, { ...input, savedBy: ctx.userId, thumbnailUrl: input.thumbnailUrl })
     return { data: saved }
   } catch (e) {
     console.error("[importAdFromUrlAction]", e)

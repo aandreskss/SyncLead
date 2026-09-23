@@ -208,6 +208,7 @@ export async function importAdFromUrl(
     adTitle?: string | null
     adBody?: string | null
     mediaUrl?: string | null
+    thumbnailUrl?: string | null
     collectionId?: string | null
     tags?: string[]
     notes?: string | null
@@ -215,7 +216,8 @@ export async function importAdFromUrl(
   }
 ): Promise<SavedAd> {
   const mediaUrls = data.mediaUrl ? [data.mediaUrl] : []
-  const isVideo = data.mediaUrl ? /\.(mp4|webm|mov|avi)/i.test(data.mediaUrl) : false
+  const isVideo = data.mediaUrl ? /\.(mp4|webm|mov|avi|m4v)(\?|$)/i.test(data.mediaUrl) : false
+  const resolvedThumbnail = data.thumbnailUrl ?? (!isVideo && data.mediaUrl ? data.mediaUrl : null)
 
   const [inserted] = await db
     .insert(adResearchItems)
@@ -227,7 +229,7 @@ export async function importAdFromUrl(
       adBody: data.adBody ?? null,
       mediaType: mediaUrls.length > 0 ? (isVideo ? 'video' : 'image') : 'unknown',
       mediaUrls,
-      thumbnailUrl: !isVideo && data.mediaUrl ? data.mediaUrl : null,
+      thumbnailUrl: resolvedThumbnail,
       landingPageUrl: data.url,
       collectionId: data.collectionId ?? null,
       tags: data.tags ?? [],

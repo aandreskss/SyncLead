@@ -78,6 +78,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
   const [adTitle, setAdTitle] = useState("")
   const [adBody, setAdBody] = useState("")
   const [mediaUrl, setMediaUrl] = useState("")
+  const [thumbnailUrl, setThumbnailUrl] = useState("")
   const [notes, setNotes] = useState("")
   const [tagsRaw, setTagsRaw] = useState("")
   const [collectionId, setCollectionId] = useState<string>("")
@@ -123,6 +124,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
         adTitle: adTitle.trim() || null,
         adBody: adBody.trim() || null,
         mediaUrl: mediaUrl.trim() || null,
+        thumbnailUrl: thumbnailUrl.trim() || null,
         notes: notes.trim() || null,
         collectionId: collectionId || null,
         tags,
@@ -221,6 +223,37 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
           </div>
           {mediaUrl && (
             <MediaPreview url={mediaUrl} onClear={() => setMediaUrl("")} />
+          )}
+          {mediaUrl && isVideoUrl(mediaUrl) && (
+            <div className="space-y-1 mt-2">
+              <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: "var(--sg-muted)" }}>
+                Imagen de portada del video
+                <span className="font-normal opacity-70">(click derecho sobre el thumbnail en Facebook → copiar imagen)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="https://scontent.fbcdn.net/...jpg"
+                  value={thumbnailUrl}
+                  onChange={(e) => setThumbnailUrl(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none"
+                  style={{
+                    background: "var(--sg-s2)",
+                    border: "1px solid var(--sg-border)",
+                    color: "var(--sg-ink)",
+                  }}
+                />
+              </div>
+              {thumbnailUrl && (
+                <img
+                  src={thumbnailUrl}
+                  alt="Portada"
+                  className="mt-1 w-full rounded-lg object-cover"
+                  style={{ maxHeight: 120, border: "1px solid var(--sg-border)" }}
+                  onError={() => setThumbnailUrl("")}
+                />
+              )}
+            </div>
           )}
         </div>
 

@@ -182,25 +182,42 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
             </>
           )
         ) : videoError ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-            <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "var(--sg-s3)" }}>
-              <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] ml-1" style={{ borderLeftColor: "var(--sg-muted)" }} />
-            </div>
-            <p className="text-xs text-center" style={{ color: "var(--sg-muted)" }}>
-              Video restringido por CORS
-            </p>
-            {(snapshotUrl ?? firstMedia) && (
+          thumbnailUrl ? (
+            <>
+              <img src={thumbnailUrl} alt="" className="w-full h-full object-cover" />
               <a
-                href={snapshotUrl ?? firstMedia!}
+                href={snapshotUrl ?? firstMedia ?? '#'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs px-3 py-1.5 rounded-lg font-medium"
-                style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+                className="absolute inset-0 flex items-center justify-center"
               >
-                Ver video →
+                <div
+                  className="h-14 w-14 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                  style={{ background: "rgba(0,0,0,0.6)" }}
+                >
+                  <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[18px] border-l-white ml-1.5" />
+                </div>
               </a>
-            )}
-          </div>
+            </>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+              <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "var(--sg-s3)" }}>
+                <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] ml-1" style={{ borderLeftColor: "var(--sg-muted)" }} />
+              </div>
+              <p className="text-xs text-center" style={{ color: "var(--sg-muted)" }}>Video restringido</p>
+              {(snapshotUrl ?? firstMedia) && (
+                <a
+                  href={snapshotUrl ?? firstMedia!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium"
+                  style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+                >
+                  Ver video →
+                </a>
+              )}
+            </div>
+          )
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-xs" style={{ color: "var(--sg-subtle)" }}>Sin preview</span>
