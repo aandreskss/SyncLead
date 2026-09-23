@@ -1,14 +1,22 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import { randomBytes } from "crypto"
+import { randomBytes, createHash } from "crypto"
 import { createCampaign, updateCampaign, deleteCampaign } from "./repository"
 import type { CampaignFormState } from "./types"
-import { requireOrganizationMembership } from "@/lib/auth/server"
+import { requireOrganizationMembership, requireCampaignAccess } from "@/lib/auth/server"
 import { AuthError } from "@/lib/auth/errors"
 import { db } from "@/lib/db"
-import { campaigns } from "@/lib/db/schema"
+import { campaigns, ingestionCredentials } from "@/lib/db/schema"
 import { and, eq } from "drizzle-orm"
+
+export type IngestionCredentialPublic = {
+  id: string
+  type: "public_form" | "server_secret"
+  keyPrefix: string
+  status: "active" | "revoked" | "expired"
+  createdAt: Date
+}
 
 function generateApiKey(): string {
   return "slk_" + randomBytes(24).toString("hex")
@@ -131,6 +139,82 @@ export async function toggleCampaignActiveAction(
   if (!updated) return { error: "Campaña no encontrada." }
 
   return { success: true }
+}
+
+export async function listIngestionCredentialsAction(
+  campaignId: string
+): Promise<{ data?: IngestionCredentialPublic[]; error?: string }> {
+  try {
+    const ctx = await requireCampaignAccess(campaignId)
+    const rows = await db.query.ingestionCredentials.findMany({
+      where: and(
+        eq(ingestionCredentials.campaignId, campaignId),
+        eq(ingestionCredentials.orgId, ctx.orgId)
+      ),
+      columns: { id: true, type: true, keyPrefix: true, status: true, createdAt: true },
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+    })
+    return {
+      data: rows.map((r) => ({
+        id: r.id,
+        type: r.type as "public_form" | "server_secret",
+        keyPrefix: r.keyPrefix,
+        status: r.status as "active" | "revoked" | "expired",
+        createdAt: r.createdAt,
+      })),
+    }
+  } catch {
+    return { error: "forbidden" }
+  }
+}
+
+export async function createIngestionCredentialAction(
+  campaignId: string,
+  type: "public_form" | "server_secret"
+): Promise<{ token?: string; error?: string }> {
+  try {
+    const ctx = await requireCampaignAccess(campaignId)
+    const prefix = type === "public_form" ? "pub_" : "slk_"
+    const rawToken = prefix + randomBytes(24).toString("hex")
+    const keyHash = createHash("sha256").update(rawToken).digest("hex")
+    const keyPrefix = rawToken.slice(0, 16)
+
+    await db.insert(ingestionCredentials).values({
+      orgId: ctx.orgId,
+      campaignId,
+      type,
+      keyHash,
+      keyPrefix,
+      status: "active",
+      allowedOrigins: [],
+    })
+
+    return { token: rawToken }
+  } catch {
+    return { error: "failed" }
+  }
+}
+
+export async function revokeIngestionCredentialAction(
+  credentialId: string,
+  campaignId: string
+): Promise<{ success?: boolean; error?: string }> {
+  try {
+    const ctx = await requireCampaignAccess(campaignId)
+    await db
+      .update(ingestionCredentials)
+      .set({ status: "revoked" })
+      .where(
+        and(
+          eq(ingestionCredentials.id, credentialId),
+          eq(ingestionCredentials.orgId, ctx.orgId),
+          eq(ingestionCredentials.campaignId, campaignId)
+        )
+      )
+    return { success: true }
+  } catch {
+    return { error: "failed" }
+  }
 }
 
 // Finds or auto-creates the "Orgánico / Directo" campaign for a client.
