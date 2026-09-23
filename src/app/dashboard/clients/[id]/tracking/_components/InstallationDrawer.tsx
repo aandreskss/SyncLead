@@ -1,14 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import type { ConversionDefinitionPublic } from "@/domains/tracking/types"
-import { getOrCreateSiteCollectTokenAction } from "@/domains/tracking/actions"
 import { X, Copy, CheckCircle2 } from "lucide-react"
 
 type Props = {
   definition: ConversionDefinitionPublic
   onClose: () => void
-  siteId?: string | null
+  siteId?: string | null // kept for API compat; no longer used internally
 }
 
 type TabKey = "synclead" | "javascript" | "gtm" | "nextjs" | "capi"
@@ -74,69 +73,25 @@ function buildEventIdHelper(internalKey: string): string {
 }`
 }
 
-function buildSyncLeadSnippet(def: ConversionDefinitionPublic, token?: string | null): string {
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.synclead.io"
+
+function buildSyncLeadSnippet(def: ConversionDefinitionPublic): string {
   const paramsObj = def.requiredParameters.length > 0
-    ? def.requiredParameters.map((p) => `      ${p}: true`).join(",\n")
-    : "      // sin parámetros requeridos"
+    ? def.requiredParameters.map((p) => `  ${p}: true`).join(",\n")
+    : "  // sin parámetros requeridos"
 
   const triggerComment = buildTriggerComment(def.triggerType, def.internalKey)
 
-  return `// ── 1. Helper SyncLead — pega esto UNA VEZ en tu sitio (p. ej. en <head>) ──
-(function () {
-  function getVisitorId() {
-    var k = '_sl_vid', v = localStorage.getItem(k);
-    if (!v) { v = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2,9); localStorage.setItem(k,v); }
-    return v;
-  }
-  function getCookie(name) {
-    var c = document.cookie.split('; ').find(function(r) { return r.indexOf(name + '=') === 0; });
-    return c ? c.slice(name.length + 1) : null;
-  }
-  // Captura UTMs y fbclid en el primer clic (first-touch)
-  (function () {
-    var p = new URLSearchParams(location.search);
-    ['utm_source','utm_medium','utm_campaign','utm_content'].forEach(function(k) {
-      var v = p.get(k); if (v && !localStorage.getItem('_sl_'+k)) localStorage.setItem('_sl_'+k,v);
-    });
-    // Si hay fbclid y no hay _fbc del Meta Pixel, construimos uno propio
-    var fbclid = p.get('fbclid');
-    if (fbclid && !getCookie('_fbc') && !localStorage.getItem('_sl_fbc')) {
-      localStorage.setItem('_sl_fbc', 'fb.1.' + Date.now() + '.' + fbclid);
-    }
-  })();
-  window.slTrack = function (eventName, params, token) {
-    navigator.sendBeacon(
-      'https://app.synclead.io/api/collect/' + token,
-      new Blob([JSON.stringify({
-        eventName: eventName,
-        pageUrl: location.href,
-        visitorId: getVisitorId(),
-        utmSource: localStorage.getItem('_sl_utm_source'),
-        utmMedium: localStorage.getItem('_sl_utm_medium'),
-        utmCampaign: localStorage.getItem('_sl_utm_campaign'),
-        referrer: document.referrer || null,
-        fbc: getCookie('_fbc') || localStorage.getItem('_sl_fbc') || undefined,
-        fbp: getCookie('_fbp') || undefined,
-        parameters: params || {},
-      })], { type: 'application/json' })
-    );
-  };
-})();
+  return `<!-- 1. Agrega el Pixel Universal UNA VEZ en <head> (reemplaza el token) -->
+<script src="${APP_URL}/pixel.js" data-token="TU_TOKEN_PUB_XXX" async></script>
 
-// ── 2. Token del sitio y ping de sesión ───────────────────────────────────
-var SYNCLEAD_TOKEN = '${token ?? "TU_TOKEN_AQUI"}';
-
-// Ping cada 30s — mide tiempo real en página (colocar UNA VEZ en <head>)
-setInterval(function() {
-  window.slTrack('session_ping', {}, SYNCLEAD_TOKEN);
-}, 30000);
-
-// ── 3. Dispara el evento "${def.internalKey}" ──────────────────────────────
-
-${triggerComment}
-window.slTrack('${def.internalKey}', {
+<!-- 2. Dispara el evento "${def.internalKey}" -->
+<!-- ${triggerComment} -->
+<script>
+window.SyncLead.track('${def.internalKey}', {
 ${paramsObj}
-}, SYNCLEAD_TOKEN);`
+});
+</script>`
 }
 
 function buildJsSnippet(def: ConversionDefinitionPublic): string {
@@ -305,19 +260,11 @@ async function send${def.internalKey.replace(/_([a-z])/g, (_, c) => c.toUpperCas
 }`
 }
 
-export function InstallationDrawer({ definition, onClose, siteId }: Props) {
+export function InstallationDrawer({ definition, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("synclead")
-  const [siteToken, setSiteToken] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!siteId) return
-    getOrCreateSiteCollectTokenAction(siteId).then((r) => {
-      if (r.token) setSiteToken(r.token)
-    })
-  }, [siteId])
 
   const snippets: Record<TabKey, string> = {
-    synclead: buildSyncLeadSnippet(definition, siteToken),
+    synclead: buildSyncLeadSnippet(definition),
     javascript: buildJsSnippet(definition),
     gtm: buildGtmSnippet(definition),
     nextjs: buildNextjsSnippet(definition),
@@ -361,13 +308,18 @@ export function InstallationDrawer({ definition, onClose, siteId }: Props) {
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
         {activeTab === "synclead" && (
-          <div className="rounded border border-ops-blue/30 bg-ops-blue/10 px-4 py-3 text-sm text-ops-tx2">
-            <strong className="text-ops-tx">SyncLead Pixel</strong> — este snippet envía cada evento
-            directamente al colector de SyncLead con el ID del visitante y los UTMs capturados.
-            Úsalo cuando quieras rastrear el recorrido completo del visitante (fuente → eventos → conversión).{" "}
-            <span className="text-ops-tx3">
-              Tu token de sitio está disponible en Diagnóstico → botón de código del sitio.
-            </span>
+          <div className="rounded border border-ops-blue/30 bg-ops-blue/10 px-4 py-3 text-sm text-ops-tx2 space-y-1">
+            <p>
+              <strong className="text-ops-tx">SyncLead Pixel Universal</strong> — un solo{" "}
+              <code className="text-ops-tx">&lt;script&gt;</code> en tu{" "}
+              <code className="text-ops-tx">&lt;head&gt;</code> activa tracking de visitas,
+              captura automática de formularios y la API <code className="text-ops-tx">window.SyncLead</code>.
+            </p>
+            <p className="text-ops-tx3">
+              Token: usa el <code className="text-ops-tx2">pub_xxx</code> de{" "}
+              <strong className="text-ops-tx2">Campañas → tu campaña → Credenciales de ingesta</strong>.
+              Se copia una sola vez al crearlo.
+            </p>
           </div>
         )}
         {activeTab === "capi" && (

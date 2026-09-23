@@ -8,6 +8,7 @@ import {
   getTrackingSiteByCollectToken,
   getDefinitionByEventNameForSite,
 } from "@/domains/tracking/repository"
+import { lookupCredential } from "@/lib/ingest/lookup"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -154,6 +155,49 @@ export async function POST(
     const site = await getTrackingSiteByCollectToken(token)
 
     if (!site || !site.diagnosticsEnabled) {
+      // Fallback: accept pub_xxx ingestion credentials (used by the SyncLead pixel SDK)
+      const cred = await lookupCredential(token)
+      if (cred) {
+        const credOrigin = request.headers.get("origin")
+        if (!isOriginAllowed(credOrigin, cred.allowedOrigins)) {
+          return NextResponse.json(
+            { error: "Origin not allowed" },
+            { status: 403, headers: CORS_HEADERS }
+          )
+        }
+
+        const sanitizedUrl = sanitizePageUrl(pageUrl)
+        const eventIdHash = eventId ? hashEventId(eventId) : null
+        const geo = extractVisitorGeo(request)
+        const urlUtms = extractUtmsFromUrl(pageUrl)
+        const finalUtmSource = resolvedUtmSource ?? urlUtms.utmSource ?? (fbc ? "facebook" : null)
+        const finalUtmMedium = resolvedUtmMedium ?? urlUtms.utmMedium ?? (fbc && !resolvedUtmSource && !urlUtms.utmSource ? "cpc" : null)
+
+        await db.insert(conversionObservations).values({
+          orgId: cred.orgId,
+          clientId: cred.clientId,
+          trackingSiteId: undefined,
+          conversionDefinitionId: null,
+          testSessionId: null,
+          source: "browser_pixel",
+          eventName,
+          eventIdHash,
+          pageUrl: sanitizedUrl,
+          visitorId: visitorId ?? null,
+          visitorCity: geo.city,
+          visitorCountry: geo.country,
+          utmSource: finalUtmSource,
+          utmMedium: finalUtmMedium,
+          utmCampaign: utmCampaign ?? urlUtms.utmCampaign ?? null,
+          referrer: referrer ?? null,
+          environment: environment as "production" | "staging" | "development",
+          parametersPresent: parameters,
+          validationResult: {},
+        })
+
+        return NextResponse.json({ received: true }, { status: 200, headers: CORS_HEADERS })
+      }
+
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401, headers: CORS_HEADERS }

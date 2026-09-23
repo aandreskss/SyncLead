@@ -2,18 +2,156 @@
 
 import { useState, useTransition } from "react"
 import { getOrCreateSiteCollectTokenAction } from "@/domains/tracking/actions"
-import { Copy, CheckCircle2, Code2, Shield, Zap, AlertCircle, Loader2 } from "lucide-react"
+import { Copy, CheckCircle2, Code2, Shield, Zap, AlertCircle, Loader2, Globe } from "lucide-react"
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.synclead.com"
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.synclead.io"
+
+function CopyBtn({ text, label = "Copiar" }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 rounded border border-ops-bd bg-ops-s2 px-2.5 py-1.5 text-xs text-ops-tx2 hover:bg-ops-sel transition-colors shrink-0"
+    >
+      {copied ? (
+        <><CheckCircle2 className="h-3.5 w-3.5 text-ops-green" />Copiado</>
+      ) : (
+        <><Copy className="h-3.5 w-3.5" />{label}</>
+      )}
+    </button>
+  )
+}
+
+const PIXEL_SCRIPT_TAG = `<script src="${APP_URL}/pixel.js" data-token="pub_xxxx..." async></script>`
+const CSP_SNIPPET = `script-src ${APP_URL};
+connect-src ${APP_URL};`
+const API_EXAMPLES = `// Captura un lead manualmente (p. ej. al enviar un formulario)
+window.SyncLead.lead({
+  name: "Ana García",
+  email: "ana@email.com",
+  phone: "+5804121234567",
+});
+
+// Registra una compra (evento de comportamiento)
+window.SyncLead.purchase({
+  value: 99.90,
+  currency: "USD",
+  externalId: "order_123",
+});
+
+// Evento personalizado (add_to_cart, begin_checkout, etc.)
+window.SyncLead.event("begin_checkout", {
+  value: 49.00,
+  currency: "USD",
+});`
+
+function UniversalPixelCard() {
+  return (
+    <div className="rounded-lg border border-indigo-800/40 bg-indigo-950/20 overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-indigo-800/30">
+        <Globe className="h-4 w-4 text-indigo-400 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-ops-tx">Pixel Universal (recomendado)</p>
+          <p className="text-xs text-ops-tx3">Un solo script para tracking, leads y eventos de comportamiento</p>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-5">
+        {/* Step 1 */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">1</span>
+            Agrega el script en el <code className="text-ops-tx">&lt;head&gt;</code> de tu sitio
+          </p>
+          <div className="flex items-start gap-2">
+            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-indigo-300 font-mono overflow-x-auto whitespace-pre select-all">
+              {PIXEL_SCRIPT_TAG}
+            </pre>
+            <CopyBtn text={PIXEL_SCRIPT_TAG} />
+          </div>
+          <div className="rounded border border-ops-bd bg-ops-s2 px-3 py-2 text-xs text-ops-tx3 space-y-1">
+            <p>
+              <span className="text-ops-tx2 font-medium">¿Dónde obtengo el token?</span>{" "}
+              Ve a <span className="text-ops-tx2">Campañas → [tu campaña] → Credenciales de ingesta</span> y copia el token{" "}
+              <code className="text-ops-tx2">pub_xxx</code>. Se muestra una sola vez al crearlo.
+            </p>
+          </div>
+        </div>
+
+        {/* Step 2 */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">2</span>
+            Permite el dominio de SyncLead en tu CSP <span className="text-ops-tx3">(solo si usas Content-Security-Policy)</span>
+          </p>
+          <div className="flex items-start gap-2">
+            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-emerald-400 font-mono overflow-x-auto whitespace-pre select-all">
+              {CSP_SNIPPET}
+            </pre>
+            <CopyBtn text={CSP_SNIPPET} />
+          </div>
+        </div>
+
+        {/* What it does */}
+        <div>
+          <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" />Incluye automáticamente
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {[
+              ["PageView automático", "Registra cada visita con país, UTMs y referrer"],
+              ["Captura first-touch", "UTMs + fbclid en el primer clic del visitante"],
+              ["Ping de sesión c/30s", "Mide tiempo real en página para análisis de calidad"],
+              ["Auto-captura de forms", "Detecta email/teléfono en formularios al enviarlos"],
+            ].map(([title, desc]) => (
+              <div key={title} className="flex items-start gap-1.5 rounded border border-ops-bd bg-ops-s2 p-2">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0 mt-px" />
+                <div>
+                  <p className="text-xs text-ops-tx2 font-medium leading-tight">{title}</p>
+                  <p className="text-xs text-ops-tx3 leading-tight mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Step 3 — API */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-ops-tx2 flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shrink-0">3</span>
+            API disponible (opcional)
+          </p>
+          <div className="flex items-start gap-2">
+            <pre className="flex-1 rounded bg-ops-bg border border-ops-line p-3 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre select-all leading-relaxed">
+              {API_EXAMPLES}
+            </pre>
+            <CopyBtn text={API_EXAMPLES} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface SiteEntry {
+  id: string
+  name: string
+  domain: string
+  collectToken: string | null
+}
 
 function buildScript(token: string): string {
   const collector = `${APP_URL}/api/collect/${token}`
   return `<!-- Script SyncLead — colocar antes del cierre </body> -->
-<!-- Token permanente — no expira. Registra visitantes, fuente de tráfico y eventos del pixel en tiempo real. -->
 <script>
 (function() {
   var collector = "${collector}";
-
   function getCookie(name) {
     var c = document.cookie.split('; ').find(function(r) { return r.indexOf(name + '=') === 0; });
     return c ? c.slice(name.length + 1) : undefined;
@@ -23,7 +161,6 @@ function buildScript(token: string): string {
     if (!v) { v = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2,9); localStorage.setItem(k,v); }
     return v;
   }
-  // Captura UTMs y fbclid en el primer clic (first-touch)
   (function() {
     var p = new URLSearchParams(location.search);
     ['utm_source','utm_medium','utm_campaign','utm_content'].forEach(function(k) {
@@ -34,17 +171,10 @@ function buildScript(token: string): string {
       localStorage.setItem('_sl_fbc', 'fb.1.' + Date.now() + '.' + fbclid);
     }
   })();
-
   function sendToDiagnostic(eventName, params) {
-    var boolParams = {};
-    if (params && typeof params === "object") {
-      Object.keys(params).forEach(function(k) { boolParams[k] = true; });
-    }
     var payload = {
-      eventName: eventName,
-      pageUrl: window.location.href,
-      environment: "production",
-      parameters: boolParams,
+      eventName: eventName, pageUrl: window.location.href, environment: "production",
+      parameters: params || {},
       visitorId: getVisitorId(),
       utmSource: localStorage.getItem('_sl_utm_source') || undefined,
       utmMedium: localStorage.getItem('_sl_utm_medium') || undefined,
@@ -53,93 +183,13 @@ function buildScript(token: string): string {
       fbc: getCookie('_fbc') || localStorage.getItem('_sl_fbc') || undefined,
       fbp: getCookie('_fbp') || undefined,
     };
-    fetch(collector, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    fetch(collector, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   }
-
   window.__synclead_collect = sendToDiagnostic;
-
-  // Ping cada 30s — mide tiempo real en página
   setInterval(function() { sendToDiagnostic('session_ping', {}); }, 30000);
-
-  function wrapFbq(original) {
-    if (original && original._synclead_wrapped) return original;
-    var wrapper = function() {
-      var args = Array.prototype.slice.call(arguments);
-      if (args[0] === "track" || args[0] === "trackCustom") {
-        sendToDiagnostic(args[1], args[2] || {});
-      }
-      if (typeof wrapper.callMethod === "function") {
-        return wrapper.callMethod.apply(wrapper, args);
-      }
-      return original.apply(this, arguments);
-    };
-    try {
-      var skip = { length: 1, name: 1, prototype: 1, caller: 1, arguments: 1 };
-      Object.getOwnPropertyNames(original).forEach(function(key) {
-        if (skip[key]) return;
-        Object.defineProperty(wrapper, key, {
-          get: function() { return original[key]; },
-          set: function(v) { original[key] = v; },
-          configurable: true,
-          enumerable: true
-        });
-      });
-    } catch(e) {}
-    wrapper._synclead_wrapped = true;
-    return wrapper;
-  }
-
-  if (typeof window.fbq === "function") {
-    window.fbq = wrapFbq(window.fbq);
-    try { if (window._fbq !== window.fbq) window._fbq = window.fbq; } catch(e) {}
-  } else {
-    Object.defineProperty(window, "fbq", {
-      configurable: true,
-      set: function(val) {
-        var wrapped = typeof val === "function" ? wrapFbq(val) : val;
-        Object.defineProperty(window, "fbq", {
-          configurable: true, writable: true,
-          value: wrapped
-        });
-        try { if (window._fbq !== window.fbq) window._fbq = window.fbq; } catch(e) {}
-      }
-    });
-  }
-
-  // PageView automático — registra todo visitante (orgánico, directo, paid) con país y fuente
   sendToDiagnostic('PageView', {});
 })();
 </script>`
-}
-
-const FIXES = [
-  {
-    label: "Rastreo de visitantes",
-    detail: "Genera un visitorId persistente por navegador — activa la sección Visitantes en SyncLead",
-  },
-  {
-    label: "Atribución de tráfico",
-    detail: "Captura UTMs, referrer y fbclid en el primer clic; los asocia a todas las conversiones futuras",
-  },
-  {
-    label: "Sin conflicto con fbevents.js",
-    detail: "Getters/setters en vivo — fbevents.js siempre ve queue, version y loaded correctos",
-  },
-  {
-    label: "Sin warning de pixel duplicado",
-    detail: "window._fbq sincronizado con el wrapper — fbevents.js los ve como un solo pixel",
-  },
-]
-
-interface SiteEntry {
-  id: string
-  name: string
-  domain: string
-  collectToken: string | null
 }
 
 function SiteScriptCard({ site }: { site: SiteEntry }) {
@@ -169,7 +219,6 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
 
   return (
     <div className="rounded-lg border border-ops-line bg-ops-s1 overflow-hidden">
-      {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-ops-line">
         <Code2 className="h-4 w-4 text-ops-tx2 shrink-0" />
         <div className="flex-1 min-w-0">
@@ -190,43 +239,14 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
         )}
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Fixes checklist */}
-        <div>
-          <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Shield className="h-3.5 w-3.5" />
-            Fixes aplicados
-          </p>
-          <div className="space-y-1.5">
-            {FIXES.map((fix) => (
-              <div key={fix.label} className="flex items-start gap-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-px" />
-                <div>
-                  <span className="text-xs text-ops-tx2">{fix.label}</span>
-                  <span className="text-xs text-ops-tx3 ml-1.5">{fix.detail}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Script block or generate button */}
+      <div className="p-4 space-y-3">
         {token ? (
-          <div>
-            <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5 text-ops-amber" />
-              Script — pegar antes del cierre{" "}
-              <code className="text-ops-tx2">&lt;/body&gt;</code>
-            </p>
-            <pre className="rounded bg-ops-bg border border-ops-line p-3 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre-wrap break-all select-all max-h-48 overflow-y-auto">
-              {script}
-            </pre>
-          </div>
+          <pre className="rounded bg-ops-bg border border-ops-line p-3 text-xs text-ops-tx2 font-mono overflow-x-auto whitespace-pre-wrap break-all select-all max-h-40 overflow-y-auto">
+            {script}
+          </pre>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-ops-tx3">
-              Este sitio aún no tiene un token de colección permanente.
-            </p>
+            <p className="text-xs text-ops-tx3">Este sitio aún no tiene un token de colección permanente.</p>
             {err && (
               <p className="text-xs text-ops-coral flex items-center gap-1">
                 <AlertCircle className="h-3.5 w-3.5" />{err}
@@ -253,24 +273,22 @@ interface Props {
 
 export function ScriptInstallPanel({ sites }: Props) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
         <h3 className="text-sm font-medium text-ops-tx">Script de instalación</h3>
         <p className="text-xs text-ops-tx3 mt-0.5">
-          Pegar este script en el sitio web del cliente para que SyncLead reciba todos los eventos del pixel en tiempo real. El token es permanente — no expira.
+          Instala SyncLead en el sitio del cliente para rastrear visitantes, capturar leads y enviar eventos de comportamiento.
         </p>
       </div>
 
-      {sites.length === 0 ? (
-        <div className="rounded-lg border border-ops-line bg-ops-s1 px-4 py-6 text-center">
-          <Code2 className="h-6 w-6 text-ops-tx3 mx-auto mb-2" />
-          <p className="text-sm text-ops-tx3">No hay sitios de seguimiento configurados.</p>
-          <p className="text-xs text-ops-tx3 mt-1">
-            Crea un sitio en la tab <span className="text-ops-tx2">Diagnóstico</span> primero.
-          </p>
-        </div>
-      ) : (
+      <UniversalPixelCard />
+
+      {sites.length > 0 && (
         <div className="space-y-3">
+          <div>
+            <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider">Script por sitio (Diagnóstico)</p>
+            <p className="text-xs text-ops-tx3 mt-0.5">Solo tracking de eventos para el módulo de diagnóstico de conversiones.</p>
+          </div>
           {sites.map((site) => (
             <SiteScriptCard key={site.id} site={site} />
           ))}
