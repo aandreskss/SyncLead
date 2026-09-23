@@ -153,6 +153,7 @@ export function AdResearchDashboard({ initialCollections, initialSavedAds }: Pro
               prev.map((a) => (a.collectionId === id ? { ...a, collectionId: null, collectionName: null } : a))
             )
           }}
+          onAdSaved={(ad) => setSavedAds((prev) => [ad, ...prev])}
         />
       )}
     </div>

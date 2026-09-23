@@ -65,7 +65,7 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
 
   const snapshotUrl = isAdResult(ad) && platform === 'meta'
     ? (ad as { snapshotUrl?: string | null }).snapshotUrl
-    : null
+    : (!isAdResult(ad) ? (ad as SavedAd).landingPageUrl : null)
 
   function handleSave() {
     if (!isAdResult(ad)) return

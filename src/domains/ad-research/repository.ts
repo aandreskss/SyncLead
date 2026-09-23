@@ -17,6 +17,7 @@ function toSavedAd(
     mediaType: item.mediaType,
     mediaUrls: item.mediaUrls,
     thumbnailUrl: item.thumbnailUrl,
+    landingPageUrl: item.landingPageUrl,
     impressionsMin: item.impressionsLowerBound ?? null,
     impressionsMax: item.impressionsUpperBound ?? null,
     likesCount: item.likesCount ?? null,
@@ -196,6 +197,42 @@ export async function addTagToSavedAd(id: string, orgId: string, tag: string): P
     .update(adResearchItems)
     .set({ tags: sql`array_append(${adResearchItems.tags}, ${tag})` })
     .where(and(eq(adResearchItems.id, id), eq(adResearchItems.orgId, orgId)))
+}
+
+export async function importAdFromUrl(
+  orgId: string,
+  data: {
+    url: string
+    platform: AdPlatform
+    advertiserName: string
+    adTitle?: string | null
+    adBody?: string | null
+    collectionId?: string | null
+    tags?: string[]
+    notes?: string | null
+    savedBy?: string | null
+  }
+): Promise<SavedAd> {
+  const [inserted] = await db
+    .insert(adResearchItems)
+    .values({
+      orgId,
+      platform: data.platform,
+      advertiserName: data.advertiserName,
+      adTitle: data.adTitle ?? null,
+      adBody: data.adBody ?? null,
+      mediaType: 'unknown',
+      mediaUrls: [],
+      landingPageUrl: data.url,
+      collectionId: data.collectionId ?? null,
+      tags: data.tags ?? [],
+      notes: data.notes ?? null,
+      rawData: { sourceUrl: data.url },
+      savedBy: data.savedBy ?? null,
+    })
+    .returning()
+
+  return toSavedAd(inserted)
 }
 
 export async function moveToCollection(id: string, orgId: string, collectionId: string | null): Promise<void> {

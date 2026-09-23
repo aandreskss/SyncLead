@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Plus, Trash2, BookOpen } from "lucide-react"
+import { Plus, Trash2, BookOpen, Link } from "lucide-react"
 import { AdCard } from "./AdCard"
+import { ImportFromUrlForm } from "./ImportFromUrlForm"
 import type { SavedAd, AdCollection, AdPlatform } from "@/domains/ad-research/types"
 import { createCollectionAction, deleteCollectionAction } from "@/domains/ad-research/actions"
 
@@ -13,6 +14,7 @@ interface Props {
   onAdMoved: (adId: string, collectionId: string | null) => void
   onCollectionCreated: (col: AdCollection) => void
   onCollectionDeleted: (id: string) => void
+  onAdSaved: (ad: SavedAd) => void
 }
 
 export function AdLibrary({
@@ -22,10 +24,12 @@ export function AdLibrary({
   onAdMoved,
   onCollectionCreated,
   onCollectionDeleted,
+  onAdSaved,
 }: Props) {
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null)
   const [platformFilter, setPlatformFilter] = useState<AdPlatform | ''>('')
   const [showNewCollectionForm, setShowNewCollectionForm] = useState(false)
+  const [showImportForm, setShowImportForm] = useState(false)
   const [newColName, setNewColName] = useState("")
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -133,6 +137,15 @@ export function AdLibrary({
           </button>
         </div>
 
+        <button
+          onClick={() => { setShowImportForm(true); setShowNewCollectionForm(false) }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+        >
+          <Link className="h-3 w-3" />
+          Importar desde URL
+        </button>
+
         <select
           value={platformFilter}
           onChange={(e) => setPlatformFilter(e.target.value as AdPlatform | '')}
@@ -148,6 +161,14 @@ export function AdLibrary({
           <option value="tiktok">TikTok</option>
         </select>
       </div>
+
+      {showImportForm && (
+        <ImportFromUrlForm
+          collections={collections}
+          onSaved={(ad) => { onAdSaved(ad); setShowImportForm(false) }}
+          onClose={() => setShowImportForm(false)}
+        />
+      )}
 
       {showNewCollectionForm && (
         <form
@@ -189,8 +210,16 @@ export function AdLibrary({
             No hay anuncios guardados
           </p>
           <p className="text-sm mt-1" style={{ color: "var(--sg-muted)" }}>
-            Busca y guarda anuncios desde la pestaña Buscar
+            Importa anuncios pegando su URL o búscalos desde la pestaña Buscar
           </p>
+          <button
+            onClick={() => setShowImportForm(true)}
+            className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium mx-auto"
+            style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+          >
+            <Link className="h-3.5 w-3.5" />
+            Importar desde URL
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

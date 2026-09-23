@@ -14,6 +14,7 @@ export interface SavedAd {
   mediaType: string
   mediaUrls: string[]
   thumbnailUrl: string | null
+  landingPageUrl: string | null
   impressionsMin: number | null
   impressionsMax: number | null
   likesCount: number | null
