@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CampaignDialog } from "./CampaignDialog"
-import { ApiKeyModal } from "./ApiKeyModal"
+import { CredentialsModal } from "./CredentialsModal"
 import { MultiScriptModal } from "./MultiScriptModal"
 import { UrlParamBuilderModal } from "./UrlParamBuilderModal"
 import { deleteCampaignAction, toggleCampaignActiveAction } from "@/domains/campaigns/actions"
@@ -305,12 +305,11 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
       />
 
       {apiKeyModal && (
-        <ApiKeyModal
+        <CredentialsModal
           open={!!apiKeyModal}
           onOpenChange={(open) => { if (!open) setApiKeyModal(null) }}
           campaignId={apiKeyModal.id}
           campaignName={apiKeyModal.name}
-          apiKey={apiKeyModal.apiKey}
         />
       )}
 
