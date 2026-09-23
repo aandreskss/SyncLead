@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ConversionDefinitionPublic } from "@/domains/tracking/types"
+import { getOrCreateSiteCollectTokenAction } from "@/domains/tracking/actions"
 import { X, Copy, CheckCircle2 } from "lucide-react"
 
 type Props = {
   definition: ConversionDefinitionPublic
   onClose: () => void
+  siteId?: string | null
 }
 
 type TabKey = "synclead" | "javascript" | "gtm" | "nextjs" | "capi"
@@ -72,7 +74,7 @@ function buildEventIdHelper(internalKey: string): string {
 }`
 }
 
-function buildSyncLeadSnippet(def: ConversionDefinitionPublic): string {
+function buildSyncLeadSnippet(def: ConversionDefinitionPublic, token?: string | null): string {
   const paramsObj = def.requiredParameters.length > 0
     ? def.requiredParameters.map((p) => `      ${p}: true`).join(",\n")
     : "      // sin parámetros requeridos"
@@ -122,8 +124,7 @@ function buildSyncLeadSnippet(def: ConversionDefinitionPublic): string {
 })();
 
 // ── 2. Dispara el evento "${def.internalKey}" ──────────────────────────────
-// Obtén tu token en: Diagnóstico → Visitantes → (ícono de código del sitio)
-var SYNCLEAD_TOKEN = 'TU_TOKEN_AQUI';
+var SYNCLEAD_TOKEN = '${token ?? "TU_TOKEN_AQUI"}';
 
 ${triggerComment}
 window.slTrack('${def.internalKey}', {
@@ -297,11 +298,19 @@ async function send${def.internalKey.replace(/_([a-z])/g, (_, c) => c.toUpperCas
 }`
 }
 
-export function InstallationDrawer({ definition, onClose }: Props) {
+export function InstallationDrawer({ definition, onClose, siteId }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("synclead")
+  const [siteToken, setSiteToken] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!siteId) return
+    getOrCreateSiteCollectTokenAction(siteId).then((r) => {
+      if (r.token) setSiteToken(r.token)
+    })
+  }, [siteId])
 
   const snippets: Record<TabKey, string> = {
-    synclead: buildSyncLeadSnippet(definition),
+    synclead: buildSyncLeadSnippet(definition, siteToken),
     javascript: buildJsSnippet(definition),
     gtm: buildGtmSnippet(definition),
     nextjs: buildNextjsSnippet(definition),

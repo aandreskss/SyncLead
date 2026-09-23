@@ -12,6 +12,7 @@ import { Beaker, BookOpen, Clock, History, Zap, CheckCircle2, AlertCircle, Loade
 type Props = {
   definitions: ConversionWithStatus[]
   clientId: string
+  siteId?: string | null
 }
 
 const STATUS_CONFIG: Record<DiagConversionStatus, { label: string; className: string }> = {
@@ -139,7 +140,7 @@ function SimulateButton({ def, clientId }: { def: ConversionDefinitionPublic; cl
   )
 }
 
-export function ConversionList({ definitions, clientId }: Props) {
+export function ConversionList({ definitions, clientId, siteId }: Props) {
   const [testWizardDef, setTestWizardDef] = useState<ConversionDefinitionPublic | null>(null)
   const [installDrawerDef, setInstallDrawerDef] = useState<ConversionDefinitionPublic | null>(null)
 
@@ -218,6 +219,7 @@ export function ConversionList({ definitions, clientId }: Props) {
         <InstallationDrawer
           definition={installDrawerDef}
           onClose={() => setInstallDrawerDef(null)}
+          siteId={siteId}
         />
       )}
     </>
