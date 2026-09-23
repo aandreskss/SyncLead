@@ -13,9 +13,11 @@ import { Button } from "@/components/ui/button"
 import { ConversionList } from "./ConversionList"
 import { LiveEventFeed } from "./LiveEventFeed"
 import { IngestErrorsPanel } from "./IngestErrorsPanel"
+import { CheckoutFunnelWidget } from "./CheckoutFunnelWidget"
 import Link from "next/link"
 import { Plus, Layout, AlertCircle, CheckCircle2, CircleDot, X, XCircle, ExternalLink, Users } from "lucide-react"
 import { createTrackingSiteAction, applyBusinessTemplateAction } from "@/domains/tracking/actions"
+import type { CheckoutFunnelMetrics } from "@/domains/tracking/actions"
 
 type Props = {
   clientId: string
@@ -24,6 +26,7 @@ type Props = {
   issues: ConversionIssuePublic[]
   metaConnections: MetaConnectionPublic[]
   ingestErrors: IngestErrorPublic[]
+  checkoutFunnel: CheckoutFunnelMetrics
 }
 
 
@@ -519,7 +522,7 @@ function ApplyTemplateModal({
   )
 }
 
-export function TrackingDashboard({ clientId, sites: initialSites, definitions, issues, metaConnections, ingestErrors }: Props) {
+export function TrackingDashboard({ clientId, sites: initialSites, definitions, issues, metaConnections, ingestErrors, checkoutFunnel }: Props) {
   const [sites, setSites] = useState<TrackingSitePublic[]>(initialSites)
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(
     initialSites[0]?.id ?? null
@@ -610,6 +613,8 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
 
       {issues.length > 0 && <IssuesList issues={issues} />}
 
+      <CheckoutFunnelWidget clientId={clientId} initial={checkoutFunnel} />
+
       <div className="space-y-2">
         <h2 className="text-sm font-medium text-ops-tx2 uppercase tracking-wide">Errores de integración</h2>
         <IngestErrorsPanel errors={ingestErrors} />
@@ -627,8 +632,8 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
             <Users className="h-4 w-4 text-ops-blue" />
           </div>
           <div>
-            <p className="text-sm font-medium text-ops-tx">Visitantes</p>
-            <p className="text-xs text-ops-tx3">Ver recorridos y fuentes de tráfico · últimos 30 días</p>
+            <p className="text-sm font-medium text-ops-tx">Visitantes de Facebook</p>
+            <p className="text-xs text-ops-tx3">Recorridos de visitantes de campañas · últimos 30 días</p>
           </div>
         </div>
         <ExternalLink className="h-4 w-4 text-ops-tx3 group-hover:text-ops-tx2 transition-colors" />
