@@ -27,22 +27,24 @@ const BEHAVIOR_EVENT_TYPES = [
   "purchase",
 ] as const
 
-const BehaviorEventSchema = z
-  .object({
-    eventType: z.enum(BEHAVIOR_EVENT_TYPES),
-    email: z.string().email().optional(),
-    phone: z.string().min(5).max(30).optional(),
-    value: z.number().positive().optional(),
-    currency: z.string().length(3).optional(),
-    productId: z.string().max(255).optional(),
-    variantId: z.string().max(255).optional(),
-    category: z.string().max(255).optional(),
-    quantity: z.number().int().positive().optional(),
-    externalId: z.string().max(255).optional(),
-    metadata: z.record(z.string(), z.unknown()).optional(),
-    occurredAt: z.string().datetime().optional(),
-  })
-  .refine((d) => d.email || d.phone, { message: "email or phone required to identify the lead" })
+const BehaviorEventSchema = z.object({
+  eventType: z.enum(BEHAVIOR_EVENT_TYPES),
+  // Used to match the event to an existing lead. Optional — events fire before
+  // the visitor has submitted any form (add_to_cart, begin_checkout, etc.)
+  email: z.string().email().optional(),
+  phone: z.string().min(5).max(30).optional(),
+  // Visitor ID from the pixel's localStorage (_sl_vid) — used for attribution
+  visitorId: z.string().max(255).optional(),
+  value: z.number().positive().optional(),
+  currency: z.string().length(3).optional(),
+  productId: z.string().max(255).optional(),
+  variantId: z.string().max(255).optional(),
+  category: z.string().max(255).optional(),
+  quantity: z.number().int().positive().optional(),
+  externalId: z.string().max(255).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  occurredAt: z.string().datetime().optional(),
+})
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS })
