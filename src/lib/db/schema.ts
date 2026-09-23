@@ -13,6 +13,7 @@ import {
   smallint,
   date,
   primaryKey,
+  bigint,
 } from "drizzle-orm/pg-core"
 import { relations, sql } from "drizzle-orm"
 import type { AdapterAccountType } from "next-auth/adapters"
@@ -2018,6 +2019,58 @@ export const metaCustomAudiencesRelations = relations(metaCustomAudiences, ({ on
   metaConnection: one(metaConnections, { fields: [metaCustomAudiences.metaConnectionId], references: [metaConnections.id] }),
 }))
 
+// ─── Ad Research ──────────────────────────────────────────────────────────────
+
+export const adResearchCollections = pgTable("ad_research_collections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgId: text("org_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const adResearchItems = pgTable("ad_research_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgId: text("org_id").notNull(),
+  collectionId: uuid("collection_id"),
+  platform: text("platform").notNull(),
+  externalId: text("external_id"),
+  advertiserName: text("advertiser_name").notNull(),
+  advertiserPageId: text("advertiser_page_id"),
+  adTitle: text("ad_title"),
+  adBody: text("ad_body"),
+  mediaType: text("media_type").default("unknown").notNull(),
+  mediaUrls: text("media_urls").array().default([]).notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  ctaText: text("cta_text"),
+  landingPageUrl: text("landing_page_url"),
+  searchCountry: text("search_country"),
+  impressionsLowerBound: bigint("impressions_lower_bound", { mode: "number" }),
+  impressionsUpperBound: bigint("impressions_upper_bound", { mode: "number" }),
+  likesCount: bigint("likes_count", { mode: "number" }),
+  commentsCount: bigint("comments_count", { mode: "number" }),
+  sharesCount: bigint("shares_count", { mode: "number" }),
+  adDeliveryStartTime: timestamp("ad_delivery_start_time", { withTimezone: true }),
+  adDeliveryStopTime: timestamp("ad_delivery_stop_time", { withTimezone: true }),
+  tags: text("tags").array().default([]).notNull(),
+  notes: text("notes"),
+  rawData: jsonb("raw_data").default({}).notNull(),
+  savedBy: text("saved_by"),
+  savedAt: timestamp("saved_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("ad_research_items_org_idx").on(t.orgId),
+  index("ad_research_items_platform_idx").on(t.orgId, t.platform),
+])
+
+export const adResearchCollectionsRelations = relations(adResearchCollections, ({ many }) => ({
+  items: many(adResearchItems),
+}))
+
+export const adResearchItemsRelations = relations(adResearchItems, ({ one }) => ({
+  collection: one(adResearchCollections, { fields: [adResearchItems.collectionId], references: [adResearchCollections.id] }),
+}))
+
 // ─── Exported Types ───────────────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect
@@ -2124,3 +2177,8 @@ export type ConversionIssueSeverity = typeof conversionIssueSeverityEnum.enumVal
 export type ConversionIssueStatus = typeof conversionIssueStatusEnum.enumValues[number]
 export type TestSessionStatus = typeof testSessionStatusEnum.enumValues[number]
 export type SiteEnvironment = typeof siteEnvironmentEnum.enumValues[number]
+
+export type AdResearchCollection = typeof adResearchCollections.$inferSelect
+export type NewAdResearchCollection = typeof adResearchCollections.$inferInsert
+export type AdResearchItem = typeof adResearchItems.$inferSelect
+export type NewAdResearchItem = typeof adResearchItems.$inferInsert
