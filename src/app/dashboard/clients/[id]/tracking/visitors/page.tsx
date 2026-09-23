@@ -94,8 +94,8 @@ export default async function VisitorsPage({
             <Users className="h-5 w-5 text-ops-blue" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-ops-tx">Visitantes de Facebook</h1>
-            <p className="text-sm text-ops-tx3">Recorridos de visitantes provenientes de campañas · últimos 30 días</p>
+            <h1 className="text-xl font-bold text-ops-tx">Visitantes de Meta</h1>
+            <p className="text-sm text-ops-tx3">Visitantes de campañas de Facebook, Instagram y WhatsApp · últimos 30 días</p>
           </div>
         </div>
       </div>
@@ -140,15 +140,16 @@ export default async function VisitorsPage({
             <Users className="h-8 w-8 text-ops-tx3 mx-auto" />
             <p className="text-sm text-ops-tx3">Sin visitantes aún</p>
             <div className="max-w-sm mx-auto rounded-lg border border-ops-bd bg-ops-s2 px-4 py-3 text-left space-y-1.5">
-              <p className="text-xs font-semibold text-ops-tx2">Solo aparecen visitantes de campañas de Facebook</p>
+              <p className="text-xs font-semibold text-ops-tx2">Solo aparecen visitantes de campañas de Meta</p>
               <p className="text-xs text-ops-tx3">
                 El feed en vivo muestra todos los visitantes (orgánico, directo, paid).
-                Esta sección filtra solo los que llegaron vía Facebook Ads — identificados por
-                fbclid, cookie <code className="text-ops-tx2">_fbc</code>, o <code className="text-ops-tx2">utm_source=facebook</code>.
+                Esta sección filtra los que llegaron vía Facebook, Instagram o WhatsApp Ads —
+                identificados por fbclid, cookie <code className="text-ops-tx2">_fbc</code>,
+                o <code className="text-ops-tx2">utm_source</code> con facebook / instagram / whatsapp.
               </p>
               <p className="text-xs text-ops-tx3">
-                Si no aparece nadie, verifica que el script de instalación esté activo en el sitio del cliente
-                y que haya tráfico de campañas de Facebook en los últimos 30 días.
+                Si no aparece nadie, verifica que el script de instalación esté activo y que haya
+                tráfico de campañas de Meta en los últimos 30 días.
               </p>
             </div>
           </div>
