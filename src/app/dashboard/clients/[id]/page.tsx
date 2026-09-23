@@ -17,6 +17,7 @@ import {
   getTrackingOverviewAction,
   getOpenIssuesAction,
   getIngestErrorsByClientAction,
+  getCheckoutFunnelAction,
 } from "@/domains/tracking/actions"
 import { getMetaConnectionsAction } from "@/domains/meta/actions"
 import { MetaConnectionPanel } from "./_components/MetaConnectionPanel"
@@ -226,12 +227,13 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     )
   } else {
     // diagnostico
-    const [sitesResult, definitionsResult, issuesResult, metaConns, ingestErrResult] = await Promise.all([
+    const [sitesResult, definitionsResult, issuesResult, metaConns, ingestErrResult, funnelResult] = await Promise.all([
       getTrackingSitesAction(id),
       getTrackingOverviewAction(id),
       getOpenIssuesAction(id),
       getMetaConnectionsAction(id),
       getIngestErrorsByClientAction(id),
+      getCheckoutFunnelAction(id, 30),
     ])
     tabContent = (
       <div className="space-y-6">
@@ -242,6 +244,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
           issues={issuesResult.data ?? []}
           metaConnections={metaConns}
           ingestErrors={ingestErrResult.data ?? []}
+          checkoutFunnel={funnelResult.data ?? { startedCount: 0, completedCount: 0, abandonedCount: 0, abandonmentRate: 0, bySource: [] }}
         />
         <div className="border-t border-ops-line" />
         <CapiLogPanel clientId={id} />
