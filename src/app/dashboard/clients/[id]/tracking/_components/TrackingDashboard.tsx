@@ -632,8 +632,8 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
             <Users className="h-4 w-4 text-ops-blue" />
           </div>
           <div>
-            <p className="text-sm font-medium text-ops-tx">Visitantes de Facebook</p>
-            <p className="text-xs text-ops-tx3">Recorridos de visitantes de campañas · últimos 30 días</p>
+            <p className="text-sm font-medium text-ops-tx">Visitantes de Meta</p>
+            <p className="text-xs text-ops-tx3">Facebook, Instagram y WhatsApp Ads · últimos 30 días</p>
           </div>
         </div>
         <ExternalLink className="h-4 w-4 text-ops-tx3 group-hover:text-ops-tx2 transition-colors" />

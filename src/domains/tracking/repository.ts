@@ -495,7 +495,11 @@ export async function getVisitorSessionsByClient(
         eq(conversionObservations.clientId, clientId),
         isNotNull(conversionObservations.visitorId),
         gte(conversionObservations.observedAt, thirtyDaysAgo),
-        ilike(conversionObservations.utmSource, "%facebook%")
+        or(
+          ilike(conversionObservations.utmSource, "%facebook%"),
+          ilike(conversionObservations.utmSource, "%instagram%"),
+          ilike(conversionObservations.utmSource, "%whatsapp%"),
+        )
       )
     )
     .orderBy(asc(conversionObservations.observedAt))
