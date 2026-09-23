@@ -233,6 +233,7 @@ export async function importAdFromUrlAction(input: {
   advertiserName: string
   adTitle?: string | null
   adBody?: string | null
+  mediaUrl?: string | null
   collectionId?: string | null
   tags?: string[]
   notes?: string | null
