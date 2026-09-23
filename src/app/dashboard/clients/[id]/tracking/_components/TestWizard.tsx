@@ -63,20 +63,49 @@ ${tokenNote}
 (function() {
   var collector = "${collector}";
 
+  function getCookie(name) {
+    var c = document.cookie.split('; ').find(function(r) { return r.indexOf(name + '=') === 0; });
+    return c ? c.slice(name.length + 1) : undefined;
+  }
+  function getVisitorId() {
+    var k = '_sl_vid', v = localStorage.getItem(k);
+    if (!v) { v = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2,9); localStorage.setItem(k,v); }
+    return v;
+  }
+  // Captura UTMs y fbclid en el primer clic (first-touch)
+  (function() {
+    var p = new URLSearchParams(location.search);
+    ['utm_source','utm_medium','utm_campaign','utm_content'].forEach(function(k) {
+      var v = p.get(k); if (v && !localStorage.getItem('_sl_'+k)) localStorage.setItem('_sl_'+k,v);
+    });
+    var fbclid = p.get('fbclid');
+    if (fbclid && !getCookie('_fbc') && !localStorage.getItem('_sl_fbc')) {
+      localStorage.setItem('_sl_fbc', 'fb.1.' + Date.now() + '.' + fbclid);
+    }
+  })();
+
   function sendToDiagnostic(eventName, params) {
     var boolParams = {};
     if (params && typeof params === "object") {
       Object.keys(params).forEach(function(k) { boolParams[k] = true; });
     }
+    var payload = {
+      eventName: eventName,
+      pageUrl: window.location.href,
+      environment: "production",
+      parameters: boolParams,
+      visitorId: getVisitorId(),
+      utmSource: localStorage.getItem('_sl_utm_source') || undefined,
+      utmMedium: localStorage.getItem('_sl_utm_medium') || undefined,
+      utmCampaign: localStorage.getItem('_sl_utm_campaign') || undefined,
+      referrer: document.referrer || undefined,
+      fbc: getCookie('_fbc') || localStorage.getItem('_sl_fbc') || undefined,
+      fbp: getCookie('_fbp') || undefined,
+    };
     fetch(collector, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventName: eventName,
-        pageUrl: window.location.href,
-        environment: "production",
-        parameters: boolParams
-      })
+      body: JSON.stringify(payload)
     });
   }
 
