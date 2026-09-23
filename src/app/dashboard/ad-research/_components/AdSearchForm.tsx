@@ -22,7 +22,7 @@ interface Props {
 export function AdSearchForm({ onSearch, loading }: Props) {
   const [query, setQuery] = useState("")
   const [country, setCountry] = useState("VE")
-  const [platforms, setPlatforms] = useState<AdPlatform[]>(["meta", "tiktok"])
+  const [platforms, setPlatforms] = useState<AdPlatform[]>(["meta"])
   const [activeOnly, setActiveOnly] = useState(false)
   const [period, setPeriod] = useState<7 | 30 | 180>(30)
 
@@ -84,17 +84,29 @@ export function AdSearchForm({ onSearch, loading }: Props) {
 
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-4">
-          {(["meta", "tiktok"] as AdPlatform[]).map((p) => (
-            <label key={p} className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: "var(--sg-ink)" }}>
-              <input
-                type="checkbox"
-                checked={platforms.includes(p)}
-                onChange={() => togglePlatform(p)}
-                className="rounded"
-              />
-              {p === "meta" ? "Meta" : "TikTok"}
-            </label>
-          ))}
+          <label className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: "var(--sg-ink)" }}>
+            <input
+              type="checkbox"
+              checked={platforms.includes("meta")}
+              onChange={() => togglePlatform("meta")}
+              className="rounded"
+            />
+            Meta
+          </label>
+          <span
+            className="flex items-center gap-1.5 text-sm select-none"
+            style={{ color: "var(--sg-muted)" }}
+            title="TikTok requiere API key oficial de TikTok for Business"
+          >
+            <input type="checkbox" disabled className="rounded opacity-40" />
+            TikTok
+            <span
+              className="text-xs px-1.5 py-0.5 rounded-full"
+              style={{ background: "var(--sg-s2)", color: "var(--sg-muted)", border: "1px solid var(--sg-border)" }}
+            >
+              próximamente
+            </span>
+          </span>
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
