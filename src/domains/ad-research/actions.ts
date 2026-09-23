@@ -36,6 +36,7 @@ export async function searchAdsAction(params: {
   const country = countries[0] ?? 'VE'
 
   const tasks: Promise<AdResult[]>[] = []
+  const errors: string[] = []
 
   if (platforms.includes('meta')) {
     tasks.push(
@@ -45,7 +46,10 @@ export async function searchAdsAction(params: {
         countries,
         activeOnly,
         limit: 20,
-      }).catch(() => [])
+      }).catch((e: unknown) => {
+        errors.push(`Meta: ${e instanceof Error ? e.message : 'Error desconocido'}`)
+        return []
+      })
     )
   }
 
@@ -56,12 +60,19 @@ export async function searchAdsAction(params: {
         period: period ?? 30,
         industryId,
         limit: 20,
-      }).catch(() => [])
+      }).catch((e: unknown) => {
+        errors.push(`TikTok: ${e instanceof Error ? e.message : 'Error desconocido'}`)
+        return []
+      })
     )
   }
 
   const results = await Promise.all(tasks)
   const combined = results.flat()
+
+  if (combined.length === 0 && errors.length > 0) {
+    return { error: errors.join(' | ') }
+  }
 
   return { data: combined }
 }
