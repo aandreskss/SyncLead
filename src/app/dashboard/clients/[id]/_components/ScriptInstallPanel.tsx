@@ -106,6 +106,9 @@ function buildScript(token: string): string {
       }
     });
   }
+
+  // PageView automático — registra todo visitante (orgánico, directo, paid) con país y fuente
+  sendToDiagnostic('PageView', {});
 })();
 </script>`
 }
