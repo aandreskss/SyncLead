@@ -31,6 +31,43 @@ function lead(d){post(B+'/api/ingest/form',{'X-Ingest-Token':TOKEN},Object.assig
 collect('PageView',{});
 setInterval(function(){collect('session_ping',{});},30000);
 
+// ── Meta Pixel (fbq) intercept ────────────────────────────────────────────────
+// Intercepts fbq('track',...) / fbq('trackCustom',...) so sites already using
+// the Meta Pixel get SyncLead event tracking automatically — no extra code needed.
+var FB_SL={AddToCart:'add_to_cart',InitiateCheckout:'begin_checkout',Purchase:'purchase',ViewContent:'view_product',Lead:'form_submitted',AddPaymentInfo:'form_submitted',CompleteRegistration:'form_submitted',Subscribe:'form_submitted'};
+var SL_BEH={add_to_cart:1,begin_checkout:1,purchase:1,view_product:1,form_submitted:1,checkout_abandoned:1,remove_from_cart:1,info_requested:1,payment_failed:1};
+function fbqMap(fbName,params){
+  var slName=FB_SL[fbName]||fbName;
+  var bp={};
+  if(params){
+    if(typeof params.value==='number'&&params.value>0)bp.value=params.value;
+    if(params.currency&&params.currency.length===3)bp.currency=params.currency.toUpperCase();
+    var cids=params.content_ids;if(cids&&cids[0])bp.productId=String(cids[0]);
+    if(params.num_items&&params.num_items>0)bp.quantity=Math.floor(params.num_items);
+  }
+  collect(slName,{});
+  if(SL_BEH[slName])behavior(slName,compact(bp));
+}
+function wrapFbq(orig){
+  if(orig&&orig._sl_wrapped)return orig;
+  function wrapper(){
+    var a=Array.prototype.slice.call(arguments);
+    try{if(a[0]==='track'||a[0]==='trackCustom')fbqMap(a[1],a[2]||{});}catch(e){}
+    if(typeof wrapper.callMethod==='function')return wrapper.callMethod.apply(wrapper,a);
+    return orig.apply(this,arguments);
+  }
+  try{var sk={length:1,name:1,prototype:1,caller:1,arguments:1};Object.getOwnPropertyNames(orig).forEach(function(k){if(sk[k])return;Object.defineProperty(wrapper,k,{get:function(){return orig[k];},set:function(v){orig[k]=v;},configurable:true,enumerable:true});});}catch(e){}
+  wrapper._sl_wrapped=true;
+  return wrapper;
+}
+if(typeof window.fbq==='function'){
+  window.fbq=wrapFbq(window.fbq);
+  try{if(window._fbq!==window.fbq)window._fbq=window.fbq;}catch(e){}
+}else{
+  try{Object.defineProperty(window,'fbq',{configurable:true,set:function(val){var w=typeof val==='function'?wrapFbq(val):val;Object.defineProperty(window,'fbq',{configurable:true,writable:true,value:w});try{if(window._fbq!==window.fbq)window._fbq=window.fbq;}catch(e){};}});}catch(e){}
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 document.addEventListener('submit',function(e){
   var f=e.target;
   if(!f||typeof f.elements==='undefined')return;
