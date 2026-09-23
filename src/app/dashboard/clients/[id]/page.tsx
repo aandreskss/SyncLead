@@ -154,7 +154,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       <LeadSourcesPanel clientId={id} metaConnections={publicConnections} />
     )
   } else if (tab === "configuracion") {
-    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats, trackingSitesData] =
+    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats, trackingSitesData, campaignsData] =
       await Promise.all([
         getMetaConnectionsByClientId(id, ctx.orgId).catch((e) => { console.error("[ClientPage/config] getMetaConnections:", e); throw e }),
         listSalesReps(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] listSalesReps:", e); throw e }),
@@ -169,6 +169,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         }).catch((e) => { console.error("[ClientPage/config] insightsConnections:", e); throw e }),
         getClientCapiStats(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] getClientCapiStats:", e); throw e }),
         getTrackingSitesByClient(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] getTrackingSites:", e); throw e }),
+        getCampaignsByClientWithCounts(id, ctx.orgId).catch((e) => { console.error("[ClientPage/config] getCampaigns:", e); throw e }),
       ])
 
     const publicConnections = metaConnectionsList.map((c) => ({
@@ -225,6 +226,12 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         <div className="border-t border-ops-line" />
         <ScriptInstallPanel
           clientId={client.id}
+          campaigns={campaignsData.map((c) => ({
+            id: c.id,
+            name: c.name,
+            utmCampaignKey: c.utmCampaignKey ?? null,
+            active: c.active,
+          }))}
           sites={trackingSitesData.map((s) => ({
             id: s.id,
             name: s.name,

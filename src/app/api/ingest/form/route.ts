@@ -137,8 +137,10 @@ export async function POST(req: NextRequest) {
 
   // ─ 9. Resolve campaign for client-scoped credentials ─────────────────────────
   if (!resolvedCampaignId) {
-    // Try campaign_id from body first (pixel passes data-campaign as campaign_id field)
-    const bodyCampaignId = (rawBody as Record<string, unknown>)?.campaign_id as string | undefined
+    const body = rawBody as Record<string, unknown>
+
+    // Priority 1: explicit campaign_id from body (data-campaign attribute on the script tag)
+    const bodyCampaignId = body?.campaign_id as string | undefined
     if (bodyCampaignId) {
       const bodycamp = await db.query.campaigns.findFirst({
         where: and(eq(campaigns.id, bodyCampaignId), eq(campaigns.orgId, cred.orgId), eq(campaigns.clientId, cred.clientId)),
@@ -146,8 +148,26 @@ export async function POST(req: NextRequest) {
       })
       if (bodycamp) resolvedCampaignId = bodycamp.id
     }
+
+    // Priority 2: UTM campaign key matching (utm_campaign from pixel → campaigns.utm_campaign_key)
     if (!resolvedCampaignId) {
-      // Fall back to first active campaign for the client
+      const utmCampaign = payload.utm_campaign?.trim().toLowerCase()
+      if (utmCampaign) {
+        const utmMatch = await db.query.campaigns.findFirst({
+          where: and(
+            eq(campaigns.clientId, cred.clientId),
+            eq(campaigns.orgId, cred.orgId),
+            eq(campaigns.utmCampaignKey, utmCampaign),
+            eq(campaigns.active, true),
+          ),
+          columns: { id: true },
+        })
+        if (utmMatch) resolvedCampaignId = utmMatch.id
+      }
+    }
+
+    // Priority 3: fallback to first active campaign for the client (organic / direct traffic)
+    if (!resolvedCampaignId) {
       const fallback = await db.query.campaigns.findFirst({
         where: and(eq(campaigns.clientId, cred.clientId), eq(campaigns.orgId, cred.orgId), eq(campaigns.active, true)),
         columns: { id: true },
@@ -155,6 +175,7 @@ export async function POST(req: NextRequest) {
       })
       if (fallback) resolvedCampaignId = fallback.id
     }
+
     if (!resolvedCampaignId) return publicError(correlationId, 422)
   }
 

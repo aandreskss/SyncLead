@@ -10,7 +10,7 @@ import {
 } from "@/domains/campaigns/actions"
 import {
   Copy, CheckCircle2, Code2, Shield, Zap, AlertCircle, Loader2, Globe,
-  Key, Plus, Trash2, Eye, EyeOff
+  Key, Plus, Trash2, Eye, EyeOff, ArrowRight, Tag
 } from "lucide-react"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.synclead.io"
@@ -134,8 +134,61 @@ function TokenRevealBanner({ token, onDismiss }: { token: string; onDismiss: () 
   )
 }
 
+interface CampaignEntry {
+  id: string
+  name: string
+  utmCampaignKey: string | null
+  active: boolean
+}
+
+// ── UTM routing map display ───────────────────────────────────────────────────
+function UtmMappingTable({ campaigns }: { campaigns: CampaignEntry[] }) {
+  const mapped = campaigns.filter((c) => c.utmCampaignKey)
+  const unmapped = campaigns.filter((c) => !c.utmCampaignKey && c.active)
+
+  if (campaigns.length === 0) return null
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-ops-tx3 uppercase tracking-wider flex items-center gap-1.5">
+        <Tag className="h-3.5 w-3.5" />
+        Enrutamiento por UTM
+      </p>
+      <div className="rounded border border-ops-line overflow-hidden divide-y divide-ops-line">
+        {mapped.map((c) => (
+          <div key={c.id} className="flex items-center gap-2 px-3 py-2 bg-ops-s2 text-xs">
+            <code className="text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded font-mono flex-shrink-0">
+              utm_campaign={c.utmCampaignKey}
+            </code>
+            <ArrowRight className="h-3 w-3 text-ops-tx3 shrink-0" />
+            <span className="text-ops-tx2 truncate">{c.name}</span>
+            {!c.active && <span className="text-ops-tx3 text-[10px] shrink-0">(inactiva)</span>}
+          </div>
+        ))}
+        {unmapped.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-ops-s2/50 text-xs text-ops-tx3">
+            <span className="italic">Sin UTM configurado</span>
+            <ArrowRight className="h-3 w-3 shrink-0" />
+            <span className="truncate">
+              {mapped.length > 0
+                ? `Fallback → ${unmapped[0].name}${unmapped.length > 1 ? ` (+${unmapped.length - 1} más)` : ""}`
+                : unmapped[0].name}
+            </span>
+          </div>
+        )}
+      </div>
+      {mapped.length === 0 && (
+        <p className="text-xs text-ops-amber bg-ops-amber/10 border border-ops-amber/20 rounded px-3 py-2">
+          Ninguna campaña tiene clave UTM configurada. Los leads irán a la primera campaña activa.
+          Edita cada campaña en <span className="font-medium">Campañas</span> para configurar el UTM.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Client-level multi-campaign pixel credential section ──────────────────────
-function ClientCredentialsSection({ clientId }: { clientId: string }) {
+function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; campaigns: CampaignEntry[] }) {
   const [creds, setCreds] = useState<IngestionCredentialPublic[] | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [newToken, setNewToken] = useState<string | null>(null)
@@ -203,14 +256,8 @@ function ClientCredentialsSection({ clientId }: { clientId: string }) {
           ))}
         </div>
 
-        {/* Multi-campaign routing note */}
-        <div className="rounded border border-ops-bd bg-ops-s2 px-3 py-2 text-xs text-ops-tx3 space-y-1">
-          <p>
-            <span className="text-ops-tx2 font-medium">Enrutamiento automático:</span>{" "}
-            Los leads se asignan a la campaña activa del cliente. Para forzar una campaña específica,
-            agrega el atributo <code className="text-ops-tx2">data-campaign="ID_DE_CAMPAÑA"</code> al script.
-          </p>
-        </div>
+        {/* UTM routing map */}
+        <UtmMappingTable campaigns={campaigns} />
 
         {/* Token management */}
         {!loaded ? (
@@ -455,10 +502,11 @@ function SiteScriptCard({ site }: { site: SiteEntry }) {
 
 interface Props {
   clientId: string
+  campaigns: CampaignEntry[]
   sites: SiteEntry[]
 }
 
-export function ScriptInstallPanel({ clientId, sites }: Props) {
+export function ScriptInstallPanel({ clientId, campaigns, sites }: Props) {
   return (
     <div className="space-y-6">
       <div>
@@ -468,7 +516,7 @@ export function ScriptInstallPanel({ clientId, sites }: Props) {
         </p>
       </div>
 
-      <ClientCredentialsSection clientId={clientId} />
+      <ClientCredentialsSection clientId={clientId} campaigns={campaigns} />
 
       {sites.length > 0 && (
         <div className="space-y-3">

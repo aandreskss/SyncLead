@@ -257,6 +257,13 @@ export const campaigns = pgTable(
     blueprint: text("blueprint").notNull().default("A"),
     /** Optional campaign-level profile override — takes precedence over client profile */
     profileId: uuid("profile_id"),
+    /**
+     * UTM campaign value that maps this campaign to a Meta Ads campaign.
+     * When a client-scoped pixel token receives a lead with utmCampaign matching
+     * this key, the lead is attributed to this campaign automatically.
+     * Must be unique per client. Example: "producto-a-2025"
+     */
+    utmCampaignKey: text("utm_campaign_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -264,6 +271,7 @@ export const campaigns = pgTable(
     index("campaigns_org_id_idx").on(t.orgId),
     index("campaigns_client_id_idx").on(t.clientId),
     uniqueIndex("campaigns_api_key_idx").on(t.apiKey),
+    index("campaigns_utm_campaign_key_idx").on(t.clientId, t.utmCampaignKey),
   ]
 )
 
