@@ -26,10 +26,30 @@ interface Props {
   campaignName: string
 }
 
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text)
+  }
+  return new Promise((resolve) => {
+    const ta = document.createElement("textarea")
+    ta.value = text
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none"
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    document.execCommand("copy")
+    document.body.removeChild(ta)
+    resolve()
+  })
+}
+
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
   function handleCopy() {
-    navigator.clipboard.writeText(text).then(() => {
+    copyToClipboard(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
+    }).catch(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 3000)
     })

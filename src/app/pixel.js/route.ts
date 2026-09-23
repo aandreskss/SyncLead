@@ -7,6 +7,7 @@ function buildPixelScript(appUrl: string): string {
 var s=document.currentScript;
 var TOKEN=s&&s.getAttribute('data-token')||'';
 if(!TOKEN)return;
+var CAMPAIGN=s&&s.getAttribute('data-campaign')||'';
 var B='${appUrl}';
 
 function ck(n){var c=document.cookie,i=c.indexOf(n+'=');return i<0?'':c.slice(i+n.length+1).split(';')[0];}
@@ -24,7 +25,7 @@ try{
 function post(url,headers,body){try{fetch(url,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},headers),body:JSON.stringify(body),keepalive:true}).catch(function(){});}catch(e){}}
 function collect(n,x){post(B+'/api/collect/'+TOKEN,{},Object.assign({eventName:n,pageUrl:location.href,environment:'production',parameters:{}},ctx(),x||{}));}
 function behavior(t,d){post(B+'/api/behavior',{Authorization:'Bearer '+TOKEN},Object.assign({eventType:t},d||{}));}
-function lead(d){post(B+'/api/ingest/form',{'X-Ingest-Token':TOKEN},Object.assign({},d));}
+function lead(d){post(B+'/api/ingest/form',{'X-Ingest-Token':TOKEN},Object.assign(CAMPAIGN?{campaign_id:CAMPAIGN}:{},d));}
 
 collect('PageView',{});
 setInterval(function(){collect('session_ping',{});},30000);

@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
   // Hash comparison happens inside lookupCredential — the raw key is never logged
   const cred = await lookupCredential(rawKey)
   if (!cred || cred.credentialType !== "server_secret") return publicError(correlationId, 401)
+  if (!cred.campaignId) return publicError(correlationId, 422, "Credential must be campaign-scoped")
   if (!cred.campaignActive) return publicError(correlationId, 403, "Campaign is inactive")
 
   // ─ 5. Rate limit by credential ───────────────────────────────────────────────
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
 
   // ─ 9. Persist ─────────────────────────────────────────────────────────────────
   const result = await persistLead({
-    credential: { credentialId: cred.credentialId, orgId: cred.orgId, campaignId: cred.campaignId },
+    credential: { credentialId: cred.credentialId, orgId: cred.orgId, campaignId: cred.campaignId! },
     lead: normalizedLead,
     ip,
     userAgent,
