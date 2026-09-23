@@ -46,10 +46,12 @@ export async function createCampaignAction(
 
   const name = (formData.get("name") as string)?.trim()
   const clientId = formData.get("clientId") as string
+  const utmCampaignKey = (formData.get("utmCampaignKey") as string)?.trim().toLowerCase() || null
 
   if (!name) return { error: "El nombre de la campaña es requerido." }
   if (name.length > 120) return { error: "El nombre es demasiado largo." }
   if (!clientId) return { error: "Selecciona un cliente." }
+  if (utmCampaignKey && utmCampaignKey.length > 200) return { error: "La clave UTM es demasiado larga." }
 
   await createCampaign({
     orgId: ctx.orgId,
@@ -57,6 +59,7 @@ export async function createCampaignAction(
     name,
     slug: generateSlug(name),
     apiKey: generateApiKey(),
+    utmCampaignKey,
   })
 
   return { success: true }
@@ -76,14 +79,17 @@ export async function updateCampaignAction(
 
   const campaignId = formData.get("campaignId") as string
   const name = (formData.get("name") as string)?.trim()
+  const utmCampaignKey = (formData.get("utmCampaignKey") as string)?.trim().toLowerCase() || null
 
   if (!campaignId) return { error: "Campaña no especificada." }
   if (!name) return { error: "El nombre es requerido." }
   if (name.length > 120) return { error: "El nombre es demasiado largo." }
+  if (utmCampaignKey && utmCampaignKey.length > 200) return { error: "La clave UTM es demasiado larga." }
 
   const updated = await updateCampaign(campaignId, ctx.orgId, {
     name,
     slug: generateSlug(name),
+    utmCampaignKey,
   })
   if (!updated) return { error: "Campaña no encontrada o sin acceso." }
 

@@ -119,6 +119,25 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
             </div>
           )}
 
+          <div className="space-y-1.5">
+            <Label htmlFor="cp-utm" className="text-ops-tx">
+              Clave UTM de campaña <span className="text-ops-tx3 font-normal">(opcional)</span>
+            </Label>
+            <input
+              id="cp-utm"
+              name="utmCampaignKey"
+              type="text"
+              maxLength={200}
+              defaultValue={campaign?.utmCampaignKey ?? ""}
+              placeholder="Ej: producto-a-2025"
+              className={inputClass}
+            />
+            <p className="text-xs text-ops-tx3">
+              Valor exacto de <code className="text-ops-tx2">utm_campaign</code> que usas en Meta Ads para esta campaña.
+              El pixel asignará automáticamente los leads que lleguen con ese UTM.
+            </p>
+          </div>
+
           {error && (
             <p className="text-sm text-ops-coral bg-ops-coral/10 border border-ops-coral/20 rounded-md px-3 py-2">
               {error}
