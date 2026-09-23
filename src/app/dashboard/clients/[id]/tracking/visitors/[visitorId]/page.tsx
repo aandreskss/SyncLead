@@ -81,12 +81,14 @@ export default async function VisitorDetailPage({
   const events = await getObservationsByVisitor(ctx.orgId, clientId, visitorId)
   if (events.length === 0) notFound()
 
-  const first = events[0]
+  const realEvents = events.filter((e) => e.eventName !== "session_ping")
+  const first = realEvents[0] ?? events[0]
   const last = events[events.length - 1]
   const source = resolveSource(first.utmSource, first.referrer)
   const hasAttribution = first.utmSource || first.utmMedium || first.utmCampaign || first.referrer
+  const sessionDurationMs = last.observedAt.getTime() - events[0].observedAt.getTime()
 
-  const groups = groupByDate(events)
+  const groups = groupByDate(realEvents)
 
   return (
     <div className="min-h-screen bg-ops-bg p-6 space-y-5">
@@ -121,12 +123,22 @@ export default async function VisitorDetailPage({
         <div className="mt-4 flex gap-6 flex-wrap">
           <div>
             <p className="text-xs text-ops-tx3">Eventos</p>
-            <p className="text-xl font-bold text-ops-tx">{events.length}</p>
+            <p className="text-xl font-bold text-ops-tx">{realEvents.length}</p>
+          </div>
+          <div>
+            <p className="text-xs text-ops-tx3">Tiempo en página</p>
+            <p className="text-xl font-bold text-ops-blue">
+              {sessionDurationMs < 30000
+                ? "< 30s"
+                : sessionDurationMs < 3600000
+                  ? `${Math.floor(sessionDurationMs / 60000)}m ${Math.floor((sessionDurationMs % 60000) / 1000)}s`
+                  : `${Math.floor(sessionDurationMs / 3600000)}h ${Math.floor((sessionDurationMs % 3600000) / 60000)}m`}
+            </p>
           </div>
           <div>
             <p className="text-xs text-ops-tx3">Primera visita</p>
             <p className="text-sm font-medium text-ops-tx2">
-              {first.observedAt.toLocaleDateString("es-ES", {
+              {events[0].observedAt.toLocaleDateString("es-ES", {
                 day: "2-digit", month: "short", year: "numeric",
                 hour: "2-digit", minute: "2-digit",
               })}

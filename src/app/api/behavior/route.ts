@@ -5,6 +5,9 @@ import { leads, leadBehaviorEvents, campaigns } from "@/lib/db/schema"
 import { and, eq, inArray, or } from "drizzle-orm"
 import { lookupCredential } from "@/lib/ingest/lookup"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
+import { getActiveMetaConnectionByClientId } from "@/domains/meta/repository"
+import { decryptTokenVersioned } from "@/lib/crypto"
+import { sendBehaviorCapiEvent } from "@/lib/meta-capi"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -102,7 +105,7 @@ export async function POST(req: NextRequest) {
           inArray(leads.campaignId, campaignIds),
           or(...matchConditions)
         ),
-        columns: { id: true, campaignId: true },
+        columns: { id: true, campaignId: true, email: true, phone: true, name: true, city: true },
       })
     : undefined
 
@@ -136,6 +139,35 @@ export async function POST(req: NextRequest) {
   // Re-qualify for all other events so behavior (checkout, form, etc.) updates temperature
   if (lead?.id && lead.campaignId && data.eventType !== "purchase") {
     autoQualifyLeadInternal(lead.id, orgId, lead.campaignId).catch(() => undefined)
+  }
+
+  // Fire CAPI behavior event if the client has a Meta connection with sendBehaviorCapi enabled
+  const capiEventTypes = ["view_product", "add_to_cart", "begin_checkout"] as const
+  type CapiEventType = typeof capiEventTypes[number]
+  if (lead?.id && (capiEventTypes as readonly string[]).includes(data.eventType)) {
+    ;(async () => {
+      try {
+        const conn = await getActiveMetaConnectionByClientId(clientId, orgId)
+        if (!conn?.sendBehaviorCapi || !conn.pixelId || !conn.accessTokenEnc) return
+        const token = decryptTokenVersioned(conn.accessTokenEnc)
+        await sendBehaviorCapiEvent({
+          pixelId: conn.pixelId,
+          accessToken: token,
+          graphApiVersion: conn.graphApiVersion,
+          behaviorEventType: data.eventType as CapiEventType,
+          leadId: lead.id,
+          email: lead.email,
+          phone: lead.phone,
+          name: lead.name,
+          city: lead.city,
+          value: data.value ?? null,
+          currency: data.currency ?? null,
+          contentIds: data.productId ? [data.productId] : undefined,
+        })
+      } catch {
+        // fire-and-forget — never fail the response
+      }
+    })()
   }
 
   return NextResponse.json({ ok: true }, { headers: CORS_HEADERS })

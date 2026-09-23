@@ -37,6 +37,8 @@ export type MetaConnectionPublic = {
   // Auto-event toggles (Prompt 28)
   sendLeadEvents: boolean
   sendContactEvents: boolean
+  // Behavior CAPI toggle
+  sendBehaviorCapi: boolean
 }
 
 function toPublic(conn: MetaConnection): MetaConnectionPublic {
@@ -58,6 +60,7 @@ function toPublic(conn: MetaConnection): MetaConnectionPublic {
     captureScriptKey: conn.captureScriptKey ?? null,
     sendLeadEvents: conn.sendLeadEvents,
     sendContactEvents: conn.sendContactEvents,
+    sendBehaviorCapi: conn.sendBehaviorCapi,
   }
 }
 
@@ -320,7 +323,7 @@ export async function disableLeadAdsAction(
 
 export async function updateMetaEventConfigAction(
   clientId: string,
-  config: { sendLeadEvents?: boolean; sendContactEvents?: boolean }
+  config: { sendLeadEvents?: boolean; sendContactEvents?: boolean; sendBehaviorCapi?: boolean }
 ): Promise<{ success: true } | { error: string }> {
   let ctx
   try { ctx = await requireClientAccess(clientId) } catch {
@@ -330,6 +333,7 @@ export async function updateMetaEventConfigAction(
   const updates: Record<string, unknown> = { updatedAt: new Date() }
   if (config.sendLeadEvents !== undefined) updates.sendLeadEvents = config.sendLeadEvents
   if (config.sendContactEvents !== undefined) updates.sendContactEvents = config.sendContactEvents
+  if (config.sendBehaviorCapi !== undefined) updates.sendBehaviorCapi = config.sendBehaviorCapi
 
   await db
     .update(metaConnections)

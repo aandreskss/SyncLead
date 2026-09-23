@@ -223,6 +223,7 @@ export const metaConnections = pgTable(
     // Auto-event toggles (Prompt 28)
     sendLeadEvents: boolean("send_lead_events").notNull().default(false),
     sendContactEvents: boolean("send_contact_events").notNull().default(false),
+    sendBehaviorCapi: boolean("send_behavior_capi").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1588,9 +1589,10 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   messageTemplates: many(messageTemplates),
 }))
 
-export const metaConnectionsRelations = relations(metaConnections, ({ one }) => ({
+export const metaConnectionsRelations = relations(metaConnections, ({ one, many }) => ({
   organization: one(organizations, { fields: [metaConnections.orgId], references: [organizations.id] }),
   client: one(clients, { fields: [metaConnections.clientId], references: [clients.id] }),
+  audiences: many(metaCustomAudiences),
 }))
 
 export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
@@ -1967,6 +1969,38 @@ export const conversionIssuesRelations = relations(conversionIssues, ({ one }) =
   conversionDefinition: one(conversionDefinitions, { fields: [conversionIssues.conversionDefinitionId], references: [conversionDefinitions.id] }),
 }))
 
+// ─── Meta Custom Audiences ────────────────────────────────────────────────────
+
+export const metaCustomAudiences = pgTable(
+  "meta_custom_audiences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+    metaConnectionId: uuid("meta_connection_id").notNull().references(() => metaConnections.id, { onDelete: "cascade" }),
+    audienceType: text("audience_type").notNull(), // 'buyers' | 'cart_abandoners' | 'exclusion'
+    metaAudienceId: text("meta_audience_id"),
+    name: text("name").notNull(),
+    memberCount: integer("member_count").notNull().default(0),
+    syncEnabled: boolean("sync_enabled").notNull().default(true),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("meta_audiences_conn_type_idx").on(t.metaConnectionId, t.audienceType),
+    index("meta_audiences_org_idx").on(t.orgId),
+    index("meta_audiences_client_idx").on(t.clientId),
+  ]
+)
+
+export const metaCustomAudiencesRelations = relations(metaCustomAudiences, ({ one }) => ({
+  organization: one(organizations, { fields: [metaCustomAudiences.orgId], references: [organizations.id] }),
+  client: one(clients, { fields: [metaCustomAudiences.clientId], references: [clients.id] }),
+  metaConnection: one(metaConnections, { fields: [metaCustomAudiences.metaConnectionId], references: [metaConnections.id] }),
+}))
+
 // ─── Exported Types ───────────────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect
@@ -1978,6 +2012,8 @@ export type Client = typeof clients.$inferSelect
 export type NewClient = typeof clients.$inferInsert
 export type MetaConnection = typeof metaConnections.$inferSelect
 export type NewMetaConnection = typeof metaConnections.$inferInsert
+export type MetaCustomAudience = typeof metaCustomAudiences.$inferSelect
+export type NewMetaCustomAudience = typeof metaCustomAudiences.$inferInsert
 export type Campaign = typeof campaigns.$inferSelect
 export type NewCampaign = typeof campaigns.$inferInsert
 export type IngestionCredential = typeof ingestionCredentials.$inferSelect

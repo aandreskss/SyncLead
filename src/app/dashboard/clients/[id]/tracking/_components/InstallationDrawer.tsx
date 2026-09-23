@@ -123,8 +123,15 @@ function buildSyncLeadSnippet(def: ConversionDefinitionPublic, token?: string | 
   };
 })();
 
-// ── 2. Dispara el evento "${def.internalKey}" ──────────────────────────────
+// ── 2. Token del sitio y ping de sesión ───────────────────────────────────
 var SYNCLEAD_TOKEN = '${token ?? "TU_TOKEN_AQUI"}';
+
+// Ping cada 30s — mide tiempo real en página (colocar UNA VEZ en <head>)
+setInterval(function() {
+  window.slTrack('session_ping', {}, SYNCLEAD_TOKEN);
+}, 30000);
+
+// ── 3. Dispara el evento "${def.internalKey}" ──────────────────────────────
 
 ${triggerComment}
 window.slTrack('${def.internalKey}', {
