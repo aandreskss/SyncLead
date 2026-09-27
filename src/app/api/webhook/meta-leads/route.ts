@@ -126,6 +126,7 @@ async function processLeadgen(value: LeadgenValue) {
       negocioRaw: fields.negocio ?? null,
       temperature: "cold",
       leadSource: "meta_ads",
+      platform: "Meta Ads",
       stage: "new",
       externalEventId: leadgen_id,
       metaCampaignName: campaign_name ?? null,

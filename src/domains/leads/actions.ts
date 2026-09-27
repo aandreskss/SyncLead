@@ -250,6 +250,7 @@ export async function createLeadManuallyAction(
         negocioRaw: negocio?.trim() || null,
         temperature: "cold",
         leadSource: "manual",
+        platform: "CRM",
         stage: "new",
       })
       .returning({ id: leads.id })
