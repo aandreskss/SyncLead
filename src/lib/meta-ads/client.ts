@@ -190,8 +190,9 @@ export class MetaAdsClient {
         const err = await res.json().catch(() => ({})) as { error?: { code?: number; error_subcode?: number; message?: string; type?: string } }
         const code = err.error?.code ?? res.status
         const subcode = err.error?.error_subcode
-        const suffix = subcode ? `:${subcode}` : ""
-        throw new Error(`meta_api_error:${code}${suffix}`)
+        const msg = err.error?.message ?? ""
+        const subcodeStr = subcode ? `:${subcode}` : ""
+        throw new Error(`meta_api_error:${code}${subcodeStr} | ${msg}`)
       }
       const data = await res.json() as {
         data: T[]
