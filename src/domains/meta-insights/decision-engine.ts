@@ -123,11 +123,14 @@ export function computeCampaignDecision(
     score = Math.min(100, ctrScore + cpcBonus + trendScore + activityScore)
 
   } else {
-    // Leads / Sales / Unknown: full scoring including conversions and real sales
+    // Leads / Sales / Unknown: full scoring including leads, conversions and real sales
     let ctrScore = 0
-    if (row.ctr >= 2) ctrScore = 40
-    else if (row.ctr >= 1) ctrScore = 30
-    else if (row.ctr >= 0.5) ctrScore = 15
+    if (row.ctr >= 2) ctrScore = 30
+    else if (row.ctr >= 1) ctrScore = 22
+    else if (row.ctr >= 0.5) ctrScore = 12
+
+    // Leads from SyncLead (medium signal)
+    const leadsScore = row.totalLeads > 0 ? 10 : 0
 
     // Confirmed sales (strong signal) vs checkout starts (medium signal)
     const conversionScore =
@@ -145,7 +148,7 @@ export function computeCampaignDecision(
     if (row.daysSinceActivity <= 3) activityScore = 10
     else if (row.daysSinceActivity <= 7) activityScore = 5
 
-    score = Math.min(100, ctrScore + conversionScore + trendScore + activityScore)
+    score = Math.min(100, ctrScore + leadsScore + conversionScore + trendScore + activityScore)
   }
 
   // ── Decision rules (adapted by campaign type) ──
@@ -196,14 +199,15 @@ export function computeCampaignDecision(
       if (avgCpl !== null && row.prevSpend > 0 && row.spend > avgCpl * 4) {
         signals.push("CPL muy superior al promedio de la cuenta")
       }
-    } else if (row.ctr > 1.5 && row.realSales > 0 && row.spendDelta < 20) {
+    } else if (row.ctr > 1.5 && row.realSales > 0 && row.totalLeads > 0 && row.spendDelta < 20) {
       decision = "scale"
-      signals.push(`CTR de ${row.ctr.toFixed(2)}% con ${row.realSales} venta${row.realSales > 1 ? "s" : ""} confirmada${row.realSales > 1 ? "s" : ""}`)
+      signals.push(`CTR de ${row.ctr.toFixed(2)}%, ${row.totalLeads} lead${row.totalLeads > 1 ? "s" : ""} y ${row.realSales} venta${row.realSales > 1 ? "s" : ""} confirmada${row.realSales > 1 ? "s" : ""}`)
       signals.push("Margen para escalar presupuesto")
     } else if (
       (row.ctr < 0.5 && row.impressions > 5000) ||
       (row.ctrDelta < -0.5 && row.impressions > 1000) ||
-      (row.conversionsCount > 0 && row.realSales === 0 && row.spend > 50)
+      (row.conversionsCount > 0 && row.realSales === 0 && row.spend > 50) ||
+      (row.totalLeads === 0 && row.spend > 30 && row.impressions > 2000)
     ) {
       decision = "optimize"
       if (row.ctr < 0.5 && row.impressions > 5000) {
@@ -215,9 +219,16 @@ export function computeCampaignDecision(
       if (row.conversionsCount > 0 && row.realSales === 0 && row.spend > 50) {
         signals.push(`${row.conversionsCount} checkout${row.conversionsCount > 1 ? "s" : ""} iniciado${row.conversionsCount > 1 ? "s" : ""} sin ventas — los checkouts no cierran`)
       }
+      if (row.totalLeads === 0 && row.spend > 30 && row.impressions > 2000) {
+        signals.push(`$${row.spend.toFixed(2)} gastados sin ningún lead en SyncLead — verificar formulario o vínculo de campaña`)
+      }
     } else {
       decision = "healthy"
-      signals.push("Rendimiento dentro de parámetros normales")
+      if (row.totalLeads > 0) {
+        signals.push(`${row.totalLeads} lead${row.totalLeads > 1 ? "s" : ""} captado${row.totalLeads > 1 ? "s" : ""} en el período`)
+      } else {
+        signals.push("Rendimiento dentro de parámetros normales")
+      }
     }
   }
 
@@ -352,6 +363,19 @@ export function generateRecommendations(
         action: "Verificar tracking",
       })
     }
+    // INFO: campaign has spend and impressions but 0 leads in SyncLead
+    if ((type === "leads" || type === "sales" || type === "unknown") &&
+        row.totalLeads === 0 && row.spend > 30 && row.impressions > 2000 &&
+        row.internalCampaignId !== null) {
+      recs.push({
+        id: `no-leads-${row.metaCampaignId}`,
+        severity: "warning",
+        icon: "👥",
+        title: `Sin leads en SyncLead para "${row.name ?? row.metaCampaignId}"`,
+        detail: `$${row.spend.toFixed(2)} gastados, ${row.impressions.toLocaleString("es")} impresiones, pero 0 leads registrados en SyncLead — revisar formulario de captura o webhook`,
+        action: "Revisar formulario",
+      })
+    }
   }
 
   // INFO: projected spend acceleration
@@ -463,9 +487,10 @@ export function computeAccountHealth(
 
     // Leads / Sales / Unknown
     let ctrScore = 0
-    if (c.ctr >= 2) ctrScore = 40
-    else if (c.ctr >= 1) ctrScore = 30
-    else if (c.ctr >= 0.5) ctrScore = 15
+    if (c.ctr >= 2) ctrScore = 30
+    else if (c.ctr >= 1) ctrScore = 22
+    else if (c.ctr >= 0.5) ctrScore = 12
+    const leadsScore = c.totalLeads > 0 ? 10 : 0
     const convScore = c.realSales > 0 ? 30 : c.conversionsCount > 0 ? 15 : 0
     let trendScore = 0
     if (c.spendDelta > 0 && c.ctrDelta >= 0) trendScore = 20
@@ -473,7 +498,7 @@ export function computeAccountHealth(
     let activityScore = 0
     if (c.daysSinceActivity <= 3) activityScore = 10
     else if (c.daysSinceActivity <= 7) activityScore = 5
-    return Math.min(100, ctrScore + convScore + trendScore + activityScore)
+    return Math.min(100, ctrScore + leadsScore + convScore + trendScore + activityScore)
   }
 
   let weightedScore = 0

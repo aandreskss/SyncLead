@@ -294,6 +294,7 @@ function CampaignDecisionTable({
               <th className="px-4 py-2 text-right font-medium">Gasto</th>
               <th className="px-4 py-2 text-right font-medium">Impr.</th>
               <th className="px-4 py-2 text-right font-medium">CTR</th>
+              <th className="px-4 py-2 text-right font-medium">Leads</th>
               <th className="px-4 py-2 text-right font-medium">Checkouts</th>
               <th className="px-4 py-2 text-right font-medium">Ventas</th>
               <th className="px-4 py-2 text-right font-medium">Tendencia</th>
@@ -304,7 +305,7 @@ function CampaignDecisionTable({
           <tbody>
             {decisions.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-xs text-ops-tx3">
+                <td colSpan={10} className="px-4 py-8 text-center text-xs text-ops-tx3">
                   Sin datos de campañas para el período seleccionado
                 </td>
               </tr>
@@ -347,6 +348,18 @@ function CampaignDecisionTable({
                   </td>
                   <td className="px-4 py-3 text-right text-xs tabular-nums text-ops-tx">
                     {fmtPct(row.ctr)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs tabular-nums">
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className={row.totalLeads > 0 ? "text-ops-blue font-medium" : "text-ops-tx3"}>
+                        {fmtNum(row.totalLeads)}
+                      </span>
+                      {row.costPerLead !== null && (
+                        <span className="text-ops-tx3" style={{ fontSize: "10px" }}>
+                          CPL${row.costPerLead.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td
                     className={`px-4 py-3 text-right text-xs tabular-nums font-medium ${
