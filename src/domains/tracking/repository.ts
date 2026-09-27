@@ -18,7 +18,7 @@ import {
   type ConversionIssue,
   type NewConversionIssue,
 } from "@/lib/db/schema"
-import { eq, and, desc, asc, lt, gte, isNull, isNotNull, or, ne, sql, inArray, ilike } from "drizzle-orm"
+import { eq, and, desc, asc, lt, gte, isNull, isNotNull, or, ne, sql, inArray, notInArray, ilike } from "drizzle-orm"
 
 // ─── Tracking Sites ───────────────────────────────────────────────────────────
 
@@ -358,6 +358,51 @@ export async function deleteExpiredObservations(): Promise<number> {
     .where(lt(conversionObservations.retentionExpiresAt, now))
     .returning({ id: conversionObservations.id })
   return rows.length
+}
+
+const PRUNING_THRESHOLD = 10_000
+const PRUNING_TARGET = 5_000
+const IMPORTANT_EVENT_NAMES = [
+  "AddToCart", "add_to_cart",
+  "InitiateCheckout", "begin_checkout",
+  "Lead", "form_submitted",
+  "Contact",
+  "Purchase", "purchase",
+  "CompleteRegistration",
+]
+
+/**
+ * If the client exceeds PRUNING_THRESHOLD observations, deletes the oldest
+ * non-important events until only PRUNING_TARGET rows remain.
+ * Called fire-and-forget (~5 % of requests) so it never blocks the response.
+ */
+export async function pruneClientObservationsIfNeeded(
+  orgId: string,
+  clientId: string
+): Promise<void> {
+  const countResult = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(conversionObservations)
+    .where(and(
+      eq(conversionObservations.orgId, orgId),
+      eq(conversionObservations.clientId, clientId),
+    ))
+  const total = countResult[0]?.count ?? 0
+  if (total <= PRUNING_THRESHOLD) return
+
+  const toDelete = total - PRUNING_TARGET
+
+  await db.execute(
+    sql`DELETE FROM ${conversionObservations}
+        WHERE id IN (
+          SELECT id FROM ${conversionObservations}
+          WHERE org_id = ${orgId}
+            AND client_id = ${clientId}
+            AND event_name NOT IN (${sql.join(IMPORTANT_EVENT_NAMES.map((n) => sql`${n}`), sql`, `)})
+          ORDER BY observed_at ASC
+          LIMIT ${toDelete}
+        )`
+  )
 }
 
 // ─── Issues ───────────────────────────────────────────────────────────────────
