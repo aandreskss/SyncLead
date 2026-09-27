@@ -10,7 +10,7 @@ import {
   conversions,
   campaigns,
 } from "@/lib/db/schema"
-import { and, eq, gte, lte, sum, max, count, desc, sql, or, isNotNull } from "drizzle-orm"
+import { and, eq, gte, lte, sum, max, count, desc, sql, or, isNotNull, inArray } from "drizzle-orm"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +33,10 @@ export interface CampaignMetricsRow {
   ctrDelta: number
   lastActivityDate: string | null
   daysSinceActivity: number
+  realSales: number
+  realRevenue: number
+  revenueCurrency: string | null
+  costPerSale: number | null
 }
 
 export interface AccountMetricsData {
@@ -176,15 +180,18 @@ export async function getCampaignMetrics(
     )
     .groupBy(adInsightsDaily.objectId)
 
-  // Fetch campaign names
+  // Fetch campaign names + internal campaign mapping
   const objectIds = currentRows.map((r) => r.objectId).filter((id): id is string => id !== null)
   const nameMap = new Map<string, string>()
+  // Map: metaCampaignId → internalCampaignId (uuid of campaigns.id)
+  const metaToInternalMap = new Map<string, string>()
 
   if (objectIds.length > 0) {
     const nameRows = await db
       .select({
         metaCampaignId: metaCatalogCampaigns.metaCampaignId,
         name: metaCatalogCampaigns.name,
+        internalCampaignId: metaCatalogCampaigns.internalCampaignId,
       })
       .from(metaCatalogCampaigns)
       .where(
@@ -195,6 +202,45 @@ export async function getCampaignMetrics(
       )
     for (const nr of nameRows) {
       nameMap.set(nr.metaCampaignId, nr.name)
+      if (nr.internalCampaignId) {
+        metaToInternalMap.set(nr.metaCampaignId, nr.internalCampaignId)
+      }
+    }
+  }
+
+  // Fetch real sales from SyncLead conversions, bridged via internal campaign IDs
+  // Map: internalCampaignId → { totalSales, totalRevenue, currency }
+  const salesByInternalCampaign = new Map<
+    string,
+    { totalSales: number; totalRevenue: number; currency: string | null }
+  >()
+
+  const internalCampaignIds = [...new Set(metaToInternalMap.values())]
+  if (internalCampaignIds.length > 0) {
+    const salesRows = await db
+      .select({
+        campaignId: conversions.campaignId,
+        totalSales: count(conversions.id).as("total_sales"),
+        totalRevenue: sum(conversions.amount).as("total_revenue"),
+        currency: max(conversions.currency).as("currency"),
+      })
+      .from(conversions)
+      .where(
+        and(
+          eq(conversions.orgId, orgId),
+          eq(conversions.status, "confirmed"),
+          inArray(conversions.campaignId, internalCampaignIds)
+        )
+      )
+      .groupBy(conversions.campaignId)
+
+    for (const sr of salesRows) {
+      if (!sr.campaignId) continue
+      salesByInternalCampaign.set(sr.campaignId, {
+        totalSales: Number(sr.totalSales ?? 0),
+        totalRevenue: Number(sr.totalRevenue ?? 0),
+        currency: sr.currency ?? null,
+      })
     }
   }
 
@@ -251,6 +297,16 @@ export async function getCampaignMetrics(
       )
     }
 
+    // Bridge to real SyncLead sales
+    const internalCampaignId = metaToInternalMap.get(cr.objectId) ?? null
+    const salesData = internalCampaignId
+      ? (salesByInternalCampaign.get(internalCampaignId) ?? null)
+      : null
+    const realSales = salesData?.totalSales ?? 0
+    const realRevenue = salesData?.totalRevenue ?? 0
+    const revenueCurrency = salesData?.currency ?? null
+    const costPerSale = realSales > 0 ? spend / realSales : null
+
     result.push({
       metaCampaignId: cr.objectId,
       name: nameMap.get(cr.objectId) ?? null,
@@ -270,6 +326,10 @@ export async function getCampaignMetrics(
       ctrDelta,
       lastActivityDate,
       daysSinceActivity,
+      realSales,
+      realRevenue,
+      revenueCurrency,
+      costPerSale,
     })
   }
 
