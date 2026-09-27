@@ -97,6 +97,10 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **Video URL regex con query params**: Usar `/\.(mp4|webm|mov|avi|m4v)(\?|$)/i`, NO `/\.(mp4|webm|mov|avi|m4v)/i`. Las URLs de CDN de Facebook incluyen query params (`...mp4?_nc_cat=109&_nc_sid=...`); sin el grupo `(\?|$)` la regex no detecta el tipo de archivo y el video se trata como imagen.
 - **Facebook CDN (fbcdn.net) CORS/Referer**: Los videos de `scontent-*.fbcdn.net` requieren `Referer: https://www.facebook.com` para ser servidos. El navegador no puede inyectar ese header desde un dominio externo → el elemento `<video>` dispara `onError`. Solución: capturar `videoError` state → mostrar `thumbnailUrl` (si existe) con play button overlay que enlaza al `snapshotUrl` o URL original; si no hay thumbnail → mostrar mensaje "Video restringido" + botón "Ver video" que abre el link original.
 - **Eventos CAPI huérfanos (`leadId != null && leads.id IS NULL`)**: ocurren cuando se elimina un lead — `meta_events.leadId` queda en NULL via `SET NULL` FK, pero cuando el evento ya fue creado y la DB lo guardó antes del DELETE, el `leadId` puede quedar apuntando a un lead ya borrado. Detección: `LEFT JOIN leads ON metaEvents.leadId = leads.id WHERE leads.id IS NULL AND metaEvents.leadId IS NOT NULL`. El payload CAPI está en la columna `metaEvents.payload` (JSON auto-contenido con PII hasheado) y **se puede enviar igual** via `sendMetaEventDirect(eventId, orgId)` sin necesidad del lead. `cancelOrphanCapiEventsAction()` los cancela si se prefiere no enviarlos. El panel `HealthCapiLogPanel` muestra los primeros 8 chars del `leadId` para identificar el lead eliminado.
+- **Insights Decision Center — `internalCampaignId` no se auto-popula en catalog-sync original**: el campo `metaCatalogCampaigns.internalCampaignId` es null en todos los registros históricos porque `syncAdCatalog` nunca lo seteaba. Fix bicapa: (1) `catalog-sync.ts` ahora hace name-match case-insensitive con `campaigns` del cliente en cada sync usando `COALESCE` para no pisar links manuales; (2) `decision-repository.ts` hace fallback name-match en la query para que los datos históricos funcionen sin re-sync.
+- **Insights — `getActiveInsightsConnection` debe filtrar `isNotNull(adAccountId)`**: la tabla `meta_connections` contiene conexiones CAPI (pixelId set, adAccountId null) y conexiones de Insights (adAccountId set, pixelId null). Sin filtrar, la función puede devolver la conexión CAPI activa (que no sirve para Insights). Siempre usar `isNotNull(metaConnections.adAccountId)` + `orderBy(desc(metaConnections.createdAt))`.
+- **Insights — `CampaignType` determina scoring y reglas de decisión**: usar `getCampaignType(objective)` para clasificar. Campañas de awareness/tráfico/engagement NO deben penalizarse por 0 conversiones ni 0 ventas — tienen métricas distintas (CPM, reach, CTR, CPC). Solo campañas de leads/sales/unknown usan el scoring de conversiones y ventas.
+- **Insights — ventas reales vs checkouts Meta**: `adInsightsDaily.conversionsCount` = eventos pixel de Meta (inicios de checkout, no compras). `conversions.status='confirmed'` en SyncLead = ventas reales. Son métricas diferentes. La UI muestra "Checkouts" para los eventos Meta y "Ventas" para las confirmadas en SyncLead. El scoring pesa las ventas reales (30 pts) más que los checkouts sin venta (15 pts).
 - **`hasPendingCapi` excluye Purchase events**: la query de `metaEvents pending/retrying` en `getLeadsByCampaignWithActivity()` filtra `ne(metaEvents.eventName, "Purchase")`. El filtro "CAPI pendiente" y el botón ⚡ en LeadsView solo reflejan eventos de comportamiento (Lead, Contact, etc.), no ventas pendientes de envío.
 - **`sendLeadPendingCapiAction(leadId)`**: envía en paralelo todos los `meta_events` con `status = pending OR retrying AND eventName != Purchase` para un lead. Usa `Promise.allSettled` para que un fallo no cancele los demás. Llamado desde el botón ⚡ en la tabla de leads de una campaña (`LeadsView.tsx`).
 - **Botón "Enviar" en LeadsView para CAPI pendiente**: el ícono ⚡ en `ActivityBadges` es un botón clickeable. `e.stopPropagation()` evita abrir el LeadDrawer. State `sendingCapiLeadId` trackea el lead en proceso. Después del send hace `router.refresh()` para refrescar `hasPendingCapi`.
@@ -179,7 +183,8 @@ src/
         [id]/leads/
           page.tsx + _components/       ← LeadsView (+ LeadAdsPanel + CreateLeadDialog) + LeadDrawer (AssignmentPanel + WhatsAppPanel + VentaPanel + CAPIPanel)
       performance/
-        page.tsx + _components/         ← tabla rendimiento + SummaryCards + CSV export con sanitizeCsv
+        page.tsx + _components/         ← tabla rendimiento + SummaryCards + CSV export con sanitizeCsv; 3 tabs: Rendimiento / Visitantes / Insights Meta
+        _components/InsightsDecisionCenter.tsx ← Centro de Decisiones Meta Ads: HealthScoreCard, KpiCards, RecommendationsPanel, CampaignDecisionTable (con Checkouts/Ventas/Tipo), AdPerformanceTable, LeadQualityPanel, SyncInfoFooter; usa Promise.allSettled para resiliencia
       funnels/
         page.tsx + _components/         ← Kanban dnd-kit (tabla funnels deprecated; rollback optimista)
       import/
@@ -243,8 +248,10 @@ src/
       types.ts      ← InsightsRow, KPIMetrics, SyncOptions
       allowlist.ts  ← isAdAccountAllowed() (DB allowlist + env META_ALLOWED_AD_ACCOUNTS)
       kpi.ts        ← computeKPIs() — null si monedas mixtas (seguridad ROAS)
-      sync-engine.ts ← syncAdInsights() con lock via lockedUntil/lockedBy en meta_sync_runs
-      catalog-sync.ts ← syncCampaignCatalog(), syncAdsetCatalog(), syncAdCatalog()
+      sync-engine.ts ← runInsightsSync() con lock via lockedUntil/lockedBy en meta_sync_runs; fetchea currency de la cuenta al inicio via verifyAdsAccess() y guarda en ad_insights_daily
+      catalog-sync.ts ← syncAdCatalog(): sync de campaigns/adsets/ads; auto-vincula metaCatalogCampaigns.internalCampaignId por nombre (case-insensitive) usando COALESCE para no pisar links manuales
+      decision-repository.ts ← getActiveInsightsConnection (filtra isNotNull adAccountId + orderBy desc), getCampaignMetrics (incluye objective, realSales via bridge internalCampaignId con fallback por nombre), getAccountMetrics, getAdMetrics, getLeadCampaignData, getLastSyncInfo
+      decision-engine.ts ← computeCampaignDecision (scoring adaptado por CampaignType), getCampaignType/getCampaignTypeLabel, generateRecommendations (recomendaciones por tipo), computeAccountHealth
       actions.ts    ← getInsightsAction, triggerManualSyncAction, getAllowlistAction, etc.
     import/
       types.ts      ← SHEET_COLUMNS (25 cols Savaya), ColumnMapping, ParsedRow, DryRunResult
@@ -540,6 +547,17 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] TypeScript clean (0 errores); 438 tests en 11 suites (todos passing)
   - [x] Criterio de salida: un administrador puede crear, configurar y publicar un perfil de calificación sin tocar código
 - [x] Prompt 17-24: (pendiente documentar — ver commits para detalle)
+- [x] Meta Ads Insights Decision Center (`/dashboard/performance?tab=insights`)
+  - [x] **Tab "Insights Meta"** en `performance/page.tsx` — disponible cuando `tab=insights`; muestra grid de accesos directos a clientes cuando no hay clientId seleccionado
+  - [x] **`InsightsDecisionCenter.tsx`** — server component con `Promise.allSettled` para resiliencia individual; banner "no data" con link a config cuando no hay datos; sin conexión → estado vacío con link a configuración
+  - [x] **`decision-repository.ts`** — `getActiveInsightsConnection`: filtra `isNotNull(adAccountId)` + `orderBy desc` para no devolver conexiones CAPI sin adAccountId; `CampaignMetricsRow` incluye `objective`, `realSales`, `realRevenue`, `revenueCurrency`, `costPerSale`; bridge Meta→SyncLead con fallback por nombre cuando `internalCampaignId` es null
+  - [x] **`decision-engine.ts`** — `CampaignType` (`leads|sales|traffic|awareness|engagement|unknown`); scoring adaptado por tipo (awareness→CPM+reach, traffic→CTR+CPC, leads/sales→checkouts+ventas reales); reglas de decisión diferenciadas; recomendaciones tipo-específicas; `computeAccountHealth` usa `scoreForCampaign()` por tipo
+  - [x] **`catalog-sync.ts`** — auto-vincula `internalCampaignId` por nombre al hacer sync usando `COALESCE` para respetar links manuales
+  - [x] **`sync-engine.ts`** — fetcha currency de la cuenta vía `verifyAdsAccess()` al inicio del sync; guarda en cada fila de `ad_insights_daily` y en `onConflictDoUpdate`
+  - [x] **Columna "Ventas"** en tabla de decisiones: ventas reales de SyncLead (`conversions` con `status=confirmed`), no eventos pixel. "Conv." renombrado a "Checkouts". Badge de tipo de campaña (Leads/Ventas/Tráfico/Alcance) sobre el nombre
+  - [x] **Bug crítico**: `internalCampaignId` siempre era `null` porque `catalog-sync` nunca lo seteaba → ventas siempre 0. Fix bicapa: (1) catalog-sync auto-vincula en cada sync; (2) decision-repository fallback por nombre en query (funciona sin re-sync)
+  - [x] **Bug**: `getActiveInsightsConnection` devolvía la conexión CAPI (sin adAccountId) en lugar de la de Insights. Fix: `isNotNull(metaConnections.adAccountId)`
+  - [x] **Bug**: `currency: null` siempre en `ad_insights_daily`. Fix: `verifyAdsAccess()` al inicio del sync
 - [x] Prompt 25: Diagnóstico de conversiones (Tracking & CAPI health)
   - [x] Tablas: `tracking_sites`, `conversion_definitions`, `conversion_test_sessions`, `conversion_observations`, `conversion_issues`
   - [x] `src/domains/tracking/` — types.ts, repository.ts, actions.ts (createTrackingSiteAction, etc.)
