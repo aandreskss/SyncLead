@@ -121,6 +121,31 @@ export async function getActiveInsightsConnection(
   return { id: row.id, adAccountId: row.adAccountId, status: row.status }
 }
 
+// ─── fuzzyMatchByPrefix ───────────────────────────────────────────────────────
+// Meta campaign names often have suffixes (e.g. "Zoe campaña inicial / 21-09-2026")
+// while SyncLead campaign names are the base name ("Zoe campaña inicial").
+// Match when one name is a prefix of the other (min 8 chars, prefer longest match).
+function fuzzyMatchByPrefix(
+  metaName: string,
+  internalCampaigns: { id: string; name: string }[]
+): string | null {
+  const metaNorm = metaName.toLowerCase().trim()
+  let bestId: string | null = null
+  let bestLen = 0
+
+  for (const c of internalCampaigns) {
+    const internalNorm = c.name.toLowerCase().trim()
+    if (internalNorm.length < 8) continue
+    if (metaNorm.startsWith(internalNorm) || internalNorm.startsWith(metaNorm)) {
+      if (internalNorm.length > bestLen) {
+        bestLen = internalNorm.length
+        bestId = c.id
+      }
+    }
+  }
+  return bestId
+}
+
 // ─── getCampaignMetrics ───────────────────────────────────────────────────────
 
 export async function getCampaignMetrics(
@@ -218,6 +243,7 @@ export async function getCampaignMetrics(
       objectiveMap.set(nr.metaCampaignId, nr.objective ?? null)
       const linked = nr.internalCampaignId
         ?? internalByName.get(nr.name.toLowerCase().trim())
+        ?? fuzzyMatchByPrefix(nr.name, internalCampaignRows)
         ?? null
       if (linked) {
         metaToInternalMap.set(nr.metaCampaignId, linked)
