@@ -131,6 +131,12 @@ export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clie
   const browTop = byBrowser.find((r) => r.browser !== "Desconocido")
   const browUnknown = byBrowser.find((r) => r.browser === "Desconocido")?.total ?? 0
 
+  // Leads de Meta Ads y CRM no tienen User-Agent — device/browser desconocido es esperado, no un error de tracking
+  const nonWebShare = byPlatform
+    .filter((r) => r.platform === "Meta Ads" || r.platform === "CRM")
+    .reduce((s, r) => s + r.total, 0)
+  const isNonWebHeavy = platTotal > 0 && nonWebShare / platTotal >= 0.6
+
   const checks: QualityCheck[] = [
     !platTop
       ? { label: "Plataforma", value: "Sin datos", status: "unknown" }
@@ -140,16 +146,24 @@ export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clie
     devTotal === 0
       ? { label: "Dispositivo", value: "Sin datos", status: "unknown" }
       : share(devUnknown, devTotal) >= 50
-        ? { label: "Dispositivo", value: `Desconocido · ${share(devUnknown, devTotal)} %`, status: "bad" }
+        ? isNonWebHeavy
+          ? { label: "Dispositivo", value: "Sin UA (Meta/CRM)", status: "warn" }
+          : { label: "Dispositivo", value: `Desconocido · ${share(devUnknown, devTotal)} %`, status: "bad" }
         : { label: "Dispositivo", value: `${byDevice[0].device} · ${share(byDevice[0].total, devTotal)} %`, status: "ok" },
     browTotal === 0 || !browTop
-      ? { label: "Navegador", value: "Sin datos", status: "unknown" }
+      ? isNonWebHeavy
+        ? { label: "Navegador", value: "Sin UA (Meta/CRM)", status: "warn" }
+        : { label: "Navegador", value: "Sin datos", status: "unknown" }
       : share(browUnknown, browTotal) >= 50
         ? { label: "Navegador", value: `Desconocido · ${share(browUnknown, browTotal)} %`, status: "bad" }
         : { label: "Navegador", value: `${browTop.browser} · ${share(browTop.total, browTotal)} %`, status: "ok" },
-    totalLeads < 5 || cityKnownN / Math.max(totalLeads, 1) < 0.5
+    totalLeads < 5
       ? { label: "Ciudad", value: "Sin datos suficientes", status: "unknown" }
-      : { label: "Ciudad", value: `${cityKnown[0].city} · ${share(cityKnown[0].total, totalLeads)} %`, status: "ok" },
+      : cityKnownN === 0
+        ? { label: "Ciudad", value: "Agrega campo en formulario", status: "warn" }
+        : cityKnownN / Math.max(totalLeads, 1) < 0.5
+          ? { label: "Ciudad", value: `${cityKnown[0].city} · parcial`, status: "warn" }
+          : { label: "Ciudad", value: `${cityKnown[0].city} · ${share(cityKnown[0].total, totalLeads)} %`, status: "ok" },
     totalLeads < 5 || utmKnownN / Math.max(utmTotal, 1) < 0.5
       ? { label: "UTM content", value: "Sin desglose confiable", status: "unknown" }
       : { label: "UTM content", value: `${fmt(utmKnown.length)} ${utmKnown.length === 1 ? "anuncio identificado" : "anuncios identificados"}`, status: "ok" },
@@ -160,7 +174,7 @@ export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clie
   if (totalLeads === 0) {
     insights.push({ text: "Aún no hay leads en este periodo.", hint: "Amplía el periodo o revisa que las campañas estén enviando leads." })
   } else {
-    if (devTotal > 0 && share(devUnknown, devTotal) >= 50) {
+    if (devTotal > 0 && share(devUnknown, devTotal) >= 50 && !isNonWebHeavy) {
       insights.push({ text: `El ${share(devUnknown, devTotal)} % de los dispositivos aparece como desconocido.`, hint: "Afecta la lectura por dispositivo." })
     }
     const directShare = platTop?.platform === "Directo" ? share(platTop.total, platTotal) : 0

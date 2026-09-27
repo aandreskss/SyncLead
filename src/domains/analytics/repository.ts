@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
-import { leads, campaigns, conversions } from "@/lib/db/schema"
-import { and, eq, gte, lte, count, desc, sql, inArray } from "drizzle-orm"
+import { leads, campaigns, conversions, adInsightsDaily } from "@/lib/db/schema"
+import { and, eq, gte, lte, count, desc, sql, inArray, sum, max } from "drizzle-orm"
 import type { DashboardKPIs, Metric, PerformanceRow } from "./types"
 
 export type { DashboardKPIs, Metric, PerformanceRow }
@@ -431,6 +431,46 @@ export async function getTopCities(
     .limit(10)
 
   return rows.map((r) => ({ city: r.city, total: Number(r.total) }))
+}
+
+// ─── Meta Insights spend para el periodo ─────────────────────────────────────
+// Suma el gasto de Meta Ads del periodo para un cliente (nivel campaign, sin duplicar).
+
+export interface MetaSpendSummary {
+  totalSpend: number
+  currency: string | null
+}
+
+export async function getMetaSpendForPeriod(
+  orgId: string,
+  clientId: string,
+  from: Date,
+  to: Date,
+): Promise<MetaSpendSummary | null> {
+  const fromStr = from.toISOString().slice(0, 10)
+  const toStr = to.toISOString().slice(0, 10)
+
+  const rows = await db
+    .select({
+      totalSpend: sql<string>`coalesce(sum(${adInsightsDaily.spend}::numeric), 0)::text`,
+      currency: max(adInsightsDaily.currency),
+    })
+    .from(adInsightsDaily)
+    .where(
+      and(
+        eq(adInsightsDaily.orgId, orgId),
+        eq(adInsightsDaily.clientId, clientId),
+        eq(adInsightsDaily.level, "campaign"),
+        gte(adInsightsDaily.date, fromStr),
+        lte(adInsightsDaily.date, toStr),
+      ),
+    )
+
+  const agg = rows[0]
+  if (!agg) return null
+  const totalSpend = parseFloat(agg.totalSpend ?? "0")
+  if (totalSpend === 0 && !agg.currency) return null
+  return { totalSpend, currency: agg.currency ?? null }
 }
 
 // ─── Leads por temperatura × día ──────────────────────────────────────────────
