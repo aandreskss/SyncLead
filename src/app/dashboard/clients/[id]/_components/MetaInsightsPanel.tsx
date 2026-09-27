@@ -20,15 +20,17 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
   const [accessToken, setAccessToken] = useState("")
   const [showForm, setShowForm] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [showForceOption, setShowForceOption] = useState(false)
   const [summary, setSummary] = useState<InsightsSummary | null>(null)
   const [isPending, start] = useTransition()
 
   const activeConn = connections.find((c) => c.status === "active")
 
-  function handleConnect() {
+  function handleConnect(skipVerification = false) {
     setFormError(null)
+    setShowForceOption(false)
     start(async () => {
-      const result = await saveInsightsConnectionAction({ clientId, adAccountId, accessToken })
+      const result = await saveInsightsConnectionAction({ clientId, adAccountId, accessToken, skipVerification })
       if (result.success && result.connection) {
         setConnections((prev) => [result.connection!, ...prev])
         setShowForm(false)
@@ -36,6 +38,7 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
         setAccessToken("")
       } else {
         setFormError(result.error ?? "Error al conectar")
+        if (result.verificationFailed) setShowForceOption(true)
       }
     })
   }
@@ -108,19 +111,35 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
             />
           </div>
           {formError && <p className="text-xs text-ops-coral">{formError}</p>}
-          <div className="flex gap-2">
+          {showForceOption && (
+            <p className="text-xs text-ops-amber">
+              Si ya asignaste el System User y regeneraste el token, puedes guardar igual y probar la sincronización.
+            </p>
+          )}
+          <div className="flex gap-2 flex-wrap">
             <button
               type="button"
-              onClick={handleConnect}
+              onClick={() => handleConnect(false)}
               disabled={isPending || !adAccountId || !accessToken}
               className="flex items-center gap-1.5 text-xs bg-ops-sel hover:bg-zinc-600 disabled:opacity-50 text-ops-tx px-3 py-1.5 rounded-lg transition-colors"
             >
               {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
               Verificar y conectar
             </button>
+            {showForceOption && (
+              <button
+                type="button"
+                onClick={() => handleConnect(true)}
+                disabled={isPending}
+                className="flex items-center gap-1.5 text-xs border border-ops-amber/50 text-ops-amber hover:bg-ops-amber/10 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                Guardar de todas formas
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => { setShowForm(false); setFormError(null) }}
+              onClick={() => { setShowForm(false); setFormError(null); setShowForceOption(false) }}
               className="text-xs text-ops-tx3 hover:text-ops-tx2 px-3 py-1.5 rounded-lg transition-colors"
             >
               Cancelar

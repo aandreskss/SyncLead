@@ -10,6 +10,7 @@ export const SaveInsightsConnectionSchema = z.object({
     .max(30)
     .transform((v) => (v.startsWith("act_") ? v : `act_${v}`)),
   accessToken: z.string().min(10).max(500),
+  skipVerification: z.boolean().optional().default(false),
 })
 
 // ─── Sync ─────────────────────────────────────────────────────────────────────
