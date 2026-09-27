@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { Users, ShoppingCart, CreditCard, Eye, Activity } from "lucide-react"
+import { Users, ShoppingCart, CreditCard, Eye, Activity, UserCheck } from "lucide-react"
 import type { VisitorSessionRow } from "@/domains/tracking/repository"
+import type { LandingPageEntry } from "@/domains/leads/repository"
 
 type SourceInfo = { label: string; cls: string }
 
@@ -79,9 +80,10 @@ interface Props {
   currentAction: string
   currentDays: string
   baseParams: Record<string, string>
+  leadLandingStats?: { total: number; breakdown: LandingPageEntry[] }
 }
 
-export function VisitorsTab({ clientId, allSessions, currentAction, currentDays, baseParams }: Props) {
+export function VisitorsTab({ clientId, allSessions, currentAction, currentDays, baseParams, leadLandingStats }: Props) {
   const sessions = applyActionFilter(allSessions, currentAction)
 
   const sourceMap = new Map<string, number>()
@@ -169,6 +171,40 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
           )
         })}
       </div>
+
+      {/* Leads section */}
+      {leadLandingStats && leadLandingStats.total > 0 && (
+        <div className="rounded-lg border border-ops-line bg-ops-s1 overflow-hidden">
+          <div className="border-b border-ops-line px-4 py-3 flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-ops-green" />
+            <p className="text-xs font-semibold uppercase tracking-wider text-ops-tx3">
+              Leads generados · últimos {currentDays} días
+            </p>
+          </div>
+          <div className="px-4 py-4 flex flex-wrap gap-3 items-center">
+            <div className="flex-shrink-0">
+              <p className="text-2xl font-bold text-ops-tx tabular-nums">{leadLandingStats.total}</p>
+              <p className="text-xs text-ops-tx3">leads totales</p>
+            </div>
+            {leadLandingStats.breakdown.length > 0 && (
+              <div className="flex flex-wrap gap-2 ml-4 border-l border-ops-line pl-4">
+                {leadLandingStats.breakdown.map((entry) => {
+                  const pct = leadLandingStats.total > 0
+                    ? Math.round((entry.count / leadLandingStats.total) * 100)
+                    : 0
+                  return (
+                    <div key={entry.path} className="rounded-lg border border-ops-line bg-ops-s2 px-3 py-2 min-w-[90px]">
+                      <p className="text-xs font-mono text-ops-tx truncate max-w-[140px]" title={entry.path}>{entry.path}</p>
+                      <p className="text-sm font-bold text-ops-tx tabular-nums">{entry.count}</p>
+                      <p className="text-[10px] text-ops-tx3">{pct}%</p>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Action filters */}
       <div className="flex flex-wrap gap-2">

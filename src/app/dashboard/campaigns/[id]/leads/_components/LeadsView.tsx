@@ -10,7 +10,7 @@ import { LeadAdsPanel } from "./LeadAdsPanel"
 import { cn } from "@/lib/utils"
 import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField } from "@/components/app/ops"
 import type { Campaign, Client, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
-import type { LeadWithActivity } from "@/domains/leads/repository"
+import type { LeadWithActivity, LandingPageEntry } from "@/domains/leads/repository"
 import {
   deleteLeadsAction,
   deleteLeadsByCampaignAction,
@@ -26,6 +26,8 @@ interface Props {
   salesReps?: SalesRep[]
   currentUserId?: string
   leadAdSource?: { pageId: string; formId?: string | null; active?: boolean } | null
+  landingBreakdown?: LandingPageEntry[]
+  currentLandingPage?: string
 }
 
 const TEMPERATURES: { value: Temperature | ""; label: string }[] = [
@@ -186,7 +188,7 @@ function ActivityBadges({
   )
 }
 
-export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId, leadAdSource }: Props) {
+export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId, leadAdSource, landingBreakdown = [], currentLandingPage = "" }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -514,6 +516,36 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
           </button>
         )}
       </div>
+
+      {/* Landing page chips */}
+      {landingBreakdown.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-ops-tx3 mr-0.5">Landing:</span>
+          <button
+            onClick={() => updateFilter("landingPage", "")}
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+              !currentLandingPage
+                ? "border-ops-blue bg-ops-blue/10 text-ops-blue"
+                : "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2"
+            }`}
+          >
+            Todas ({landingBreakdown.reduce((a, b) => a + b.count, 0)})
+          </button>
+          {landingBreakdown.map((entry) => (
+            <button
+              key={entry.path}
+              onClick={() => updateFilter("landingPage", entry.path)}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                currentLandingPage === entry.path
+                  ? "border-ops-blue bg-ops-blue/10 text-ops-blue"
+                  : "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2"
+              }`}
+            >
+              {entry.path} ({entry.count})
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Error */}
       {deleteError && (
