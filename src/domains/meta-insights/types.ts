@@ -80,6 +80,18 @@ export interface AllowlistEntry {
   createdAt: Date
 }
 
+export interface InsightsTableRow {
+  entityId: string | null
+  name: string | null
+  impressions: number
+  clicks: number
+  spend: number
+  conversions: number
+  currency: string | null
+}
+
+export type InsightsLevel = "campaign" | "adset" | "ad"
+
 export type SaveInsightsConnectionInput = z.infer<typeof SaveInsightsConnectionSchema>
 export type TriggerSyncInput = z.infer<typeof TriggerSyncSchema>
 export type AddToAllowlistInput = z.infer<typeof AddToAllowlistSchema>
