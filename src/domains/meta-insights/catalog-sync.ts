@@ -1,7 +1,8 @@
 import "server-only"
 
 import { db } from "@/lib/db"
-import { metaCatalogCampaigns, metaCatalogAdsets, metaCatalogAds } from "@/lib/db/schema"
+import { metaCatalogCampaigns, metaCatalogAdsets, metaCatalogAds, campaigns as campaignsTable } from "@/lib/db/schema"
+import { and, eq, sql } from "drizzle-orm"
 import type { MetaAdsClient } from "@/lib/meta-ads/client"
 
 /**
@@ -19,9 +20,20 @@ export async function syncAdCatalog(
     client.getAds(),
   ])
 
+  // Build name → internalCampaignId map for auto-linking
+  const internalCampaigns = await db
+    .select({ id: campaignsTable.id, name: campaignsTable.name })
+    .from(campaignsTable)
+    .where(and(eq(campaignsTable.orgId, orgId), eq(campaignsTable.clientId, clientId)))
+  const internalNameMap = new Map(
+    internalCampaigns.map((c) => [c.name.toLowerCase().trim(), c.id])
+  )
+
   const now = new Date()
 
   for (const c of campaigns) {
+    const matchedInternalId = internalNameMap.get(c.name.toLowerCase().trim()) ?? null
+
     await db
       .insert(metaCatalogCampaigns)
       .values({
@@ -37,6 +49,7 @@ export async function syncAdCatalog(
         stopTime: c.stop_time ? new Date(c.stop_time) : null,
         dailyBudget: c.daily_budget ?? null,
         lifetimeBudget: c.lifetime_budget ?? null,
+        internalCampaignId: matchedInternalId,
         lastSyncedAt: now,
       })
       .onConflictDoUpdate({
@@ -50,6 +63,10 @@ export async function syncAdCatalog(
           stopTime: c.stop_time ? new Date(c.stop_time) : null,
           dailyBudget: c.daily_budget ?? null,
           lifetimeBudget: c.lifetime_budget ?? null,
+          // Only auto-link if not already manually set
+          ...(matchedInternalId
+            ? { internalCampaignId: sql`COALESCE(${metaCatalogCampaigns.internalCampaignId}, ${matchedInternalId}::uuid)` }
+            : {}),
           lastSyncedAt: now,
           updatedAt: now,
         },
