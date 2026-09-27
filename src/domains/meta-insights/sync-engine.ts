@@ -105,6 +105,11 @@ export async function runInsightsSync(opts: SyncOptions): Promise<SyncResult> {
   try {
     let recordsSynced = 0
 
+    // Fetch account currency upfront (non-blocking on failure)
+    const accountCurrency = await apiClient.verifyAdsAccess()
+      .then((r) => r.currency ?? null)
+      .catch(() => null)
+
     // Sync catalog first (campaigns, adsets, ads)
     await syncAdCatalog(apiClient, orgId, clientId).catch(() => undefined)
 
@@ -145,7 +150,7 @@ export async function runInsightsSync(opts: SyncOptions): Promise<SyncResult> {
             spend: String(spend),
             reach,
             conversionsCount,
-            currency: null, // currency is fetched at account level
+            currency: accountCurrency,
           })
           .onConflictDoUpdate({
             target: [
@@ -161,6 +166,7 @@ export async function runInsightsSync(opts: SyncOptions): Promise<SyncResult> {
               spend: String(spend),
               reach,
               conversionsCount,
+              currency: accountCurrency,
               updatedAt: new Date(),
             },
           })

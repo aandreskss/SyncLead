@@ -530,14 +530,19 @@ function SyncInfoFooter({
 
 export async function InsightsDecisionCenter({ clientId, orgId, days }: Props) {
   // 1. Check active connection
-  const connection = await getActiveInsightsConnection(orgId, clientId)
+  let connection: Awaited<ReturnType<typeof getActiveInsightsConnection>> = null
+  try {
+    connection = await getActiveInsightsConnection(orgId, clientId)
+  } catch (e) {
+    console.error("[InsightsDecisionCenter] getActiveInsightsConnection:", e)
+  }
 
   if (!connection) {
     return (
       <div className="rounded-lg border border-ops-line bg-ops-s1 px-6 py-16 text-center space-y-3">
-        <p className="text-sm font-medium text-ops-tx">Conecta Meta Ads para ver insights</p>
+        <p className="text-sm font-medium text-ops-tx">No hay conexión de Meta Ads activa</p>
         <p className="text-xs text-ops-tx3">
-          Configura una conexión activa con Meta Ads para acceder al Centro de Decisiones.
+          Ve a Configuración del cliente → Meta Ads Insights y conecta una cuenta publicitaria con acceso activo.
         </p>
         <Link
           href={`/dashboard/clients/${clientId}?tab=configuracion`}
@@ -551,15 +556,25 @@ export async function InsightsDecisionCenter({ clientId, orgId, days }: Props) {
 
   const { adAccountId } = connection
 
-  // 2. Fetch all data in parallel
+  // 2. Fetch all data in parallel — individual failures don't crash the panel
   const [campaignMetrics, accountMetrics, adMetrics, leadsData, syncInfo] =
-    await Promise.all([
+    await Promise.allSettled([
       getCampaignMetrics(orgId, clientId, adAccountId, days),
       getAccountMetrics(orgId, clientId, adAccountId, days),
       getAdMetrics(orgId, clientId, adAccountId, days),
       getLeadCampaignData(orgId, clientId, days),
       getLastSyncInfo(orgId, adAccountId),
-    ])
+    ]).then(([cm, am, adm, ld, si]) => [
+      cm.status === "fulfilled" ? cm.value : [],
+      am.status === "fulfilled" ? am.value : {
+        totalSpend: 0, totalImpressions: 0, totalClicks: 0,
+        totalConversions: 0, currency: null, ctr: 0, activeCampaigns: 0,
+        currentMonthSpend: 0, projectedMonthSpend: 0, daysElapsed: 1, daysInMonth: 30,
+      },
+      adm.status === "fulfilled" ? adm.value : [],
+      ld.status === "fulfilled" ? ld.value : [],
+      si.status === "fulfilled" ? si.value : null,
+    ] as const)
 
   // 3. Compute decisions
   const avgCpl =
@@ -578,16 +593,39 @@ export async function InsightsDecisionCenter({ clientId, orgId, days }: Props) {
     leadsData
   )
 
+  const hasData = accountMetrics.totalSpend > 0 || campaignMetrics.length > 0
+
   // 4. Render
   return (
     <div className="space-y-4">
-      {/* Header row: day filter */}
+      {/* Header row: account + day filter */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-ops-tx3">
           Cuenta: <span className="font-medium text-ops-tx">{adAccountId}</span>
         </p>
         <DayFilter clientId={clientId} days={days} />
       </div>
+
+      {/* No data yet — guide the user to sync */}
+      {!hasData && (
+        <div className="rounded-lg border border-ops-amber/30 bg-ops-amber/5 px-5 py-4 flex items-start gap-3">
+          <span className="text-base leading-none mt-0.5">⚡</span>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-ops-tx">
+              Sin datos para este período
+            </p>
+            <p className="text-xs text-ops-tx3 mt-1">
+              Ve a <strong>Configuración del cliente → Meta Ads Insights</strong>, selecciona la conexión y presiona <strong>Sync</strong> para importar datos desde Meta.
+            </p>
+          </div>
+          <Link
+            href={`/dashboard/clients/${clientId}?tab=configuracion`}
+            className="shrink-0 rounded-md border border-ops-amber/40 px-3 py-1.5 text-xs font-medium text-ops-amber hover:bg-ops-amber/10 transition-colors"
+          >
+            Ir a Configuración
+          </Link>
+        </div>
+      )}
 
       {/* Top row: Health + KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -610,7 +648,6 @@ export async function InsightsDecisionCenter({ clientId, orgId, days }: Props) {
         <KpiCard
           label="CTR promedio"
           value={fmtPct(accountMetrics.ctr)}
-          trend={accountMetrics.ctr - (accountMetrics.ctr)}
           sub={`${days}d`}
         />
         <KpiCard
