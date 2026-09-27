@@ -1,7 +1,12 @@
 import Link from "next/link"
-import { Users, ShoppingCart, CreditCard, Eye, Activity, UserCheck } from "lucide-react"
+import { Users, ShoppingCart, CreditCard, Eye, Activity, UserCheck, Globe } from "lucide-react"
 import type { VisitorSessionRow } from "@/domains/tracking/repository"
 import type { LandingPageEntry } from "@/domains/leads/repository"
+
+function extractPath(url: string | null): string | null {
+  if (!url) return null
+  try { return new URL(url).pathname || "/" } catch { return url }
+}
 
 type SourceInfo = { label: string; cls: string }
 
@@ -70,7 +75,11 @@ function applyActionFilter(sessions: VisitorSessionRow[], action: string): Visit
 }
 
 function buildTabUrl(base: Record<string, string>, overrides: Record<string, string>): string {
-  const sp = new URLSearchParams({ ...base, ...overrides })
+  const merged = { ...base, ...overrides }
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(merged)) {
+    if (v) sp.set(k, v)
+  }
   return `/dashboard/performance?${sp}`
 }
 
@@ -81,10 +90,22 @@ interface Props {
   currentDays: string
   baseParams: Record<string, string>
   leadLandingStats?: { total: number; breakdown: LandingPageEntry[] }
+  currentLandingPath?: string
 }
 
-export function VisitorsTab({ clientId, allSessions, currentAction, currentDays, baseParams, leadLandingStats }: Props) {
+export function VisitorsTab({ clientId, allSessions, currentAction, currentDays, baseParams, leadLandingStats, currentLandingPath }: Props) {
   const sessions = applyActionFilter(allSessions, currentAction)
+
+  // Landing page breakdown from pixel observations (firstPageUrl per session)
+  const visitorLandingMap = new Map<string, number>()
+  for (const s of allSessions) {
+    const path = extractPath(s.firstPageUrl) ?? "(sin página)"
+    visitorLandingMap.set(path, (visitorLandingMap.get(path) ?? 0) + 1)
+  }
+  const visitorLandingBreakdown = Array.from(visitorLandingMap.entries())
+    .map(([path, count]) => ({ path, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6)
 
   const sourceMap = new Map<string, number>()
   for (const s of allSessions) {
@@ -172,6 +193,44 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
         })}
       </div>
 
+      {/* Landing page filter chips (from pixel observations) */}
+      {visitorLandingBreakdown.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Globe className="h-3.5 w-3.5 text-ops-tx3 shrink-0" />
+            <span className="text-xs text-ops-tx3 mr-0.5">Landing page:</span>
+            <Link
+              href={buildTabUrl(baseParams, { action: currentAction, days: currentDays, landingPath: "" })}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                !currentLandingPath
+                  ? "border-ops-blue bg-ops-blue/10 text-ops-blue"
+                  : "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2"
+              }`}
+            >
+              Todas ({allSessions.length})
+            </Link>
+            {visitorLandingBreakdown.map((entry) => (
+              <Link
+                key={entry.path}
+                href={buildTabUrl(baseParams, { action: currentAction, days: currentDays, landingPath: entry.path })}
+                className={`rounded-full border px-2.5 py-1 text-xs font-mono font-medium transition-colors ${
+                  currentLandingPath === entry.path
+                    ? "border-ops-blue bg-ops-blue/10 text-ops-blue"
+                    : "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2"
+                }`}
+              >
+                {entry.path} ({entry.count})
+              </Link>
+            ))}
+          </div>
+          {currentLandingPath && (
+            <p className="text-xs text-ops-tx3">
+              Mostrando {sessions.length} visitante{sessions.length !== 1 ? "s" : ""} desde <code className="text-ops-tx2">{currentLandingPath}</code>
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Leads section */}
       {leadLandingStats && leadLandingStats.total > 0 && (
         <div className="rounded-lg border border-ops-line bg-ops-s1 overflow-hidden">
@@ -192,9 +251,16 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                   const pct = leadLandingStats.total > 0
                     ? Math.round((entry.count / leadLandingStats.total) * 100)
                     : 0
+                  const isSinSeg = entry.path === "(sin seguimiento)"
                   return (
-                    <div key={entry.path} className="rounded-lg border border-ops-line bg-ops-s2 px-3 py-2 min-w-[90px]">
-                      <p className="text-xs font-mono text-ops-tx truncate max-w-[140px]" title={entry.path}>{entry.path}</p>
+                    <div
+                      key={entry.path}
+                      className="rounded-lg border border-ops-line bg-ops-s2 px-3 py-2 min-w-[90px]"
+                      title={isSinSeg ? "Leads de Meta Lead Ads (formulario en Meta) — no rastrean URL de la landing" : entry.path}
+                    >
+                      <p className={`text-xs truncate max-w-[140px] ${isSinSeg ? "text-ops-tx3 italic" : "font-mono text-ops-tx"}`}>
+                        {entry.path}
+                      </p>
                       <p className="text-sm font-bold text-ops-tx tabular-nums">{entry.count}</p>
                       <p className="text-[10px] text-ops-tx3">{pct}%</p>
                     </div>
