@@ -92,6 +92,14 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`LeadWithActivity` agrega TODAS las ventas confirmadas**: `saleCount` = total de conversiones confirmadas; `saleTotalAmount` = suma si moneda uniforme, `null` si mixta; `saleCurrency` = moneda si uniforme. Reemplazó los campos anteriores `saleAmount / saleStatus / saleConvertedAt` (que solo reflejaban la primera conversión). El filtro `has_sale` usa `saleCount > 0`.
 - **`LeadWithActivity.hasPendingCapi`**: booleano cargado en TODAS las consultas (4ª query paralela en `getLeadsByCampaignWithActivity`). Indica que el lead tiene al menos un `meta_event` con `status = 'pending' OR 'retrying'`. Activa el icono ⚡ en `ActivityBadges` y el filtro `pending_capi`. En `getLeadsByClientWithActivity` y `funnels/repository.ts` siempre se devuelve como `false` (no se cargan eventos CAPI en esas vistas).
 - **Eliminar leads**: tres acciones multi-tenant en `leads/actions.ts` — `deleteLeadsAction(ids[])` (por selección), `deleteLeadsByCampaignAction(campaignId)`, `deleteLeadsByClientAction(clientId)`. Todas validan pertenencia a `ctx.orgId` antes de borrar. La DB hace cascade en `lead_stage_history`, `conversions`, `lead_qualifications`, etc.; `meta_events.leadId` queda en `NULL` (set null) para no perder el historial CAPI.
+- **Meta Ad Library API requiere confirmación en portal**: El usuario debe ir a `facebook.com/ads/library/api/` estando logueado en Facebook y confirmar su identidad / aceptar términos antes de que cualquier token (App Token ó User Token con `ads_read`) funcione. Sin esto, la API retorna error code 10, subcode 2332002 ("To access the API, you'll need to follow the steps at facebook.com/ads/library/api/"). La app detecta este estado y muestra un banner de `pendingAccess` con link directo al portal.
+- **TikTok Creative Center API (endpoint muerto)**: `POST ads.tiktok.com/creative_radar_api/v1/top_ads/list` retorna 404. `GET` requiere `session_id` de autenticación del usuario de TikTok (no disponible server-side). TikTok deshabilitado en UI con "próximamente". El código en `tiktok.ts` se conserva para futura integración cuando exista un endpoint oficial.
+- **Video URL regex con query params**: Usar `/\.(mp4|webm|mov|avi|m4v)(\?|$)/i`, NO `/\.(mp4|webm|mov|avi|m4v)/i`. Las URLs de CDN de Facebook incluyen query params (`...mp4?_nc_cat=109&_nc_sid=...`); sin el grupo `(\?|$)` la regex no detecta el tipo de archivo y el video se trata como imagen.
+- **Facebook CDN (fbcdn.net) CORS/Referer**: Los videos de `scontent-*.fbcdn.net` requieren `Referer: https://www.facebook.com` para ser servidos. El navegador no puede inyectar ese header desde un dominio externo → el elemento `<video>` dispara `onError`. Solución: capturar `videoError` state → mostrar `thumbnailUrl` (si existe) con play button overlay que enlaza al `snapshotUrl` o URL original; si no hay thumbnail → mostrar mensaje "Video restringido" + botón "Ver video" que abre el link original.
+- **Eventos CAPI huérfanos (`leadId != null && leads.id IS NULL`)**: ocurren cuando se elimina un lead — `meta_events.leadId` queda en NULL via `SET NULL` FK, pero cuando el evento ya fue creado y la DB lo guardó antes del DELETE, el `leadId` puede quedar apuntando a un lead ya borrado. Detección: `LEFT JOIN leads ON metaEvents.leadId = leads.id WHERE leads.id IS NULL AND metaEvents.leadId IS NOT NULL`. El payload CAPI está en la columna `metaEvents.payload` (JSON auto-contenido con PII hasheado) y **se puede enviar igual** via `sendMetaEventDirect(eventId, orgId)` sin necesidad del lead. `cancelOrphanCapiEventsAction()` los cancela si se prefiere no enviarlos. El panel `HealthCapiLogPanel` muestra los primeros 8 chars del `leadId` para identificar el lead eliminado.
+- **`hasPendingCapi` excluye Purchase events**: la query de `metaEvents pending/retrying` en `getLeadsByCampaignWithActivity()` filtra `ne(metaEvents.eventName, "Purchase")`. El filtro "CAPI pendiente" y el botón ⚡ en LeadsView solo reflejan eventos de comportamiento (Lead, Contact, etc.), no ventas pendientes de envío.
+- **`sendLeadPendingCapiAction(leadId)`**: envía en paralelo todos los `meta_events` con `status = pending OR retrying AND eventName != Purchase` para un lead. Usa `Promise.allSettled` para que un fallo no cancele los demás. Llamado desde el botón ⚡ en la tabla de leads de una campaña (`LeadsView.tsx`).
+- **Botón "Enviar" en LeadsView para CAPI pendiente**: el ícono ⚡ en `ActivityBadges` es un botón clickeable. `e.stopPropagation()` evita abrir el LeadDrawer. State `sendingCapiLeadId` trackea el lead en proceso. Después del send hace `router.refresh()` para refrescar `hasPendingCapi`.
 - **`drizzle-kit push` puede bloquearse por prompts TTY**: cuando la CLI detecta cambios que podrían ser destructivos (ej. añadir UNIQUE constraint a tabla con datos), pide confirmación interactiva. En entornos no-TTY usar SQL directo via `neon()` client. Para agregar columnas simples con DEFAULT, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` siempre es seguro.
 - **`calculateTemperature()` eliminado de todos los flujos de ingest**: los tres ingest paths (Modo A `/api/ingest/form`, Modo B `/api/ingest/server`, legacy `/api/leads/ingest`) guardan `temperature: "cold"` y delegan a `autoQualifyLeadInternal()` fire-and-forget. La función `calculateTemperature` aún existe en `normalize.ts` para no romper imports que no se han migrado, pero no se debe invocar en código nuevo.
 - **`autoQualifyLeadInternal` tiene try/finally como red de seguridad absoluta**: el bloque `finally` siempre consulta la tabla `conversions` al terminar (incluso si la función sale con `return` anticipado). Si existe una conversión con `status = "confirmed"`, fuerza `temperature = "hot"`. Esto garantiza que ningún camino de calificación pueda dejar en frío a un lead que ya compró. La guarda `ne(leads.temperature, "hot")` en el `finally` evita writes innecesarios.
@@ -176,9 +184,18 @@ src/
         page.tsx + _components/         ← Kanban dnd-kit (tabla funnels deprecated; rollback optimista)
       import/
         page.tsx + _components/         ← ImportWizard (upload → ColumnMapper → DryRunPreview → ImportProgress)
+      ad-research/
+        page.tsx                        ← SSR; carga collections + savedAds; requiere org membership
+        _components/
+          AdResearchDashboard.tsx       ← tabs Buscar/Guardados; banner pendingAccess con link al portal Meta
+          AdSearchForm.tsx              ← Meta activo + TikTok disabled "próximamente"
+          AdCard.tsx                    ← renderiza AdResult|SavedAd; video/imagen/CORS fallback; save/delete/move
+          AdLibrary.tsx                 ← grid guardados; toggle ImportFromUrlForm; empty state con CTA
+          ImportFromUrlForm.tsx         ← import manual URL; OG autofetch 800ms debounce; MediaPreview CORS-aware
       health/
         page.tsx                        ← SSR; requireRole owner/admin
-        _components/HealthDashboard.tsx ← status dots, CAPI queue, imports, cron history, botones retry
+        _components/HealthDashboard.tsx ← status dots, CAPI queue, imports, cron history, botones retry; monta HealthCapiLogPanel al final
+        _components/HealthCapiLogPanel.tsx ← historial eventos CAPI: tabs all/pending/failed/sent; botón "Enviar" por evento; detecta huérfanos (leadId != null && leadName == null); botón "Cancelar huérfanos"; muestra leadId truncado para eventos huérfanos
     api/
       ingest/
         form/route.ts                   ← Modo A: token público, CORS, Turnstile, honeypot
@@ -194,14 +211,15 @@ src/
         meta-insights-sync/route.ts     ← sync diario de ad_insights_daily
         retention-cleanup/route.ts      ← nullifica IP/UA expirados; borra PII de erasure requests
   domains/
+    ad-research/    types.ts (AdResult, SavedAd, AdCollection, AdPlatform), repository.ts, actions.ts, fetch-preview.ts ("use server" Googlebot OG scrape)
     auth/           actions.ts
     organizations/  repository.ts
     clients/        repository.ts, actions.ts, types.ts
     campaigns/      repository.ts, actions.ts, types.ts
     leads/
       normalize.ts  ← normalizePhone, normalizeCity (calculateTemperature eliminado — no se usa en ningún flujo de ingest)
-      repository.ts ← getLeadsByCampaign, getLeadsByCampaignWithActivity (4 queries: leads+conversions+behavior+metaEvents pending/retrying), getLeadDetail, updateLeadTemperature/Stage/Notes/assign; LeadWithActivity: saleCount/saleTotalAmount/saleCurrency/hasPendingCapi/activity
-      actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }; deleteLeadsAction(ids[]), deleteLeadsByCampaignAction(campaignId), deleteLeadsByClientAction(clientId); createLeadManuallyAction(campaignId, input)
+      repository.ts ← getLeadsByCampaign, getLeadsByCampaignWithActivity (4 queries: leads+conversions+behavior+metaEvents pending/retrying EXCLUDING Purchase via ne()), getLeadDetail, updateLeadTemperature/Stage/Notes/assign; LeadWithActivity: saleCount/saleTotalAmount/saleCurrency/hasPendingCapi/activity
+      actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }; deleteLeadsAction(ids[]), deleteLeadsByCampaignAction(campaignId), deleteLeadsByClientAction(clientId); createLeadManuallyAction(campaignId, input); sendLeadPendingCapiAction(leadId): envía todos los eventos pending/retrying no-Purchase del lead directamente
     analytics/
       types.ts      ← Metric = number | null, DashboardKPIs, PerformanceRow
       repository.ts ← getKPIMetrics() (converted_at), getPerformanceTable(), getLeadsByDay(), getLeadsByCampaignChart()
@@ -245,8 +263,8 @@ src/
       repository.ts ← getLeadAdSourceByCampaign, getLeadAdSourceByPage (webhook routing), upsertLeadAdSource, deleteLeadAdSource
       actions.ts    ← saveLeadAdSourceAction (cifra Page Access Token), deleteLeadAdSourceAction, getLeadAdSourceAction
     health/
-      repository.ts ← getHealthSnapshot(orgId): DB ping, meta connections, CAPI queue, imports, cron runs, stuck runs
-      actions.ts    ← retryFailedCapiEventsAction(), retryFailedImportAction(batchId), resolveStuckCronRunsAction()
+      repository.ts ← getHealthSnapshot(orgId): DB ping, meta connections, CAPI queue, imports, cron runs, stuck runs; getOrgMetaEvents(orgId, clientId?, limit): LEFT JOIN leads para obtener leadName (null si lead eliminado = huérfano); getClientMetaEvents(orgId, clientId, limit)
+      actions.ts    ← retryFailedCapiEventsAction(), retryFailedImportAction(batchId), resolveStuckCronRunsAction(); sendSingleCapiEventAction(eventId): envía evento individual directo (funciona incluso si el lead fue eliminado — payload en DB); cancelOrphanCapiEventsAction(): marca como "cancelled" eventos pending/retrying cuyo lead fue borrado; getOrgMetaEventsAction(clientId?, limit); getClientMetaEventsAction(clientId, limit)
   lib/
     auth/
       errors.ts     ← AuthError, ForbiddenError, NotFoundError
@@ -256,6 +274,9 @@ src/
     jobs/
       runner.ts     ← withJobRun(jobName, fn): registra en cron_runs, captura error.name (no message), isOverBudget(ms)
       registry.ts   ← JOB_REGISTRY: 4 jobs con schedule, maxDurationSec, timeBudgetMs (buffer ≥ 5000ms)
+    ad-research/
+      meta.ts       ← searchMetaAds(); META_USER_ACCESS_TOKEN primero, fallback APP_ID|APP_SECRET; lanza 'META_ACCESS_PENDING' en error code 10
+      tiktok.ts     ← searchTikTokTopAds(); endpoint muerto 404; conservado para futura integración
     meta-ads/
       client.ts     ← MetaAdsClient con retry/backoff (mocked en tests)
     meta-outbox/
@@ -380,6 +401,8 @@ src/proxy.ts  ← protege /dashboard/*, applySecurityHeaders() (CSP+nonce, X-Fra
 | `NEXT_PUBLIC_APP_URL` | URL pública de la app | ✓ |
 | `META_LEAD_ADS_VERIFY_TOKEN` | Token para verificar webhook Meta Lead Ads (generar: `openssl rand -hex 20`) | Lead Ads |
 | `META_APP_SECRET` | App Secret de la Meta App para verificar `X-Hub-Signature-256` (Meta → Settings → Basic) | Lead Ads |
+| `META_AD_LIBRARY_APP_ID` | App ID de la Meta App para Ad Library API (`725731837196369`) | Ad Research |
+| `META_USER_ACCESS_TOKEN` | User Access Token con permiso `ads_read` para Meta Ad Library API. Requiere además confirmar identidad en `facebook.com/ads/library/api/` | Ad Research |
 
 ## Seguridad crítica
 - `ENCRYPTION_KEY` nunca en el repo. Solo en Vercel env vars.
@@ -580,6 +603,14 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] `src/domains/leads/repository.ts` — `getLeadsByCampaignWithActivity()` ahora 4 queries (+ metaEvents pending/retrying); `LeadWithActivity.hasPendingCapi: boolean`; `LeadFilters.activity` incluye `"pending_capi"`; `getLeadsByClientWithActivity` y `funnels/repository.ts` devuelven `hasPendingCapi: false`
   - [x] `src/domains/leads/actions.ts` — `deleteLeadsAction(ids[])`, `deleteLeadsByCampaignAction(campaignId)`, `deleteLeadsByClientAction(clientId)`; todas validan `ctx.orgId`; FK cascade limpia tablas relacionadas automáticamente; `meta_events.leadId` queda en NULL (set null)
   - [x] `src/app/dashboard/campaigns/[id]/leads/_components/LeadsView.tsx` — checkboxes con indeterminate state, barra de selección masiva con confirmación inline, botones "Campaña" / "Cliente" en header con confirmación, opción "CAPI pendiente" en filtro de actividad, icono ⚡ (amber) en `ActivityBadges` cuando `hasPendingCapi`
+- [x] Historial CAPI + envío directo por lead
+  - [x] `src/domains/health/repository.ts` — `getOrgMetaEvents(orgId, clientId?, limit)` + `getClientMetaEvents(orgId, clientId, limit)`: LEFT JOIN leads para `leadName`; `ClientMetaEventRow` type incluye `leadId` para detectar huérfanos
+  - [x] `src/domains/health/actions.ts` — `sendSingleCapiEventAction(eventId)`: envía evento individual via `sendMetaEventDirect`; `cancelOrphanCapiEventsAction()`: cancela pending/retrying cuyo lead fue eliminado; `getOrgMetaEventsAction(clientId?, limit)` y `getClientMetaEventsAction(clientId, limit)`
+  - [x] `src/app/dashboard/health/_components/HealthCapiLogPanel.tsx` — panel historial CAPI con tabs all/pending/failed/sent; per-event "Enviar" button (funciona incluso para huérfanos — payload en DB); "Cancelar huérfanos" button; huérfanos con fondo rojo + muestra primeros 8 chars del leadId eliminado; state `sendingEventId` por evento
+  - [x] `src/app/dashboard/health/_components/HealthDashboard.tsx` — monta `<HealthCapiLogPanel clientId={selectedClientId} />` al final del dashboard
+  - [x] `src/domains/leads/repository.ts` — query `hasPendingCapi` ahora filtra `ne(metaEvents.eventName, "Purchase")` — el flag solo refleja eventos de comportamiento, no ventas pendientes
+  - [x] `src/domains/leads/actions.ts` — `sendLeadPendingCapiAction(leadId)`: envía en paralelo todos los pending/retrying no-Purchase via `Promise.allSettled`
+  - [x] `src/app/dashboard/campaigns/[id]/leads/_components/LeadsView.tsx` — ⚡ convertido en botón clickeable; `sendingCapiLeadId` state; `handleSendLeadCapi()` llama `sendLeadPendingCapiAction`; `e.stopPropagation()` evita abrir drawer
 - [x] Fix `action_source` para eventos Purchase
   - [x] `src/domains/conversions/payload.ts` — `PurchaseEvent.action_source` y `buildPurchasePayload()`: `"website"` → `"crm"` (ventas manuales en CRM, no actividad web real)
   - [x] `src/lib/meta-capi.ts` — `sendPurchaseEvent()`: `"website"` → `"crm"`; `sendLeadEvent()` y `sendContactEvent()` mantienen `"website"` (correcto para esos tipos)
@@ -618,3 +649,14 @@ npx drizzle-kit studio   # UI visual de la DB
     - Patrón `|| undefined` en snippets: `getCookie('_fbc') || localStorage.getItem('_sl_fbc') || undefined` — garantiza que el valor sea `string | undefined`, nunca `null`; `JSON.stringify` omite claves `undefined`
     - `ilike` de `drizzle-orm` para matching case-insensitive de fuentes Meta — cubre variantes "facebook", "Facebook", "Facebook Ads", etc.
     - `sendToDiagnostic('PageView', {})` al final del IIFE — registra TODO visitante (orgánico, directo, paid) inmediatamente al cargar la página, habilitando el feed en vivo y la sección Visitantes
+- [x] Investigador de Anuncios (`/dashboard/ad-research`)
+  - [x] **Dominio `src/domains/ad-research/`**: `types.ts` (`AdResult`, `SavedAd`, `AdCollection`, `AdPlatform`), `repository.ts` (saveAd, getSavedAds, deleteSavedAd, createCollection, getCollections, deleteCollection, updateSavedAdNotes, moveToCollection, importAdFromUrl), `actions.ts` (searchAdsAction, saveAdAction, deleteAdAction, createCollectionAction, getSavedAdsAction, deleteCollectionAction, moveAdToCollectionAction, importAdFromUrlAction), `fetch-preview.ts` (fetchAdPreviewAction — Googlebot OG scraping server-side)
+  - [x] **`src/lib/ad-research/meta.ts`**: `searchMetaAds()` via Graph API `ads_archive`; usa `META_USER_ACCESS_TOKEN` primero (fallback a `APP_ID|APP_SECRET`); lanza `'META_ACCESS_PENDING'` cuando error code === 10 (subcodes 2332002/2332004 = portal no confirmado); parámetro `ad_type: 'ALL'`
+  - [x] **`src/lib/ad-research/tiktok.ts`**: `searchTikTokTopAds()` — endpoint `ads.tiktok.com/creative_radar_api/v1/top_ads/list` retorna 404 (dead); TikTok deshabilitado en UI con badge "próximamente"
+  - [x] **DB**: tablas `adResearchCollections` + `adResearchItems` en `schema.ts`; ambos lados de relaciones declarados; migración aplicada en Neon via `scripts/apply-ad-research.ts`
+  - [x] **`AdResearchDashboard.tsx`**: tabs Buscar / Guardados; estado `pendingAccess` muestra banner con link a `facebook.com/ads/library/api/` cuando Meta retorna access-pending
+  - [x] **`AdSearchForm.tsx`**: búsqueda Meta + TikTok (checkbox deshabilitado); default platforms: `["meta"]`
+  - [x] **`AdCard.tsx`**: renderiza anuncios de búsqueda y guardados; tres estados de media: (1) video directo → `<video>` inline con `controls`, (2) video CORS + thumbnailUrl → imagen + play overlay, (3) video CORS sin thumbnail → "Ver video" link; `isDirectVideo = /\.(mp4|webm|mov|avi|m4v)(\?|$)/i.test(firstMedia)`; botón "Guardar" con dropdown de colección; botón mover entre colecciones para guardados
+  - [x] **`AdLibrary.tsx`**: grid de anuncios guardados; filtros por plataforma/colección; botón "Importar desde URL"
+  - [x] **`ImportFromUrlForm.tsx`**: formulario manual URL→SavedAd; auto-detect plataforma por URL; auto-fetch OG metadata 800ms debounce (`fetchAdPreviewAction`); `MediaPreview` con fallback CORS; campo "Imagen de portada" para videos; campos: url/advertiser/title/body/mediaUrl/thumbnailUrl/notes/tags/collection
+  - [x] **Decisiones de video**: regex `/\.(mp4|webm|mov|avi|m4v)(\?|$)/i` requerido para URLs con query params (`...mp4?_nc_cat=109...`); `fbcdn.net` videos bloqueados por Referer restriction del CDN de Facebook — no se pueden reproducir desde dominio externo sin el header correcto; solución: mostrar thumbnail + play button como overlay que enlaza al original
