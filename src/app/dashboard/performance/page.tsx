@@ -144,11 +144,30 @@ export default async function PerformancePage({
     )
   } else if (tab === "insights" && !clientId) {
     tabContent = (
-      <div className="rounded-lg border border-ops-line bg-ops-s1 px-6 py-16 text-center space-y-2">
-        <p className="text-sm font-medium text-ops-tx">Selecciona un cliente</p>
-        <p className="text-xs text-ops-tx3">
-          Usa el filtro de arriba para elegir un cliente y ver el Centro de Decisiones de Meta Ads.
-        </p>
+      <div className="space-y-4">
+        <div className="rounded-lg border border-ops-line bg-ops-s1 px-6 py-10 text-center space-y-2">
+          <p className="text-sm font-medium text-ops-tx">Selecciona un cliente para ver el Centro de Decisiones</p>
+          <p className="text-xs text-ops-tx3">
+            Elige un cliente en el filtro de arriba (junto al selector de fechas) o haz clic en uno de los accesos directos abajo.
+          </p>
+        </div>
+        {clients.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {clients.slice(0, 8).map((c) => {
+              const p = new URLSearchParams({ tab: "insights", clientId: c.id, days: "30" })
+              return (
+                <a
+                  key={c.id}
+                  href={`/dashboard/performance?${p}`}
+                  className="rounded-lg border border-ops-line bg-ops-s1 px-4 py-3 hover:bg-ops-hover transition-colors"
+                >
+                  <p className="text-xs font-medium text-ops-tx truncate">{c.name}</p>
+                  <p className="text-xs text-ops-tx3 mt-0.5">Ver insights →</p>
+                </a>
+              )
+            })}
+          </div>
+        )}
       </div>
     )
   }

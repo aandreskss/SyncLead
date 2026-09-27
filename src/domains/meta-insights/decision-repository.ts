@@ -10,7 +10,7 @@ import {
   conversions,
   campaigns,
 } from "@/lib/db/schema"
-import { and, eq, gte, lte, sum, max, count, desc, sql, or } from "drizzle-orm"
+import { and, eq, gte, lte, sum, max, count, desc, sql, or, isNotNull } from "drizzle-orm"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,9 +104,11 @@ export async function getActiveInsightsConnection(
       and(
         eq(metaConnections.orgId, orgId),
         eq(metaConnections.clientId, clientId),
-        eq(metaConnections.status, "active")
+        eq(metaConnections.status, "active"),
+        isNotNull(metaConnections.adAccountId),
       )
     )
+    .orderBy(desc(metaConnections.createdAt))
     .limit(1)
 
   const row = rows[0]
