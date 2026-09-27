@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import { requireOrganizationMembership } from "@/lib/auth/server"
 import { AuthError, ForbiddenError } from "@/lib/auth/errors"
@@ -5,15 +6,27 @@ import { getOrganizationById } from "@/domains/organizations/repository"
 import { getClientsByOrgId } from "@/domains/clients/repository"
 import { parseDateRange, formatRangeLabel } from "@/lib/date-range"
 import { getPerformanceTable } from "@/domains/analytics/repository"
+import { getVisitorSessionsByClient } from "@/domains/tracking/repository"
 import { DateRangeSelector } from "../_components/DateRangeSelector"
 import { PageShell, PageHeader } from "@/components/app/ops"
 import { SummaryCards } from "./_components/SummaryCards"
 import { PerformanceView } from "./_components/PerformanceView"
+import { VisitorsTab } from "./_components/VisitorsTab"
+
+type Tab = "rendimiento" | "visitantes"
 
 export default async function PerformancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string; from?: string; to?: string; clientId?: string }>
+  searchParams: Promise<{
+    range?: string
+    from?: string
+    to?: string
+    clientId?: string
+    tab?: string
+    action?: string
+    days?: string
+  }>
 }) {
   let ctx: { orgId: string; userId: string }
   let orgName: string
@@ -32,14 +45,43 @@ export default async function PerformancePage({
   const sp = await searchParams
   const range = parseDateRange(sp.range ?? "30d", sp.from, sp.to)
   const clientId = sp.clientId || undefined
+  const tab: Tab = sp.tab === "visitantes" ? "visitantes" : "rendimiento"
+  const currentAction = sp.action ?? "all"
+  const currentDays = sp.days ?? "30"
+  const daysNum = currentDays === "7" ? 7 : currentDays === "90" ? 90 : 30
 
-  const [clients, rows, prevRows] = await Promise.all([
-    getClientsByOrgId(ctx.orgId),
-    getPerformanceTable(ctx.orgId, range.from, range.to, clientId),
-    getPerformanceTable(ctx.orgId, range.prevFrom, range.prevTo, clientId),
-  ])
-
+  const clients = await getClientsByOrgId(ctx.orgId)
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
+
+  // Only fetch performance data when on that tab
+  const [rows, prevRows] = tab === "rendimiento"
+    ? await Promise.all([
+        getPerformanceTable(ctx.orgId, range.from, range.to, clientId),
+        getPerformanceTable(ctx.orgId, range.prevFrom, range.prevTo, clientId),
+      ])
+    : [[], []]
+
+  // Only fetch visitor data when on that tab and a client is selected
+  const allSessions = tab === "visitantes" && clientId
+    ? await getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum)
+    : []
+
+  // Base URL params to preserve across tab/filter links in the visitors tab
+  const baseParams: Record<string, string> = { tab: "visitantes" }
+  if (clientId) baseParams.clientId = clientId
+  if (sp.range) baseParams.range = sp.range
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: "rendimiento", label: "Rendimiento" },
+    { key: "visitantes",  label: "Visitantes" },
+  ]
+
+  function tabHref(key: Tab): string {
+    const p = new URLSearchParams({ tab: key })
+    if (clientId) p.set("clientId", clientId)
+    if (sp.range) p.set("range", sp.range)
+    return `/dashboard/performance?${p}`
+  }
 
   return (
     <PageShell>
@@ -61,8 +103,48 @@ export default async function PerformancePage({
         {formatRangeLabel(range.from, range.to)} · {selectedClient?.name ?? orgName}
       </p>
 
-      <SummaryCards rows={rows} />
-      <PerformanceView rows={rows} prevRows={prevRows} />
+      {/* Tab switcher */}
+      <div className="flex gap-1 border-b border-ops-line">
+        {TABS.map(({ key, label }) => (
+          <Link
+            key={key}
+            href={tabHref(key)}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              tab === key
+                ? "border-ops-blue text-ops-tx"
+                : "border-transparent text-ops-tx3 hover:text-ops-tx2"
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+
+      {tab === "rendimiento" && (
+        <>
+          <SummaryCards rows={rows} />
+          <PerformanceView rows={rows} prevRows={prevRows} />
+        </>
+      )}
+
+      {tab === "visitantes" && clientId && (
+        <VisitorsTab
+          clientId={clientId}
+          allSessions={allSessions}
+          currentAction={currentAction}
+          currentDays={currentDays}
+          baseParams={baseParams}
+        />
+      )}
+
+      {tab === "visitantes" && !clientId && (
+        <div className="rounded-lg border border-ops-line bg-ops-s1 px-6 py-16 text-center space-y-2">
+          <p className="text-sm font-medium text-ops-tx">Selecciona un cliente</p>
+          <p className="text-xs text-ops-tx3">
+            Usa el filtro de arriba para elegir un cliente y ver sus visitantes de Meta.
+          </p>
+        </div>
+      )}
     </PageShell>
   )
 }

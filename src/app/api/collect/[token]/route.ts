@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm"
 import {
   getTrackingSiteByCollectToken,
   getDefinitionByEventNameForSite,
+  pruneClientObservationsIfNeeded,
 } from "@/domains/tracking/repository"
 import { lookupCredential } from "@/lib/ingest/lookup"
 
@@ -195,6 +196,10 @@ export async function POST(
           validationResult: {},
         })
 
+        if (Math.random() < 0.05) {
+          pruneClientObservationsIfNeeded(cred.orgId, cred.clientId).catch(() => undefined)
+        }
+
         return NextResponse.json({ received: true }, { status: 200, headers: CORS_HEADERS })
       }
 
@@ -251,6 +256,10 @@ export async function POST(
       parametersPresent: parameters,
       validationResult,
     })
+
+    if (Math.random() < 0.05) {
+      pruneClientObservationsIfNeeded(site.orgId, site.clientId).catch(() => undefined)
+    }
 
     return NextResponse.json(
       { received: true },
