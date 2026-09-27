@@ -53,7 +53,13 @@ export function computeCampaignDecision(
   else if (row.ctr >= 1) ctrScore = 30
   else if (row.ctr >= 0.5) ctrScore = 15
 
-  const conversionScore = row.conversionsCount > 0 ? 30 : 0
+  // Conversion scoring: confirmed sales (strong signal) vs checkout starts (medium signal)
+  const conversionScore =
+    row.realSales > 0
+      ? 30
+      : row.conversionsCount > 0
+      ? 15
+      : 0
 
   let trendScore = 0
   if (row.spendDelta > 0 && row.ctrDelta >= 0) trendScore = 20
@@ -72,6 +78,7 @@ export function computeCampaignDecision(
   } else if (
     (row.daysSinceActivity > 14 && row.spend > 20) ||
     (row.spend > 50 && row.conversionsCount === 0 && row.ctr < 0.3) ||
+    (row.realSales === 0 && row.spend > 100) ||
     (avgCpl !== null && row.prevSpend > 0 && row.spend > avgCpl * 4)
   ) {
     decision = "pause"
@@ -81,16 +88,21 @@ export function computeCampaignDecision(
     if (row.spend > 50 && row.conversionsCount === 0 && row.ctr < 0.3) {
       signals.push("Alto gasto, 0 conversiones y CTR muy bajo")
     }
+    if (row.realSales === 0 && row.spend > 100) {
+      signals.push(`$${row.spend.toFixed(2)} gastados sin ninguna venta real confirmada`)
+    }
     if (avgCpl !== null && row.prevSpend > 0 && row.spend > avgCpl * 4) {
       signals.push("CPL muy superior al promedio de la cuenta")
     }
-  } else if (row.ctr > 1.5 && row.conversionsCount > 0 && row.spendDelta < 20) {
+  } else if (row.ctr > 1.5 && row.realSales > 0 && row.spendDelta < 20) {
+    // Only scale if there are real confirmed sales, not just checkout starts
     decision = "scale"
-    signals.push(`CTR de ${row.ctr.toFixed(2)}% con ${row.conversionsCount} conversiones`)
+    signals.push(`CTR de ${row.ctr.toFixed(2)}% con ${row.realSales} venta${row.realSales > 1 ? "s" : ""} confirmada${row.realSales > 1 ? "s" : ""}`)
     signals.push("Margen para escalar presupuesto")
   } else if (
     (row.ctr < 0.5 && row.impressions > 5000) ||
-    (row.ctrDelta < -0.5 && row.impressions > 1000)
+    (row.ctrDelta < -0.5 && row.impressions > 1000) ||
+    (row.conversionsCount > 0 && row.realSales === 0 && row.spend > 50)
   ) {
     decision = "optimize"
     if (row.ctr < 0.5 && row.impressions > 5000) {
@@ -98,6 +110,9 @@ export function computeCampaignDecision(
     }
     if (row.ctrDelta < -0.5 && row.impressions > 1000) {
       signals.push(`CTR cayó ${Math.abs(row.ctrDelta).toFixed(2)} puntos vs período anterior`)
+    }
+    if (row.conversionsCount > 0 && row.realSales === 0 && row.spend > 50) {
+      signals.push(`${row.conversionsCount} checkout${row.conversionsCount > 1 ? "s" : ""} iniciado${row.conversionsCount > 1 ? "s" : ""} sin ventas — los checkouts no cierran`)
     }
   } else {
     decision = "healthy"
@@ -137,6 +152,20 @@ export function generateRecommendations(
       detail,
       action: "Pausar campaña",
     })
+  }
+
+  // WARNING: checkouts not converting to real sales
+  for (const row of rows) {
+    if (row.conversionsCount > 0 && row.realSales === 0 && row.spend > 50) {
+      recs.push({
+        id: `checkout-no-sale-${row.metaCampaignId}`,
+        severity: "warning",
+        icon: "⚠️",
+        title: `Checkouts sin ventas en "${row.name ?? row.metaCampaignId}"`,
+        detail: `${row.conversionsCount} checkout${row.conversionsCount > 1 ? "s" : ""} iniciado${row.conversionsCount > 1 ? "s" : ""} pero 0 ventas confirmadas — revisar checkout / página de gracias`,
+        action: "Revisar checkout",
+      })
+    }
   }
 
   // WARNING: campaigns with very low CTR
@@ -270,7 +299,7 @@ export function computeAccountHealth(
       else if (c.ctr >= 1) ctrScore = 30
       else if (c.ctr >= 0.5) ctrScore = 15
 
-      const convScore = c.conversionsCount > 0 ? 30 : 0
+      const convScore = c.realSales > 0 ? 30 : c.conversionsCount > 0 ? 15 : 0
 
       let trendScore = 0
       if (c.spendDelta > 0 && c.ctrDelta >= 0) trendScore = 20
@@ -291,7 +320,7 @@ export function computeAccountHealth(
         if (c.ctr >= 2) ctrScore = 40
         else if (c.ctr >= 1) ctrScore = 30
         else if (c.ctr >= 0.5) ctrScore = 15
-        const convScore = c.conversionsCount > 0 ? 30 : 0
+        const convScore = c.realSales > 0 ? 30 : c.conversionsCount > 0 ? 15 : 0
         let trendScore = 0
         if (c.spendDelta > 0 && c.ctrDelta >= 0) trendScore = 20
         else if (c.ctrDelta >= -0.2) trendScore = 10
