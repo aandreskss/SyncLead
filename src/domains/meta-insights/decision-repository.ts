@@ -35,10 +35,12 @@ export interface CampaignMetricsRow {
   ctrDelta: number
   lastActivityDate: string | null
   daysSinceActivity: number
+  totalLeads: number
   realSales: number
   realRevenue: number
   revenueCurrency: string | null
   costPerSale: number | null
+  costPerLead: number | null
 }
 
 export interface AccountMetricsData {
@@ -288,6 +290,31 @@ export async function getCampaignMetrics(
     }
   }
 
+  // Fetch lead counts per internal campaign (same window as current period)
+  const leadsByInternalCampaign = new Map<string, number>()
+  if (internalCampaignIds.length > 0) {
+    const leadRows = await db
+      .select({
+        campaignId: leads.campaignId,
+        total: count(leads.id).as("total"),
+      })
+      .from(leads)
+      .where(
+        and(
+          eq(leads.orgId, orgId),
+          inArray(leads.campaignId, internalCampaignIds),
+          gte(leads.createdAt, new Date(currentFrom)),
+          lte(leads.createdAt, new Date(currentTo)),
+        )
+      )
+      .groupBy(leads.campaignId)
+
+    for (const lr of leadRows) {
+      if (!lr.campaignId) continue
+      leadsByInternalCampaign.set(lr.campaignId, Number(lr.total ?? 0))
+    }
+  }
+
   // Build prev map
   const prevMap = new Map<
     string,
@@ -341,7 +368,7 @@ export async function getCampaignMetrics(
       )
     }
 
-    // Bridge to real SyncLead sales
+    // Bridge to real SyncLead sales + leads
     const internalCampaignId = metaToInternalMap.get(cr.objectId) ?? null
     const salesData = internalCampaignId
       ? (salesByInternalCampaign.get(internalCampaignId) ?? null)
@@ -350,6 +377,10 @@ export async function getCampaignMetrics(
     const realRevenue = salesData?.totalRevenue ?? 0
     const revenueCurrency = salesData?.currency ?? null
     const costPerSale = realSales > 0 ? spend / realSales : null
+    const totalLeads = internalCampaignId
+      ? (leadsByInternalCampaign.get(internalCampaignId) ?? 0)
+      : 0
+    const costPerLead = totalLeads > 0 ? spend / totalLeads : null
 
     result.push({
       metaCampaignId: cr.objectId,
@@ -372,10 +403,12 @@ export async function getCampaignMetrics(
       ctrDelta,
       lastActivityDate,
       daysSinceActivity,
+      totalLeads,
       realSales,
       realRevenue,
       revenueCurrency,
       costPerSale,
+      costPerLead,
     })
   }
 
