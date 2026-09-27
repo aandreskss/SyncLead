@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
 import { leads, leadStageHistory, campaigns, conversions, leadBehaviorEvents, metaEvents } from "@/lib/db/schema"
 import type { Lead, LeadStageHistory, Temperature, LeadStage } from "@/lib/db/schema"
-import { and, desc, eq, ilike, inArray, isNotNull, isNull, or } from "drizzle-orm"
+import { and, desc, eq, ilike, inArray, isNotNull, isNull, ne, or } from "drizzle-orm"
 
 export interface ConversionData {
   conversionAmount: string
@@ -176,7 +176,8 @@ export async function getLeadsByCampaignWithActivity(
           eq(metaEvents.orgId, orgId),
           isNotNull(metaEvents.leadId),
           inArray(metaEvents.leadId, leadIds),
-          or(eq(metaEvents.status, "pending"), eq(metaEvents.status, "retrying"))
+          or(eq(metaEvents.status, "pending"), eq(metaEvents.status, "retrying")),
+          ne(metaEvents.eventName, "Purchase")
         )
       ),
   ])
@@ -337,7 +338,8 @@ export async function getLeadsByClientWithActivity(
           eq(metaEvents.orgId, orgId),
           isNotNull(metaEvents.leadId),
           inArray(metaEvents.leadId, leadIds),
-          or(eq(metaEvents.status, "pending"), eq(metaEvents.status, "retrying"))
+          or(eq(metaEvents.status, "pending"), eq(metaEvents.status, "retrying")),
+          ne(metaEvents.eventName, "Purchase")
         )
       ),
   ])

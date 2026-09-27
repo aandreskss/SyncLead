@@ -5,7 +5,7 @@ import { metaEvents, importBatches, cronRuns, leads, campaigns } from "@/lib/db/
 import { and, eq, inArray, lt, notLike } from "drizzle-orm"
 import { requireRole, requireClientAccess } from "@/lib/auth/server"
 import { writeAuditLog } from "@/lib/audit"
-import { getClientMetaEvents, type ClientMetaEventRow } from "./repository"
+import { getClientMetaEvents, getOrgMetaEvents, type ClientMetaEventRow } from "./repository"
 
 const ADMIN_ROLES = ["owner", "admin"] as const
 
@@ -122,6 +122,23 @@ export async function retryFailedCapiForClientAction(
   }).catch(() => undefined)
 
   return { success: true, count }
+}
+
+// ─── CAPI event log action (org-wide, optionally filtered by client) ──────────
+
+export async function getOrgMetaEventsAction(
+  clientId?: string,
+  limit?: number
+): Promise<{ data: ClientMetaEventRow[] } | { error: string }> {
+  let ctx
+  try {
+    ctx = await requireRole([...ADMIN_ROLES])
+  } catch {
+    return { error: "No autorizado" }
+  }
+
+  const data = await getOrgMetaEvents(ctx.orgId, clientId, limit ?? 100)
+  return { data }
 }
 
 // ─── CAPI event log action ────────────────────────────────────────────────────

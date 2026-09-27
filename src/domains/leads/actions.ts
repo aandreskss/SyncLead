@@ -13,7 +13,7 @@ import { requireOrganizationMembership, requireCampaignAccess } from "@/lib/auth
 import { writeAuditLog } from "@/lib/audit"
 import { db } from "@/lib/db"
 import { leads, campaigns, leadActivities, metaConnections, metaEvents } from "@/lib/db/schema"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, ne, or } from "drizzle-orm"
 import { sendMetaEventDirect } from "@/lib/meta-outbox/worker"
 import { z } from "zod"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
@@ -273,4 +273,40 @@ export async function createLeadManuallyAction(
   } catch {
     return { success: false, error: "Error al crear el lead" }
   }
+}
+
+// ─── Send pending non-Purchase CAPI events for a lead ────────────────────────
+
+export async function sendLeadPendingCapiAction(
+  leadId: string
+): Promise<{ success: true; sent: number } | { error: string }> {
+  let ctx
+  try {
+    ctx = await requireOrganizationMembership()
+  } catch {
+    return { error: "No autorizado" }
+  }
+
+  const pendingEvents = await db
+    .select({ id: metaEvents.id })
+    .from(metaEvents)
+    .where(
+      and(
+        eq(metaEvents.orgId, ctx.orgId),
+        eq(metaEvents.leadId, leadId),
+        or(eq(metaEvents.status, "pending"), eq(metaEvents.status, "retrying")),
+        ne(metaEvents.eventName, "Purchase")
+      )
+    )
+
+  if (pendingEvents.length === 0) return { success: true, sent: 0 }
+
+  const results = await Promise.allSettled(
+    pendingEvents.map((e) => sendMetaEventDirect(e.id, ctx.orgId).catch(() => ({ sent: false })))
+  )
+  const sent = results.filter(
+    (r) => r.status === "fulfilled" && (r.value as { sent?: boolean }).sent === true
+  ).length
+
+  return { success: true, sent }
 }

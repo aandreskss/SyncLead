@@ -422,6 +422,57 @@ export async function getClientMetaEvents(
   }))
 }
 
+// ─── CAPI Event Log org-wide ─────────────────────────────────────────────────
+
+export async function getOrgMetaEvents(
+  orgId: string,
+  clientId?: string,
+  limit = 100
+): Promise<ClientMetaEventRow[]> {
+  if (clientId) return getClientMetaEvents(orgId, clientId, limit)
+
+  const rows = await db
+    .select({
+      id: metaEvents.id,
+      eventName: metaEvents.eventName,
+      eventId: metaEvents.eventId,
+      pixelId: metaEvents.pixelId,
+      status: metaEvents.status,
+      attemptCount: metaEvents.attemptCount,
+      lastError: metaEvents.lastError,
+      lastResponse: metaEvents.lastResponse,
+      leadId: metaEvents.leadId,
+      leadName: leads.name,
+      conversionAmount: conversions.amount,
+      conversionCurrency: conversions.currency,
+      createdAt: metaEvents.createdAt,
+      updatedAt: metaEvents.updatedAt,
+    })
+    .from(metaEvents)
+    .leftJoin(leads, eq(metaEvents.leadId, leads.id))
+    .leftJoin(conversions, eq(metaEvents.conversionId, conversions.id))
+    .where(eq(metaEvents.orgId, orgId))
+    .orderBy(desc(metaEvents.createdAt))
+    .limit(limit)
+
+  return rows.map((r) => ({
+    id: r.id,
+    eventName: r.eventName,
+    eventId: r.eventId,
+    pixelId: r.pixelId,
+    status: r.status,
+    attemptCount: r.attemptCount,
+    lastError: r.lastError,
+    lastResponse: r.lastResponse,
+    leadId: r.leadId,
+    leadName: r.leadName ?? null,
+    conversionAmount: r.conversionAmount ?? null,
+    conversionCurrency: r.conversionCurrency ?? null,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }))
+}
+
 // ─── Composite snapshot ───────────────────────────────────────────────────────
 
 export interface HealthSnapshot {
