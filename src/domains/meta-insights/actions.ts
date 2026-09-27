@@ -22,13 +22,15 @@ function isExternalOAuthEnabled(): boolean {
 function humanizeSyncError(raw: string): string {
   if (raw === "sync_already_running") return "Ya hay una sincronización en curso. Espera unos minutos."
   if (raw.startsWith("meta_api_error:")) {
-    const code = parseInt(raw.split(":")[1] ?? "0", 10)
+    const afterPrefix = raw.slice("meta_api_error:".length)
+    const code = parseInt(afterPrefix.split(":")[0]?.split(" ")[0] ?? "0", 10)
+    const metaMsg = afterPrefix.includes(" | ") ? afterPrefix.split(" | ")[1] : ""
     if (code === 190 || code === 102) return "El token de acceso expiró o fue revocado. Reconecta la cuenta con un token nuevo."
     if (code === 200 || code === 273) return "El token no tiene permiso para acceder a los datos de esta cuenta publicitaria."
-    if (code === 2635) return "La app de Meta usada para generar el token no tiene acceso a la Marketing API. Asegúrate de que la app tenga el permiso ads_read aprobado y no esté en modo Development (o que tu usuario sea admin/tester de la app)."
+    if (code === 2635) return `Error de acceso a la Marketing API (2635)${metaMsg ? `: ${metaMsg}` : ""}. La app necesita configurar el caso de uso 'Ads Reporting' en Meta for Developers → Marketing API → Use Cases.`
     if (code === 4 || code === 17 || code === 32 || code === 613) return "Límite de llamadas a la API de Meta alcanzado. Intenta de nuevo en unos minutos."
     if (code === 100) return "Parámetro inválido en la solicitud a Meta. Verifica el ID de la cuenta publicitaria."
-    return `Error de Meta API (código ${code}). Intenta de nuevo o revisa los permisos.`
+    return `Error de Meta API (código ${code})${metaMsg ? `: ${metaMsg}` : ""}. Intenta de nuevo o revisa los permisos.`
   }
   return raw
 }
