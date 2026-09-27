@@ -5,7 +5,7 @@ import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import { getOrganizationById } from "@/domains/organizations/repository"
 import { getClientsByOrgId } from "@/domains/clients/repository"
 import { parseDateRange, formatRangeLabel } from "@/lib/date-range"
-import { getPerformanceTable } from "@/domains/analytics/repository"
+import { getPerformanceTable, getMetaSpendForPeriod } from "@/domains/analytics/repository"
 import { getVisitorSessionsByClient } from "@/domains/tracking/repository"
 import { DateRangeSelector } from "../_components/DateRangeSelector"
 import { PageShell, PageHeader } from "@/components/app/ops"
@@ -61,13 +61,14 @@ export default async function PerformancePage({
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
   // Only fetch performance data when on that tab
-  const [rows, prevRows] =
+  const [rows, prevRows, metaSpend] =
     tab === "rendimiento"
       ? await Promise.all([
           getPerformanceTable(ctx.orgId, range.from, range.to, clientId),
           getPerformanceTable(ctx.orgId, range.prevFrom, range.prevTo, clientId),
+          clientId ? getMetaSpendForPeriod(ctx.orgId, clientId, range.from, range.to) : Promise.resolve(null),
         ])
-      : [[], []]
+      : [[], [], null]
 
   // Only fetch visitor data when on that tab and a client is selected
   const allSessions =
@@ -98,7 +99,7 @@ export default async function PerformancePage({
   if (tab === "rendimiento") {
     tabContent = (
       <>
-        <SummaryCards rows={rows} />
+        <SummaryCards rows={rows} metaSpend={metaSpend} />
         <PerformanceView rows={rows} prevRows={prevRows} />
       </>
     )
