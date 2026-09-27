@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { BarChart3, RefreshCw, Loader2, AlertTriangle, CheckCircle2, Clock } from "lucide-react"
+import { BarChart3, RefreshCw, Loader2, AlertTriangle, CheckCircle2, Clock, KeyRound, Trash2 } from "lucide-react"
 import {
   saveInsightsConnectionAction,
   triggerSyncAction,
   getInsightsSummaryAction,
+  updateInsightsTokenAction,
+  disconnectInsightsConnectionAction,
 } from "@/domains/meta-insights/actions"
 import type { InsightsConnectionPublic, InsightsSummary } from "@/domains/meta-insights/types"
 
@@ -21,6 +23,12 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [showForceOption, setShowForceOption] = useState(false)
+  // Per-connection update token form
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [updateToken, setUpdateToken] = useState("")
+  const [updateError, setUpdateError] = useState<string | null>(null)
+  const [updateForce, setUpdateForce] = useState(false)
+  const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null)
   const [summary, setSummary] = useState<InsightsSummary | null>(null)
   const [isPending, start] = useTransition()
 
@@ -43,11 +51,38 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
     })
   }
 
+  function handleUpdateToken(connectionId: string, skip = false) {
+    setUpdateError(null)
+    setUpdateForce(false)
+    start(async () => {
+      const res = await updateInsightsTokenAction(connectionId, clientId, updateToken, skip)
+      if (res.success) {
+        setConnections((prev) => prev.map((c) =>
+          c.id === connectionId ? { ...c, status: "active", lastError: null, lastVerifiedAt: new Date() } : c
+        ))
+        setUpdatingId(null)
+        setUpdateToken("")
+      } else {
+        setUpdateError(res.error ?? "Error al actualizar")
+        if (res.error?.includes("Guardar de todas formas")) setUpdateForce(true)
+      }
+    })
+  }
+
+  function handleDisconnect(connectionId: string) {
+    start(async () => {
+      const res = await disconnectInsightsConnectionAction(connectionId, clientId)
+      if (res.success) {
+        setConnections((prev) => prev.filter((c) => c.id !== connectionId))
+      }
+      setConfirmDisconnect(null)
+    })
+  }
+
   function handleSync(connectionId: string, act: string) {
     start(async () => {
       const result = await triggerSyncAction({ connectionId, clientId, syncType: "incremental" })
       if (result.success) {
-        // Refresh summary after sync
         const to = new Date().toISOString().slice(0, 10)
         const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
         const s = await getInsightsSummaryAction(clientId, act, from, to)
@@ -71,7 +106,7 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
           <button
             type="button"
             onClick={() => setShowForm(true)}
-            className="text-xs text-ops-tx2 hover:text-ops-tx border border-ops-bd hover:border-ops-bd px-2.5 py-1 rounded-lg transition-colors"
+            className="text-xs text-ops-tx2 hover:text-ops-tx border border-ops-bd px-2.5 py-1 rounded-lg transition-colors"
           >
             Conectar cuenta
           </button>
@@ -83,7 +118,7 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
         autorizadas en la allowlist de la beta interna.
       </p>
 
-      {/* Connection form */}
+      {/* New connection form */}
       {showForm && (
         <div className="space-y-3 rounded-lg border border-ops-bd bg-ops-s2/40 p-4">
           <p className="text-xs text-ops-amber flex items-center gap-1.5">
@@ -148,44 +183,109 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
         </div>
       )}
 
-      {/* Active connections */}
+      {/* Existing connections */}
       {connections.length > 0 && (
         <div className="space-y-2">
           {connections.map((conn) => (
-            <div
-              key={conn.id}
-              className="flex items-center justify-between rounded-lg border border-ops-bd/60 bg-ops-s2/30 px-4 py-3"
-            >
-              <div className="flex items-center gap-2.5">
-                {conn.status === "active" ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-ops-green" />
-                ) : (
-                  <AlertTriangle className="h-3.5 w-3.5 text-ops-amber" />
-                )}
-                <div>
-                  <p className="text-sm text-ops-tx font-mono">{conn.adAccountId ?? "—"}</p>
-                  {conn.lastVerifiedAt && (
-                    <p className="text-xs text-ops-tx3 flex items-center gap-1 mt-0.5">
-                      <Clock className="h-2.5 w-2.5" />
-                      Verificado {new Date(conn.lastVerifiedAt).toLocaleDateString()}
-                    </p>
+            <div key={conn.id} className="rounded-lg border border-ops-bd/60 bg-ops-s2/30 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  {conn.status === "active"
+                    ? <CheckCircle2 className="h-3.5 w-3.5 text-ops-green shrink-0" />
+                    : <AlertTriangle className="h-3.5 w-3.5 text-ops-amber shrink-0" />}
+                  <div>
+                    <p className="text-sm text-ops-tx font-mono">{conn.adAccountId ?? "—"}</p>
+                    {conn.lastVerifiedAt && (
+                      <p className="text-xs text-ops-tx3 flex items-center gap-1 mt-0.5">
+                        <Clock className="h-2.5 w-2.5" />
+                        Verificado {new Date(conn.lastVerifiedAt).toLocaleDateString()}
+                      </p>
+                    )}
+                    {conn.lastError && <p className="text-xs text-ops-coral mt-0.5">{conn.lastError}</p>}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {conn.status === "active" && conn.adAccountId && (
+                    <button
+                      type="button"
+                      onClick={() => handleSync(conn.id, conn.adAccountId!)}
+                      disabled={isPending}
+                      className="flex items-center gap-1 text-xs text-ops-tx2 hover:text-ops-tx border border-ops-bd px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                      Sync
+                    </button>
                   )}
-                  {conn.lastError && (
-                    <p className="text-xs text-ops-coral mt-0.5">{conn.lastError}</p>
+                  <button
+                    type="button"
+                    onClick={() => { setUpdatingId(updatingId === conn.id ? null : conn.id); setUpdateToken(""); setUpdateError(null); setUpdateForce(false) }}
+                    className="flex items-center gap-1 text-xs text-ops-tx2 hover:text-ops-tx border border-ops-bd px-2 py-1 rounded-lg transition-colors"
+                    title="Actualizar token"
+                  >
+                    <KeyRound className="h-3 w-3" />
+                    Token
+                  </button>
+                  {confirmDisconnect === conn.id ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-ops-coral">¿Confirmar?</span>
+                      <button type="button" onClick={() => handleDisconnect(conn.id)} disabled={isPending} className="text-[10px] text-ops-coral hover:text-red-400 font-medium">Sí</button>
+                      <button type="button" onClick={() => setConfirmDisconnect(null)} className="text-[10px] text-ops-tx3">No</button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDisconnect(conn.id)}
+                      className="text-ops-tx3 hover:text-ops-coral transition-colors"
+                      title="Desconectar"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   )}
                 </div>
               </div>
 
-              {conn.status === "active" && conn.adAccountId && (
-                <button
-                  type="button"
-                  onClick={() => handleSync(conn.id, conn.adAccountId!)}
-                  disabled={isPending}
-                  className="flex items-center gap-1.5 text-xs text-ops-tx2 hover:text-ops-tx border border-ops-bd hover:border-ops-bd px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  Sincronizar
-                </button>
+              {/* Update token inline form */}
+              {updatingId === conn.id && (
+                <div className="border-t border-ops-bd/60 bg-ops-s1/50 px-4 py-3 space-y-2">
+                  <label className="text-xs text-ops-tx2">Nuevo token de acceso</label>
+                  <input
+                    type="password"
+                    value={updateToken}
+                    onChange={(e) => setUpdateToken(e.target.value)}
+                    placeholder="Pega el nuevo System User Access Token"
+                    className="w-full rounded-lg border border-ops-bd bg-ops-s1 px-3 py-2 text-sm text-ops-tx placeholder:text-ops-tx3 focus:border-zinc-500 focus:outline-none"
+                  />
+                  {updateError && <p className="text-xs text-ops-coral">{updateError}</p>}
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateToken(conn.id, false)}
+                      disabled={isPending || !updateToken}
+                      className="flex items-center gap-1.5 text-xs bg-ops-sel hover:bg-zinc-600 disabled:opacity-50 text-ops-tx px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                      Guardar token
+                    </button>
+                    {updateForce && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateToken(conn.id, true)}
+                        disabled={isPending}
+                        className="flex items-center gap-1.5 text-xs border border-ops-amber/50 text-ops-amber hover:bg-ops-amber/10 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        Guardar de todas formas
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setUpdatingId(null); setUpdateError(null); setUpdateForce(false) }}
+                      className="text-xs text-ops-tx3 hover:text-ops-tx2 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ))}

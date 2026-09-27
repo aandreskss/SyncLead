@@ -508,3 +508,72 @@ export async function getAllowlistAction(): Promise<AllowlistEntry[]> {
   try { ctx = await requireRole(["owner", "admin", "manager"]) } catch { return [] }
   return getAllowedAdAccounts(ctx.orgId)
 }
+
+// ─── Connection token update / disconnect ─────────────────────────────────────
+
+export async function updateInsightsTokenAction(
+  connectionId: string,
+  clientId: string,
+  accessToken: string,
+  skipVerification = false,
+): Promise<{ success: boolean; error?: string }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch {
+    return { success: false, error: "No autorizado" }
+  }
+
+  const conn = await db.query.metaConnections.findFirst({
+    where: and(
+      eq(metaConnections.id, connectionId),
+      eq(metaConnections.orgId, ctx.orgId),
+      eq(metaConnections.clientId, clientId),
+    ),
+  })
+  if (!conn?.adAccountId) return { success: false, error: "Conexión no encontrada" }
+
+  if (!skipVerification) {
+    const apiClient = new MetaAdsClient({
+      accessToken,
+      adAccountId: conn.adAccountId,
+      apiVersion: process.env.META_GRAPH_API_VERSION,
+    })
+    const verify = await apiClient.verifyAdsAccess()
+    if (!verify.ok) {
+      if (verify.error === "invalid_token") {
+        return { success: false, error: "Token inválido o revocado." }
+      }
+      if (!verify.hasAdsRead) {
+        return { success: false, error: "El token no tiene el permiso ads_read." }
+      }
+      return { success: false, error: "El token no pudo verificarse con Meta. Usa 'Guardar de todas formas' si estás seguro del token." }
+    }
+  }
+
+  const { ciphertext, keyVersion } = encryptTokenVersioned(accessToken)
+  await db
+    .update(metaConnections)
+    .set({ accessTokenEnc: ciphertext, keyVersion, status: "active", lastError: null, lastVerifiedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(metaConnections.id, connectionId), eq(metaConnections.orgId, ctx.orgId)))
+
+  return { success: true }
+}
+
+export async function disconnectInsightsConnectionAction(
+  connectionId: string,
+  clientId: string,
+): Promise<{ success: boolean; error?: string }> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch {
+    return { success: false, error: "No autorizado" }
+  }
+
+  await db
+    .delete(metaConnections)
+    .where(and(
+      eq(metaConnections.id, connectionId),
+      eq(metaConnections.orgId, ctx.orgId),
+      eq(metaConnections.clientId, clientId),
+    ))
+
+  return { success: true }
+}
