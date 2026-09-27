@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect, useTransition } from "react"
-import { Zap, RefreshCw, Loader2, AlertCircle } from "lucide-react"
+import { Zap, RefreshCw, Loader2, AlertCircle, Send, Trash2 } from "lucide-react"
 import {
   getOrgMetaEventsAction,
   retryFailedCapiEventsAction,
   retryFailedCapiForClientAction,
+  sendSingleCapiEventAction,
+  cancelOrphanCapiEventsAction,
 } from "@/domains/health/actions"
 import type { ClientMetaEventRow } from "@/domains/health/repository"
 
@@ -76,13 +78,23 @@ function matchesFilter(evt: ClientMetaEventRow, filter: StatusFilter): boolean {
   return true
 }
 
+function isOrphan(evt: ClientMetaEventRow): boolean {
+  return evt.leadId !== null && evt.leadName === null
+}
+
+function isPendingOrRetrying(evt: ClientMetaEventRow): boolean {
+  return evt.status === "pending" || evt.status === "retrying"
+}
+
 export function HealthCapiLogPanel({ clientId }: Props) {
   const [allEvents, setAllEvents] = useState<ClientMetaEventRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [retryPending, startRetry] = useTransition()
-  const [retryMessage, setRetryMessage] = useState<string | null>(null)
+  const [cancelPending, startCancel] = useTransition()
+  const [sendingEventId, setSendingEventId] = useState<string | null>(null)
+  const [message, setMessage] = useState<{ text: string; tone: "amber" | "green" | "coral" } | null>(null)
 
   async function loadEvents() {
     setLoading(true)
@@ -107,24 +119,61 @@ export function HealthCapiLogPanel({ clientId }: Props) {
 
   function handleRetryFailed() {
     startRetry(async () => {
-      setRetryMessage(null)
+      setMessage(null)
       const result = clientId
         ? await retryFailedCapiForClientAction(clientId)
         : await retryFailedCapiEventsAction()
       if ("success" in result) {
-        setRetryMessage(
-          result.count === 0
+        setMessage({
+          text: result.count === 0
             ? "No hay fallidos reintentables (pueden tener errores de token permanentes)"
-            : `${result.count} evento(s) puestos a la cola para reintento`
-        )
+            : `${result.count} evento(s) puestos a la cola para reintento`,
+          tone: result.count === 0 ? "coral" : "amber",
+        })
         await loadEvents()
       }
     })
   }
 
+  function handleCancelOrphans() {
+    startCancel(async () => {
+      setMessage(null)
+      const result = await cancelOrphanCapiEventsAction()
+      if ("success" in result) {
+        setMessage({
+          text: result.count === 0
+            ? "No hay eventos huérfanos pendientes"
+            : `${result.count} evento(s) huérfanos cancelados`,
+          tone: result.count === 0 ? "amber" : "green",
+        })
+        await loadEvents()
+      } else {
+        setMessage({ text: result.error, tone: "coral" })
+      }
+    })
+  }
+
+  async function handleSendEvent(eventId: string) {
+    setSendingEventId(eventId)
+    setMessage(null)
+    const result = await sendSingleCapiEventAction(eventId).catch(() => ({ error: "Error inesperado" }))
+    setSendingEventId(null)
+    if ("success" in result) {
+      const sent = result.status.startsWith("sent")
+      setMessage({
+        text: sent ? "Evento enviado correctamente" : `Resultado: ${result.status}`,
+        tone: sent ? "green" : "amber",
+      })
+      await loadEvents()
+    } else {
+      setMessage({ text: result.error, tone: "coral" })
+    }
+  }
+
   const events = allEvents.filter((e) => matchesFilter(e, statusFilter))
   const failedCount = allEvents.filter((e) => e.status === "failed").length
   const pendingCount = allEvents.filter((e) => e.status === "pending" || e.status === "retrying").length
+  const orphanPendingCount = allEvents.filter((e) => isPendingOrRetrying(e) && isOrphan(e)).length
 
   const counts: Record<StatusFilter, number> = {
     all: allEvents.length,
@@ -147,7 +196,18 @@ export function HealthCapiLogPanel({ clientId }: Props) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {orphanPendingCount > 0 && (
+            <button
+              onClick={handleCancelOrphans}
+              disabled={cancelPending || loading}
+              title="Cancelar eventos cuyo lead fue eliminado — el payload está en la DB pero ya no hay lead al que asociarlos"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-ops-coral transition-colors disabled:opacity-50"
+            >
+              {cancelPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Cancelar huérfanos ({orphanPendingCount})
+            </button>
+          )}
           {failedCount > 0 && (
             <button
               onClick={handleRetryFailed}
@@ -183,18 +243,23 @@ export function HealthCapiLogPanel({ clientId }: Props) {
           >
             {f.label}
             {counts[f.value] > 0 && (
-              <span className={`font-mono ${statusFilter === f.value ? "text-ops-tx3" : "text-ops-tx3"}`}>
-                {counts[f.value]}
-              </span>
+              <span className="font-mono text-ops-tx3">{counts[f.value]}</span>
             )}
           </button>
         ))}
       </div>
 
       {/* Messages */}
-      {retryMessage && (
-        <div className="mx-4 mt-3 text-xs text-ops-amber bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-          {retryMessage}
+      {message && (
+        <div className={`mx-4 mt-3 flex items-center gap-2 text-xs rounded-lg px-3 py-2 border ${
+          message.tone === "green"
+            ? "text-ops-green bg-emerald-500/10 border-emerald-500/20"
+            : message.tone === "coral"
+            ? "text-ops-coral bg-red-500/10 border-red-500/20"
+            : "text-ops-amber bg-amber-500/10 border-amber-500/20"
+        }`}>
+          {message.tone === "coral" && <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />}
+          {message.text}
         </div>
       )}
       {error && (
@@ -219,42 +284,75 @@ export function HealthCapiLogPanel({ clientId }: Props) {
           </div>
         ) : (
           <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
-            {events.map((evt) => (
-              <div
-                key={evt.id}
-                className="rounded-lg bg-ops-s2 border border-ops-line px-4 py-3 space-y-1.5"
-              >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <StatusPill status={evt.status} />
-                  <EventBadge eventName={evt.eventName} />
-                  <span className="text-sm text-ops-tx truncate flex-1 min-w-0">
-                    {evt.leadName ?? <span className="text-ops-tx3">—</span>}
-                  </span>
-                  {evt.attemptCount > 0 && (
-                    <span className="text-xs text-ops-tx3 font-mono">×{evt.attemptCount}</span>
-                  )}
-                  <span className="text-xs text-ops-tx3 whitespace-nowrap">
-                    {formatRelativeTime(evt.createdAt)}
-                  </span>
-                </div>
+            {events.map((evt) => {
+              const orphan = isOrphan(evt)
+              const canSend = isPendingOrRetrying(evt)
+              const isSending = sendingEventId === evt.id
 
-                <div className="flex items-center gap-3 text-xs text-ops-tx3 pl-0.5 flex-wrap">
-                  <span className="font-mono">{evt.pixelId.slice(0, 8)}…</span>
-                  {evt.conversionAmount && evt.conversionCurrency && (
-                    <span className="text-ops-tx2">
-                      {evt.conversionAmount} {evt.conversionCurrency}
+              return (
+                <div
+                  key={evt.id}
+                  className={`rounded-lg border px-4 py-3 space-y-1.5 ${
+                    orphan && canSend
+                      ? "bg-red-500/5 border-red-500/20"
+                      : "bg-ops-s2 border-ops-line"
+                  }`}
+                >
+                  {/* Row 1: status + event type + lead name + actions */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <StatusPill status={evt.status} />
+                    <EventBadge eventName={evt.eventName} />
+                    {/* Lead name — most important */}
+                    <span className={`text-sm font-medium truncate flex-1 min-w-0 ${
+                      orphan ? "text-ops-coral" : evt.leadName ? "text-ops-tx" : "text-ops-tx3"
+                    }`}>
+                      {evt.leadName
+                        ? evt.leadName
+                        : orphan
+                        ? "Lead eliminado"
+                        : "Sin lead"}
                     </span>
+                    {evt.attemptCount > 0 && (
+                      <span className="text-xs text-ops-tx3 font-mono">×{evt.attemptCount}</span>
+                    )}
+                    <span className="text-xs text-ops-tx3 whitespace-nowrap">
+                      {formatRelativeTime(evt.createdAt)}
+                    </span>
+                    {canSend && (
+                      <button
+                        onClick={() => handleSendEvent(evt.id)}
+                        disabled={isSending || !!sendingEventId}
+                        title={orphan ? "El payload está en la DB — se puede enviar aunque el lead fue eliminado" : "Enviar ahora"}
+                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium bg-ops-blue/15 text-blue-400 border border-blue-500/30 hover:bg-ops-blue/25 transition-colors disabled:opacity-40"
+                      >
+                        {isSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                        {isSending ? "..." : "Enviar"}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Row 2: pixel + conversion amount */}
+                  <div className="flex items-center gap-3 text-xs text-ops-tx3 pl-0.5 flex-wrap">
+                    <span className="font-mono">{evt.pixelId.slice(0, 8)}…</span>
+                    {evt.conversionAmount && evt.conversionCurrency && (
+                      <span className="text-ops-tx2">
+                        {evt.conversionAmount} {evt.conversionCurrency}
+                      </span>
+                    )}
+                    {orphan && canSend && (
+                      <span className="text-ops-coral/70 italic">Lead eliminado · el payload sigue en la DB</span>
+                    )}
+                  </div>
+
+                  {evt.lastError && evt.status !== "sent" && (
+                    <div className="flex items-start gap-1.5 text-xs text-ops-coral/80 pl-0.5">
+                      <AlertCircle className="h-3 w-3 flex-shrink-0 mt-px" />
+                      <span className="truncate">{evt.lastError.slice(0, 140)}</span>
+                    </div>
                   )}
                 </div>
-
-                {evt.lastError && evt.status !== "sent" && (
-                  <div className="flex items-start gap-1.5 text-xs text-ops-coral/80 pl-0.5">
-                    <AlertCircle className="h-3 w-3 flex-shrink-0 mt-px" />
-                    <span className="truncate">{evt.lastError.slice(0, 140)}</span>
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

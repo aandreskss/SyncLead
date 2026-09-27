@@ -2,21 +2,16 @@
 
 import { db } from "@/lib/db"
 import { metaEvents, importBatches, cronRuns, leads, campaigns } from "@/lib/db/schema"
-import { and, eq, inArray, lt, notLike } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, isNull, lt, notLike, or } from "drizzle-orm"
 import { requireRole, requireClientAccess } from "@/lib/auth/server"
 import { writeAuditLog } from "@/lib/audit"
 import { getClientMetaEvents, getOrgMetaEvents, type ClientMetaEventRow } from "./repository"
+import { sendMetaEventDirect } from "@/lib/meta-outbox/worker"
 
 const ADMIN_ROLES = ["owner", "admin"] as const
 
-// ─── CAPI retry ───────────────────────────────────────────────────────────────
+// ─── CAPI retry (org-wide) ────────────────────────────────────────────────────
 
-/**
- * Resets up to 50 'failed' CAPI events for this org back to 'pending' so the
- * outbox worker will retry them on the next cron run.
- * Only resets events where the last error is not a permanent auth failure —
- * those require fixing the Meta token first.
- */
 export async function retryFailedCapiEventsAction() {
   let ctx
   try {
@@ -70,7 +65,6 @@ export async function retryFailedCapiForClientAction(
     return { error: "No autorizado" }
   }
 
-  // Get all leadIds in campaigns belonging to this client
   const campaignRows = await db
     .select({ id: campaigns.id })
     .from(campaigns)
@@ -89,7 +83,6 @@ export async function retryFailedCapiForClientAction(
 
   const now = new Date()
 
-  // Reset failed events — exclude permanent auth failures (code 190, 102)
   const updated = await db
     .update(metaEvents)
     .set({
@@ -124,6 +117,67 @@ export async function retryFailedCapiForClientAction(
   return { success: true, count }
 }
 
+// ─── Send single CAPI event directly ─────────────────────────────────────────
+
+export async function sendSingleCapiEventAction(
+  eventId: string
+): Promise<{ success: true; status: string } | { error: string }> {
+  let ctx
+  try {
+    ctx = await requireRole([...ADMIN_ROLES])
+  } catch {
+    return { error: "No autorizado" }
+  }
+
+  const result = await sendMetaEventDirect(eventId, ctx.orgId).catch(() => ({ sent: false, status: "error" }))
+  return { success: true, status: result.status }
+}
+
+// ─── Cancel orphan CAPI events (lead deleted) ─────────────────────────────────
+
+export async function cancelOrphanCapiEventsAction(): Promise<
+  { success: true; count: number } | { error: string }
+> {
+  let ctx
+  try {
+    ctx = await requireRole([...ADMIN_ROLES])
+  } catch {
+    return { error: "No autorizado" }
+  }
+
+  // Orphans: leadId is set but the lead row no longer exists
+  const orphanEvents = await db
+    .select({ id: metaEvents.id })
+    .from(metaEvents)
+    .leftJoin(leads, eq(metaEvents.leadId, leads.id))
+    .where(
+      and(
+        eq(metaEvents.orgId, ctx.orgId),
+        isNotNull(metaEvents.leadId),
+        isNull(leads.id),
+        or(eq(metaEvents.status, "pending"), eq(metaEvents.status, "retrying"))
+      )
+    )
+
+  if (orphanEvents.length === 0) return { success: true, count: 0 }
+
+  await db
+    .update(metaEvents)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(inArray(metaEvents.id, orphanEvents.map((e) => e.id)))
+
+  writeAuditLog({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    actorType: "user",
+    action: "capi.cancel_orphans",
+    resourceType: "meta_events",
+    metadata: { count: orphanEvents.length },
+  }).catch(() => undefined)
+
+  return { success: true, count: orphanEvents.length }
+}
+
 // ─── CAPI event log action (org-wide, optionally filtered by client) ──────────
 
 export async function getOrgMetaEventsAction(
@@ -141,7 +195,7 @@ export async function getOrgMetaEventsAction(
   return { data }
 }
 
-// ─── CAPI event log action ────────────────────────────────────────────────────
+// ─── CAPI event log action (per client) ──────────────────────────────────────
 
 export async function getClientMetaEventsAction(
   clientId: string,
@@ -160,11 +214,6 @@ export async function getClientMetaEventsAction(
 
 // ─── Import retry ─────────────────────────────────────────────────────────────
 
-/**
- * Resets a 'failed' import batch back to 'pending' so it can be re-confirmed
- * via the import wizard. Only the batch status is changed — rows keep their
- * individual statuses so the processor can skip already-imported rows.
- */
 export async function retryFailedImportAction(batchId: string) {
   let ctx
   try {
@@ -202,10 +251,6 @@ export async function retryFailedImportAction(batchId: string) {
 
 // ─── Cron run cleanup ─────────────────────────────────────────────────────────
 
-/**
- * Marks stuck 'running' cron runs as 'timeout' so they don't pollute the
- * health dashboard. A run stuck for more than 10 minutes is assumed failed.
- */
 export async function resolveStuckCronRunsAction() {
   let ctx
   try {
