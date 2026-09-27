@@ -151,6 +151,8 @@ describe("PerformanceRow metrics", () => {
       totalSales,
       convRate: totalLeads > 0 ? (totalSales / totalLeads) * 100 : null,
       totalRevenue,
+      spend: null,
+      currency: null,
     }
   }
 
@@ -269,6 +271,8 @@ describe("Fixture: exact numbers match", () => {
       totalSales: 9,
       convRate: (9 / 45) * 100,
       totalRevenue: 2700,
+      spend: null,
+      currency: null,
     }
     expect(row.convRate).toBeCloseTo(20, 5)
     expect(row.totalRevenue).toBe(2700)

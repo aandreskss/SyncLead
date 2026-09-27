@@ -19,4 +19,7 @@ export interface PerformanceRow {
   totalSales: number
   convRate: Metric  // null when totalLeads = 0
   totalRevenue: number
+  // Gasto de Meta Ads Insights — null cuando no hay datos configurados para este adset/campaña
+  spend: number | null
+  currency: string | null
 }
