@@ -309,7 +309,7 @@ export function HealthCapiLogPanel({ clientId }: Props) {
                       {evt.leadName
                         ? evt.leadName
                         : orphan
-                        ? "Lead eliminado"
+                        ? <span>Lead eliminado <span className="font-mono text-xs opacity-70">({evt.leadId!.slice(0, 8)}…)</span></span>
                         : "Sin lead"}
                     </span>
                     {evt.attemptCount > 0 && (

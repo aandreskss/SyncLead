@@ -35,6 +35,7 @@ import { ScriptInstallPanel } from "./_components/ScriptInstallPanel"
 import { TrackingDashboard } from "./tracking/_components/TrackingDashboard"
 import { CapiLogPanel } from "./_components/CapiLogPanel"
 import { AudienceSyncPanel } from "./_components/AudienceSyncPanel"
+import { AllowlistManagerPanel } from "./_components/AllowlistManagerPanel"
 import { ArrowLeft, Building2 } from "lucide-react"
 import { PageShell, StatusChip } from "@/components/app/ops"
 import Link from "next/link"
@@ -42,6 +43,7 @@ import type { LeadStage, Temperature } from "@/lib/db/schema"
 import { InsightsTab } from "./_components/InsightsTab"
 import { getInsightsSummaryAction, getInsightsTableAction, getLastSyncRunAction } from "@/domains/meta-insights/actions"
 import type { InsightsLevel } from "@/domains/meta-insights/types"
+import { getAllowlistAction } from "@/domains/meta-insights/actions"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -211,7 +213,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
       />
     )
   } else if (tab === "configuracion") {
-    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats, trackingSitesData, campaignsData] =
+    const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats, trackingSitesData, campaignsData, allowlistEntries] =
       await Promise.all([
         getMetaConnectionsByClientId(id, ctx.orgId).catch((e) => { console.error("[ClientPage/config] getMetaConnections:", e); throw e }),
         listSalesReps(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] listSalesReps:", e); throw e }),
@@ -227,6 +229,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         getClientCapiStats(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] getClientCapiStats:", e); throw e }),
         getTrackingSitesByClient(ctx.orgId, id).catch((e) => { console.error("[ClientPage/config] getTrackingSites:", e); throw e }),
         getCampaignsByClientWithCounts(id, ctx.orgId).catch((e) => { console.error("[ClientPage/config] getCampaigns:", e); throw e }),
+        getAllowlistAction().catch(() => []),
       ])
 
     const publicConnections = metaConnectionsList.map((c) => ({
@@ -265,6 +268,8 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         <MetaConnectionPanel clientId={client.id} connections={publicConnections} />
         <div className="border-t border-ops-line" />
         <CapiStatusCard clientId={client.id} stats={capiStats} />
+        <div className="border-t border-ops-line" />
+        <AllowlistManagerPanel initialEntries={allowlistEntries} />
         <div className="border-t border-ops-line" />
         <MetaInsightsPanel clientId={client.id} initialConnections={publicInsightsConnections} />
         <div className="border-t border-ops-line" />
