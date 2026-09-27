@@ -5,7 +5,7 @@ import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import { getOrganizationById } from "@/domains/organizations/repository"
 import { getClientsByOrgId } from "@/domains/clients/repository"
 import { parseDateRange, formatRangeLabel } from "@/lib/date-range"
-import { getPerformanceTable, getMetaSpendForPeriod } from "@/domains/analytics/repository"
+import { getPerformanceTable, getMetaSpendForPeriod, getMetaAdsetSpendForPeriod } from "@/domains/analytics/repository"
 import { getVisitorSessionsByClient } from "@/domains/tracking/repository"
 import { DateRangeSelector } from "../_components/DateRangeSelector"
 import { PageShell, PageHeader } from "@/components/app/ops"
@@ -61,14 +61,26 @@ export default async function PerformancePage({
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
   // Only fetch performance data when on that tab
-  const [rows, prevRows, metaSpend] =
+  const [rawRows, prevRows, metaSpend, adsetSpend] =
     tab === "rendimiento"
       ? await Promise.all([
           getPerformanceTable(ctx.orgId, range.from, range.to, clientId),
           getPerformanceTable(ctx.orgId, range.prevFrom, range.prevTo, clientId),
           clientId ? getMetaSpendForPeriod(ctx.orgId, clientId, range.from, range.to) : Promise.resolve(null),
+          clientId ? getMetaAdsetSpendForPeriod(ctx.orgId, clientId, range.from, range.to) : Promise.resolve([]),
         ])
-      : [[], [], null]
+      : [[], [], null, []]
+
+  // Merge adset spend into performance rows (matched by adset name, case-insensitive)
+  const adsetSpendMap = new Map(
+    adsetSpend.map((s) => [s.adsetName.trim().toLowerCase(), s])
+  )
+  const rows = rawRows.map((r) => {
+    const match = adsetSpendMap.get(r.metaAdsetName.trim().toLowerCase())
+    return match
+      ? { ...r, spend: match.spend, currency: match.currency }
+      : r
+  })
 
   // Only fetch visitor data when on that tab and a client is selected
   const allSessions =

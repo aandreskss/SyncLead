@@ -11,7 +11,7 @@ interface Props {
   prevRows: PerformanceRow[]
 }
 
-type SortKey = keyof PerformanceRow
+type SortKey = keyof PerformanceRow | "cpl" | "cpa" | "roas"
 type SortDir = "asc" | "desc"
 type Level = "campaign" | "adset" | "ad"
 
@@ -38,11 +38,20 @@ function aggregate(rows: PerformanceRow[], level: Level): PerformanceRow[] {
         ...r,
         metaAdsetName: level === "campaign" ? "" : r.metaAdsetName,
         utmContent: "",
+        // spend: sum; si alguna fila tiene null, conservar el valor conocido
+        spend: r.spend,
+        currency: r.currency,
       })
     } else {
       cur.totalLeads += r.totalLeads
       cur.totalSales += r.totalSales
       cur.totalRevenue += r.totalRevenue
+      // Sumar spend: null + number = number (ignorar nulos)
+      if (r.spend !== null) {
+        cur.spend = (cur.spend ?? 0) + r.spend
+      }
+      // Moneda: si difieren, marcar como mixta (null)
+      if (r.currency !== cur.currency) cur.currency = null
     }
   }
   const out = [...map.values()]
@@ -80,8 +89,6 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
     : <ArrowUp className="h-3 w-3 inline ml-1 text-ops-blue-t" />
 }
 
-// Prefix cells that start with formula-injection characters so spreadsheet apps
-// treat them as plain text, not as formulas.
 function sanitizeCsv(value: string): string {
   return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
 }
@@ -90,9 +97,38 @@ function fmtMetric(m: Metric, suffix = ""): string {
   return m === null ? "N/D" : `${m.toFixed(2)}${suffix}`
 }
 
+function calcCPL(spend: number | null, leads: number): number | null {
+  if (spend === null || spend <= 0 || leads <= 0) return null
+  return spend / leads
+}
+
+function calcCPA(spend: number | null, sales: number): number | null {
+  if (spend === null || spend <= 0 || sales <= 0) return null
+  return spend / sales
+}
+
+function calcROAS(revenue: number, spend: number | null): number | null {
+  if (spend === null || spend <= 0) return null
+  return revenue / spend
+}
+
+function fmtMoney(n: number | null, currency?: string | null): string {
+  if (n === null) return "N/D"
+  const formatted = n.toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return currency ? `${formatted} ${currency}` : `$${formatted}`
+}
+
+function fmtROAS(n: number | null): string {
+  if (n === null) return "N/D"
+  return `${n.toFixed(2)}x`
+}
+
 async function exportCSV(rows: PerformanceRow[], prevMap: Record<string, PerformanceRow>) {
-  const header = "Campaña,ID Campaña,Conjunto de anuncios,Anuncio,Leads,Ventas,Conversión %,Ingresos"
+  const header = "Campaña,ID Campaña,Conjunto de anuncios,Anuncio,Leads,Ventas,Conversión %,Ingresos,Gasto Meta,CPL,CPA,ROAS"
   const lines = rows.map((r) => {
+    const cpl = calcCPL(r.spend, r.totalLeads)
+    const cpa = calcCPA(r.spend, r.totalSales)
+    const roas = calcROAS(r.totalRevenue, r.spend)
     return [
       `"${sanitizeCsv(r.campaignName)}"`,
       `"${r.campaignId}"`,
@@ -102,6 +138,10 @@ async function exportCSV(rows: PerformanceRow[], prevMap: Record<string, Perform
       r.totalSales,
       `"${fmtMetric(r.convRate, "%")}"`,
       r.totalRevenue.toFixed(2),
+      r.spend !== null ? r.spend.toFixed(2) : "",
+      cpl !== null ? cpl.toFixed(2) : "",
+      cpa !== null ? cpa.toFixed(2) : "",
+      roas !== null ? roas.toFixed(2) : "",
     ].join(",")
   })
   const csv = [header, ...lines].join("\n")
@@ -115,7 +155,7 @@ async function exportCSV(rows: PerformanceRow[], prevMap: Record<string, Perform
   void logCsvExportAction(`rendimiento`, rows.length)
 }
 
-const COLS: { key: SortKey; label: string; align?: string }[] = [
+const BASE_COLS: { key: keyof PerformanceRow; label: string; align?: string }[] = [
   { key: "campaignName", label: "Campaña" },
   { key: "metaAdsetName", label: "Conjunto" },
   { key: "utmContent", label: "Anuncio" },
@@ -125,6 +165,19 @@ const COLS: { key: SortKey; label: string; align?: string }[] = [
   { key: "totalRevenue", label: "Ingresos", align: "right" },
 ]
 
+const META_COLS: { key: SortKey; label: string }[] = [
+  { key: "cpl", label: "CPL" },
+  { key: "cpa", label: "CPA" },
+  { key: "roas", label: "ROAS" },
+]
+
+function getRowValue(row: PerformanceRow, key: SortKey): number | string | null {
+  if (key === "cpl") return calcCPL(row.spend, row.totalLeads)
+  if (key === "cpa") return calcCPA(row.spend, row.totalSales)
+  if (key === "roas") return calcROAS(row.totalRevenue, row.spend)
+  return row[key as keyof PerformanceRow] as number | string | null
+}
+
 export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
   const [level, setLevel] = useState<Level>("ad")
   const [sortKey, setSortKey] = useState<SortKey>("totalLeads")
@@ -132,6 +185,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
 
   const rows = aggregate(rawRows, level)
   const prevMap = buildPrevMap(rawPrev, level)
+  const hasMetaData = rows.some((r) => r.spend !== null)
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -143,8 +197,8 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
   }
 
   const sorted = [...rows].sort((a, b) => {
-    const av = a[sortKey]
-    const bv = b[sortKey]
+    const av = getRowValue(a, sortKey)
+    const bv = getRowValue(b, sortKey)
     if (av === null && bv === null) return 0
     if (av === null) return 1
     if (bv === null) return -1
@@ -155,7 +209,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
     return sortDir === "desc" ? -cmp : cmp
   })
 
-  const cols = COLS.filter(
+  const cols = BASE_COLS.filter(
     (c) => !((level === "campaign" && (c.key === "metaAdsetName" || c.key === "utmContent")) || (level === "adset" && c.key === "utmContent"))
   )
 
@@ -168,13 +222,6 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
       </Panel>
     )
   }
-
-  const nd = (
-    <td className={`${opsTable.tdRight} ${opsTable.mono}`}>
-      <span className="text-ops-tx3">N/D</span>
-      <span className="block text-[12px] font-sans text-ops-tx3">Requiere Meta Ads Insights</span>
-    </td>
-  )
 
   return (
     <Panel
@@ -217,7 +264,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
       }
     >
       <div className={opsTable.wrap}>
-        <table className={`${opsTable.table} min-w-[960px]`}>
+        <table className={`${opsTable.table} min-w-[1100px]`}>
           <thead>
             <tr>
               {cols.map((col) => (
@@ -236,14 +283,27 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
                   </button>
                 </th>
               ))}
-              <th className={opsTable.thRight}>CPL</th>
-              <th className={opsTable.thRight}>CPA</th>
-              <th className={opsTable.thRight}>ROAS</th>
+              {META_COLS.map((col) => (
+                <th key={col.key} className={opsTable.thRight}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSort(col.key)}
+                    className="whitespace-nowrap hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
+                  >
+                    {col.label}
+                    <SortIcon col={col.key} sortKey={sortKey} sortDir={sortDir} />
+                  </button>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {sorted.map((row) => {
               const prev = prevMap[levelKey(row, level)]
+              const cpl = calcCPL(row.spend, row.totalLeads)
+              const cpa = calcCPA(row.spend, row.totalSales)
+              const roas = calcROAS(row.totalRevenue, row.spend)
+              const hasSpend = row.spend !== null
               return (
                 <tr key={levelKey(row, level)} className={opsTable.row}>
                   {cols.some((c) => c.key === "campaignName") && (
@@ -287,9 +347,48 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
                     ${row.totalRevenue.toFixed(2)}
                     <DeltaCell curr={row.totalRevenue} prev={prev?.totalRevenue ?? 0} />
                   </td>
-                  {nd}
-                  {nd}
-                  {nd}
+                  {/* CPL */}
+                  <td className={`${opsTable.tdRight} ${opsTable.mono}`}>
+                    {hasSpend ? (
+                      <span className={cpl === null ? "text-ops-tx3" : ""}>
+                        {fmtMoney(cpl, row.currency)}
+                      </span>
+                    ) : (
+                      <span className="text-ops-tx3">
+                        N/D
+                        {!hasMetaData && <span className="block text-[11px] font-sans">Sin Meta Insights</span>}
+                      </span>
+                    )}
+                  </td>
+                  {/* CPA */}
+                  <td className={`${opsTable.tdRight} ${opsTable.mono}`}>
+                    {hasSpend ? (
+                      <span className={cpa === null ? "text-ops-tx3" : ""}>
+                        {fmtMoney(cpa, row.currency)}
+                      </span>
+                    ) : (
+                      <span className="text-ops-tx3">
+                        N/D
+                        {!hasMetaData && <span className="block text-[11px] font-sans">Sin Meta Insights</span>}
+                      </span>
+                    )}
+                  </td>
+                  {/* ROAS */}
+                  <td className={`${opsTable.tdRight} ${opsTable.mono}`}>
+                    {hasSpend ? (
+                      <span className={
+                        roas === null ? "text-ops-tx3" :
+                        roas >= 1 ? "text-ops-green" : "text-ops-coral"
+                      }>
+                        {fmtROAS(roas)}
+                      </span>
+                    ) : (
+                      <span className="text-ops-tx3">
+                        N/D
+                        {!hasMetaData && <span className="block text-[11px] font-sans">Sin Meta Insights</span>}
+                      </span>
+                    )}
+                  </td>
                 </tr>
               )
             })}

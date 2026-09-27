@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { leads, campaigns, conversions, adInsightsDaily } from "@/lib/db/schema"
+import { leads, campaigns, conversions, adInsightsDaily, metaCatalogAdsets } from "@/lib/db/schema"
 import { and, eq, gte, lte, count, desc, sql, inArray, sum, max } from "drizzle-orm"
 import type { DashboardKPIs, Metric, PerformanceRow } from "./types"
 
@@ -130,6 +130,8 @@ export async function getPerformanceTable(
       totalSales: ts,
       convRate: tl > 0 ? (ts / tl) * 100 : null,
       totalRevenue: parseFloat(r.totalRevenue ?? "0"),
+      spend: null,
+      currency: null,
     }
   })
 }
@@ -471,6 +473,59 @@ export async function getMetaSpendForPeriod(
   const totalSpend = parseFloat(agg.totalSpend ?? "0")
   if (totalSpend === 0 && !agg.currency) return null
   return { totalSpend, currency: agg.currency ?? null }
+}
+
+// ─── Meta Insights spend por nombre de adset ──────────────────────────────────
+// Permite calcular CPL/CPA/ROAS por fila en la tabla de rendimiento.
+// La clave de join es el nombre del adset (leads.metaAdsetName ↔ meta_catalog_adsets.name).
+
+export interface AdsetSpendRow {
+  adsetName: string
+  spend: number
+  currency: string | null
+}
+
+export async function getMetaAdsetSpendForPeriod(
+  orgId: string,
+  clientId: string,
+  from: Date,
+  to: Date,
+): Promise<AdsetSpendRow[]> {
+  const fromStr = from.toISOString().slice(0, 10)
+  const toStr = to.toISOString().slice(0, 10)
+
+  const rows = await db
+    .select({
+      adsetName: metaCatalogAdsets.name,
+      spend: sql<string>`sum(${adInsightsDaily.spend}::numeric)`,
+      currency: max(adInsightsDaily.currency),
+    })
+    .from(adInsightsDaily)
+    .innerJoin(
+      metaCatalogAdsets,
+      and(
+        eq(adInsightsDaily.objectId, metaCatalogAdsets.metaAdsetId),
+        eq(metaCatalogAdsets.orgId, orgId),
+      ),
+    )
+    .where(
+      and(
+        eq(adInsightsDaily.orgId, orgId),
+        eq(adInsightsDaily.clientId, clientId),
+        eq(adInsightsDaily.level, "adset"),
+        gte(adInsightsDaily.date, fromStr),
+        lte(adInsightsDaily.date, toStr),
+      ),
+    )
+    .groupBy(metaCatalogAdsets.name)
+
+  return rows
+    .filter((r) => r.adsetName)
+    .map((r) => ({
+      adsetName: r.adsetName!,
+      spend: parseFloat(r.spend ?? "0"),
+      currency: r.currency ?? null,
+    }))
 }
 
 // ─── Leads por temperatura × día ──────────────────────────────────────────────
