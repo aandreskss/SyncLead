@@ -53,15 +53,20 @@ export async function saveInsightsConnectionAction(
   })
   const verify = await apiClient.verifyAdsAccess()
   if (!verify.ok) {
-    const messages: Record<string, string> = {
-      invalid_token: "Token inválido o revocado",
-      no_account_access: "El token no tiene acceso a esta cuenta publicitaria",
-      network_error: "Error de red al verificar con Meta",
+    if (verify.error === "invalid_token") {
+      return { success: false, error: "Token inválido o revocado. Genera un nuevo token en Meta Business Manager." }
     }
-    return { success: false, error: messages[verify.error ?? ""] ?? "Error de verificación" }
+    if (verify.error === "network_error") {
+      return { success: false, error: "Error de red al verificar con Meta. Intenta de nuevo." }
+    }
+    // no_account_access
+    if (!verify.hasAdsRead) {
+      return { success: false, error: "El token no tiene el permiso ads_read. En Meta Business Manager → System Users → edita el System User y asígnale el permiso Ads Management (ads_read)." }
+    }
+    return { success: false, error: "El System User no tiene acceso a esta cuenta publicitaria. En Meta Business Manager → Configuración de la cuenta de anuncios → Usuarios, asigna el System User con rol Advertiser o Analyst." }
   }
   if (!verify.hasAdsRead) {
-    return { success: false, error: "El token no tiene el permiso ads_read. Verifica los permisos del System User." }
+    return { success: false, error: "El token no tiene el permiso ads_read. En Meta Business Manager → System Users → edita el System User y asígnale el permiso Ads Management (ads_read)." }
   }
 
   // Encrypt token
