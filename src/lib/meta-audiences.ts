@@ -4,7 +4,7 @@ import { createHash } from "crypto"
 const META_GRAPH_BASE = "https://graph.facebook.com"
 
 function getApiVersion(): string {
-  return process.env.META_GRAPH_API_VERSION ?? "v19.0"
+  return process.env.META_GRAPH_API_VERSION ?? "v22.0"
 }
 
 function sha256hex(value: string): string {
