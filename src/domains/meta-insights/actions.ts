@@ -18,6 +18,21 @@ function isExternalOAuthEnabled(): boolean {
   return process.env.ENABLE_EXTERNAL_META_OAUTH === "true"
 }
 
+// ─── Sync error humanizer ─────────────────────────────────────────────────────
+function humanizeSyncError(raw: string): string {
+  if (raw === "sync_already_running") return "Ya hay una sincronización en curso. Espera unos minutos."
+  if (raw.startsWith("meta_api_error:")) {
+    const code = parseInt(raw.split(":")[1] ?? "0", 10)
+    if (code === 190 || code === 102) return "El token de acceso expiró o fue revocado. Reconecta la cuenta con un token nuevo."
+    if (code === 200 || code === 273) return "El token no tiene permiso para acceder a los datos de esta cuenta publicitaria."
+    if (code === 2635) return "La app de Meta usada para generar el token no tiene acceso a la Marketing API. Asegúrate de que la app tenga el permiso ads_read aprobado y no esté en modo Development (o que tu usuario sea admin/tester de la app)."
+    if (code === 4 || code === 17 || code === 32 || code === 613) return "Límite de llamadas a la API de Meta alcanzado. Intenta de nuevo en unos minutos."
+    if (code === 100) return "Parámetro inválido en la solicitud a Meta. Verifica el ID de la cuenta publicitaria."
+    return `Error de Meta API (código ${code}). Intenta de nuevo o revisa los permisos.`
+  }
+  return raw
+}
+
 // ─── Connection management ────────────────────────────────────────────────────
 
 export async function saveInsightsConnectionAction(
@@ -226,7 +241,9 @@ export async function triggerSyncAction(
     dateTo,
   })
 
-  if (result.error) return { success: false, error: result.error, runId: result.runId }
+  if (result.error) {
+    return { success: false, error: humanizeSyncError(result.error), runId: result.runId }
+  }
   return { success: true, runId: result.runId, recordsSynced: result.recordsSynced }
 }
 
