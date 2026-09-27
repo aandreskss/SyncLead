@@ -3,7 +3,7 @@ import "server-only"
 const META_GRAPH_BASE = "https://graph.facebook.com"
 
 function getApiVersion(): string {
-  return process.env.META_GRAPH_API_VERSION ?? "v19.0"
+  return process.env.META_GRAPH_API_VERSION ?? "v22.0"
 }
 
 export type EventSignalQuality = {

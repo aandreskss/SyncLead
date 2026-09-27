@@ -30,7 +30,7 @@ export async function fetchMetaLead(
   accessToken: string,
   graphApiVersion?: string
 ): Promise<MetaLeadData | null> {
-  const apiVersion = graphApiVersion ?? process.env.META_GRAPH_API_VERSION ?? "v19.0"
+  const apiVersion = graphApiVersion ?? process.env.META_GRAPH_API_VERSION ?? "v22.0"
   const fields = "field_data,created_time,ad_id,adset_id,campaign_id,ad_name,adset_name,campaign_name,form_id"
 
   try {

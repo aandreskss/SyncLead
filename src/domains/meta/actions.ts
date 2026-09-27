@@ -91,7 +91,7 @@ export async function saveMetaConnectionAction(
     return { success: false, error: "Token inválido" }
   }
 
-  const graphApiVersion = process.env.META_GRAPH_API_VERSION ?? "v19.0"
+  const graphApiVersion = process.env.META_GRAPH_API_VERSION ?? "v22.0"
 
   const verifyResult = await verifyMetaConnection(accessToken, pixelId.trim(), graphApiVersion)
   if (!verifyResult.ok) {

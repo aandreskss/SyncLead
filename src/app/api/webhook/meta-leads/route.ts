@@ -88,7 +88,7 @@ async function processLeadgen(value: LeadgenValue) {
   let token: string
   try { token = decryptTokenVersioned(source.pageAccessTokenEnc) } catch { return }
 
-  const apiVersion = process.env.META_GRAPH_API_VERSION ?? "v19.0"
+  const apiVersion = process.env.META_GRAPH_API_VERSION ?? "v22.0"
   const res = await fetch(
     `${META_GRAPH_BASE}/${apiVersion}/${leadgen_id}?fields=field_data,created_time&access_token=${token}`,
     { signal: AbortSignal.timeout(10_000) }

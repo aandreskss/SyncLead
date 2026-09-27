@@ -1,7 +1,7 @@
 import "server-only"
 
 const META_GRAPH_BASE = "https://graph.facebook.com"
-const DEFAULT_API_VERSION = "v19.0"
+const DEFAULT_API_VERSION = "v22.0"
 const MAX_RETRIES = 3
 
 export interface AdInsightRow {

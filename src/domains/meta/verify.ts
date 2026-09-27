@@ -15,7 +15,7 @@ export async function verifyMetaConnection(
   pixelId: string,
   graphApiVersion?: string
 ): Promise<VerifyResult> {
-  const apiVersion = graphApiVersion ?? process.env.META_GRAPH_API_VERSION ?? "v19.0"
+  const apiVersion = graphApiVersion ?? process.env.META_GRAPH_API_VERSION ?? "v22.0"
 
   try {
     // 1. Validate that the token is active using GET /me
@@ -73,7 +73,7 @@ export async function sendTestLeadEvent(
   pixelId: string,
   graphApiVersion?: string
 ): Promise<{ sent: boolean; status: string }> {
-  const apiVersion = graphApiVersion ?? process.env.META_GRAPH_API_VERSION ?? "v19.0"
+  const apiVersion = graphApiVersion ?? process.env.META_GRAPH_API_VERSION ?? "v22.0"
   const testEventCode = process.env.META_TEST_EVENT_CODE
 
   // Meta CAPI requires at least one user_data field — use a synthetic SHA-256 hash

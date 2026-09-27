@@ -19,7 +19,7 @@ async function sendToMeta(
   graphApiVersion: string,
   payload: Record<string, unknown>
 ): Promise<SendResult> {
-  const apiVersion = graphApiVersion || process.env.META_GRAPH_API_VERSION || "v19.0"
+  const apiVersion = graphApiVersion || process.env.META_GRAPH_API_VERSION || "v22.0"
   const testEventCode = process.env.META_TEST_EVENT_CODE
 
   const body: Record<string, unknown> = { data: [payload] }
