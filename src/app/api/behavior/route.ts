@@ -6,8 +6,8 @@ import { and, eq, inArray, or } from "drizzle-orm"
 import { lookupCredential } from "@/lib/ingest/lookup"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 import { getActiveMetaConnectionByClientId } from "@/domains/meta/repository"
-import { decryptTokenVersioned } from "@/lib/crypto"
-import { sendBehaviorCapiEvent } from "@/lib/meta-capi"
+import { buildBehaviorPayload } from "@/lib/meta-capi"
+import { metaEvents } from "@/lib/db/schema"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -143,19 +143,17 @@ export async function POST(req: NextRequest) {
     autoQualifyLeadInternal(lead.id, orgId, lead.campaignId).catch(() => undefined)
   }
 
-  // Fire CAPI behavior event if the client has a Meta connection with sendBehaviorCapi enabled
+  // Queue behavior event to the Meta CAPI outbox (AddToCart, InitiateCheckout, ViewContent)
+  // The outbox worker processes it with retry logic — no direct CAPI call here.
   const capiEventTypes = ["view_product", "add_to_cart", "begin_checkout"] as const
   type CapiEventType = typeof capiEventTypes[number]
   if (lead?.id && (capiEventTypes as readonly string[]).includes(data.eventType)) {
     ;(async () => {
       try {
         const conn = await getActiveMetaConnectionByClientId(clientId, orgId)
-        if (!conn?.sendBehaviorCapi || !conn.pixelId || !conn.accessTokenEnc) return
-        const token = decryptTokenVersioned(conn.accessTokenEnc)
-        await sendBehaviorCapiEvent({
-          pixelId: conn.pixelId,
-          accessToken: token,
-          graphApiVersion: conn.graphApiVersion,
+        if (!conn?.sendBehaviorCapi || !conn.pixelId) return
+
+        const payload = buildBehaviorPayload({
           behaviorEventType: data.eventType as CapiEventType,
           leadId: lead.id,
           email: lead.email,
@@ -166,6 +164,24 @@ export async function POST(req: NextRequest) {
           currency: data.currency ?? null,
           contentIds: data.productId ? [data.productId] : undefined,
         })
+        if (!payload) return
+
+        await db
+          .insert(metaEvents)
+          .values({
+            orgId,
+            leadId: lead.id,
+            conversionId: null,
+            pixelId: conn.pixelId,
+            eventName: payload.event_name,
+            eventId: payload.event_id,
+            payloadVersion: 1,
+            payload: payload as unknown as Record<string, unknown>,
+            status: "pending",
+            attemptCount: 0,
+            nextAttemptAt: new Date(),
+          })
+          .onConflictDoNothing()
       } catch {
         // fire-and-forget — never fail the response
       }

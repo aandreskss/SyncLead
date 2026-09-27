@@ -24,6 +24,13 @@ const ICON = {
 
 const STATUS_TEXT = { ok: "Correcto", warn: "Requiere atención", bad: "Incidencia", unknown: "Datos insuficientes" }
 
+const STATUS_CLS = {
+  ok: "text-ops-green",
+  warn: "text-ops-amber",
+  bad: "text-ops-coral",
+  unknown: "text-ops-tx3",
+}
+
 function Temperature({ temp }: { temp: Props["temp"] }) {
   const total = temp.hot + temp.warm + temp.cold
   const rows = [
@@ -93,13 +100,15 @@ function Attribution({ checks, totalLeads, diagnosticHref }: Omit<Props, "temp">
       </div>
       <ul className="mt-3.5">
         {checks.map((c, i) => (
-          <li key={c.label} className={`flex h-12 items-center gap-3 text-sm ${i < checks.length - 1 ? "border-b border-ops-line" : ""}`}>
+          <li key={c.label} className={`flex min-h-12 items-center gap-3 py-2 text-sm ${i < checks.length - 1 ? "border-b border-ops-line" : ""}`}>
             {ICON[c.status]}
             <span className="flex-1 text-ops-tx2">{c.label}</span>
-            <span className="text-right font-medium">
-              {c.value}
-              <span className="sr-only"> — {STATUS_TEXT[c.status]}</span>
-            </span>
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="font-medium text-ops-tx">{c.value}</span>
+              <span className={`text-[11px] font-medium ${STATUS_CLS[c.status]}`}>
+                {STATUS_TEXT[c.status]}
+              </span>
+            </div>
           </li>
         ))}
       </ul>
