@@ -15,6 +15,7 @@ import {
   deleteLeadsAction,
   deleteLeadsByCampaignAction,
   deleteLeadsByClientAction,
+  sendLeadPendingCapiAction,
 } from "@/domains/leads/actions"
 
 interface Props {
@@ -138,9 +139,13 @@ function SourceBadge({ source }: { source: string }) {
 function ActivityBadges({
   activity,
   hasPendingCapi,
+  onSendNow,
+  isSending,
 }: {
   activity: LeadWithActivity["activity"]
   hasPendingCapi?: boolean
+  onSendNow?: () => void
+  isSending?: boolean
 }) {
   const badges = [
     { active: activity.hasCheckout, Icon: ShoppingCart, label: "Checkout", color: "text-ops-blue-t", bg: "bg-ops-blue/15" },
@@ -153,7 +158,7 @@ function ActivityBadges({
   if (badges.length === 0 && !hasPendingCapi) return <span className="text-ops-tx3 text-xs">—</span>
 
   return (
-    <div className="flex gap-1 flex-wrap">
+    <div className="flex gap-1 flex-wrap items-center">
       {badges.map(({ Icon, label, color, bg }) => (
         <span
           key={label}
@@ -164,9 +169,18 @@ function ActivityBadges({
         </span>
       ))}
       {hasPendingCapi && (
-        <span title="CAPI pendiente" className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium bg-ops-amber/15 text-ops-amber">
+        <button
+          title="Eventos CAPI pendientes — click para enviar ahora"
+          disabled={isSending}
+          onClick={(e) => {
+            e.stopPropagation()
+            onSendNow?.()
+          }}
+          className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium bg-ops-amber/15 text-ops-amber hover:bg-ops-amber/30 transition-colors disabled:opacity-50"
+        >
           <Zap className="h-3 w-3" />
-        </span>
+          {isSending ? "..." : "Enviar"}
+        </button>
       )}
     </div>
   )
@@ -193,6 +207,9 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<"selected" | "campaign" | "client" | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // CAPI send state
+  const [sendingCapiLeadId, setSendingCapiLeadId] = useState<string | null>(null)
 
   // Clear selection when leads list changes (e.g. after filter or delete)
   useEffect(() => {
@@ -291,6 +308,13 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
         setDeleteError("Error inesperado.")
       }
     })
+  }
+
+  async function handleSendLeadCapi(leadId: string) {
+    setSendingCapiLeadId(leadId)
+    await sendLeadPendingCapiAction(leadId).catch(() => undefined)
+    setSendingCapiLeadId(null)
+    router.refresh()
   }
 
   const hasFilters = !!(currentSearch || currentTemp || currentStage || currentAssignment || currentRepId || currentActivity || currentSource)
@@ -659,8 +683,13 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
                       ? <span className="text-ops-tx">{lead.assignedTo}</span>
                       : <span className="text-ops-tx3">—</span>}
                   </td>
-                  <td className={opsTable.td}>
-                    <ActivityBadges activity={lead.activity} hasPendingCapi={lead.hasPendingCapi} />
+                  <td className={opsTable.td} onClick={(e) => lead.hasPendingCapi && e.stopPropagation()}>
+                    <ActivityBadges
+                      activity={lead.activity}
+                      hasPendingCapi={lead.hasPendingCapi}
+                      onSendNow={() => handleSendLeadCapi(lead.id)}
+                      isSending={sendingCapiLeadId === lead.id}
+                    />
                   </td>
                   <td className={cn(opsTable.td, "text-ops-tx3 text-xs whitespace-nowrap")}>
                     {formatDate(lead.createdAt)}

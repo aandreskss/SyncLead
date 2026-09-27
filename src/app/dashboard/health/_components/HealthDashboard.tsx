@@ -11,6 +11,7 @@ import {
 } from "@/domains/health/actions"
 import { Button } from "@/components/ui/button"
 import { PageHeader, Panel, StatusChip, opsTable, opsField } from "@/components/app/ops"
+import { HealthCapiLogPanel } from "./HealthCapiLogPanel"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -403,6 +404,7 @@ export default function HealthDashboard({
         pending={isPending}
       />
       <ImportsCard imports={snapshot.activeImports} onRetryImport={handleImportRetry} pending={isPending} />
+      <HealthCapiLogPanel clientId={selectedClientId} />
     </div>
   )
 }
