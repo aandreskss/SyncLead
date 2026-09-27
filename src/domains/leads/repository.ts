@@ -108,7 +108,11 @@ export async function getLeadsByCampaign(
       filters.platform ? eq(leads.platform, filters.platform) : undefined,
       filters.device ? eq(leads.device, filters.device) : undefined,
       filters.source ? eq(leads.leadSource, filters.source) : undefined,
-      filters.landingPage ? ilike(leads.landingUrl, `%${filters.landingPage}%`) : undefined,
+      filters.landingPage === "(sin seguimiento)"
+        ? isNull(leads.landingUrl)
+        : filters.landingPage
+        ? ilike(leads.landingUrl, `%${filters.landingPage}%`)
+        : undefined,
       searchCond,
     ),
     orderBy: (l, { desc }) => [desc(l.createdAt)],
@@ -534,17 +538,20 @@ export async function getLandingPageBreakdown(
       and(
         eq(leads.orgId, orgId),
         eq(leads.campaignId, campaignId),
-        isNotNull(leads.landingUrl),
       )
     )
     .groupBy(leads.landingUrl)
 
   const pathMap = new Map<string, number>()
   for (const row of rows) {
-    if (!row.landingUrl) continue
+    const n = Number(row.total)
+    if (!row.landingUrl) {
+      pathMap.set("(sin seguimiento)", (pathMap.get("(sin seguimiento)") ?? 0) + n)
+      continue
+    }
     let path = "/"
     try { path = new URL(row.landingUrl).pathname || "/" } catch { path = row.landingUrl }
-    pathMap.set(path, (pathMap.get(path) ?? 0) + Number(row.total))
+    pathMap.set(path, (pathMap.get(path) ?? 0) + n)
   }
 
   return Array.from(pathMap.entries())
@@ -589,7 +596,7 @@ export async function getClientLeadLandingStats(
     const n = Number(row.total)
     grandTotal += n
     if (!row.landingUrl) {
-      pathMap.set("(sin landing)", (pathMap.get("(sin landing)") ?? 0) + n)
+      pathMap.set("(sin seguimiento)", (pathMap.get("(sin seguimiento)") ?? 0) + n)
       continue
     }
     let path = "/"

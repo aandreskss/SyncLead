@@ -28,6 +28,7 @@ export default async function PerformancePage({
     tab?: string
     action?: string
     days?: string
+    landingPath?: string
   }>
 }) {
   let ctx: { orgId: string; userId: string }
@@ -55,6 +56,7 @@ export default async function PerformancePage({
       : "rendimiento"
   const currentAction = sp.action ?? "all"
   const currentDays = sp.days ?? "30"
+  const currentLandingPath = sp.landingPath || undefined
   const daysNum = currentDays === "7" ? 7 : currentDays === "90" ? 90 : 30
   const insightsDays = sp.days === "7" ? 7 : sp.days === "90" ? 90 : 30
 
@@ -87,7 +89,7 @@ export default async function PerformancePage({
   const [allSessions, leadLandingStats] = await (
     tab === "visitantes" && clientId
       ? Promise.all([
-          getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum),
+          getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum, currentLandingPath),
           getClientLeadLandingStats(ctx.orgId, clientId, daysNum),
         ])
       : Promise.resolve([[], { total: 0, breakdown: [] }] as [Awaited<ReturnType<typeof getVisitorSessionsByClient>>, { total: number; breakdown: { path: string; count: number }[] }])
@@ -97,6 +99,7 @@ export default async function PerformancePage({
   const baseParams: Record<string, string> = { tab: "visitantes" }
   if (clientId) baseParams.clientId = clientId
   if (sp.range) baseParams.range = sp.range
+  if (currentLandingPath) baseParams.landingPath = currentLandingPath
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "rendimiento", label: "Rendimiento" },
@@ -129,6 +132,7 @@ export default async function PerformancePage({
         currentDays={currentDays}
         baseParams={baseParams}
         leadLandingStats={leadLandingStats}
+        currentLandingPath={currentLandingPath}
       />
     )
   } else if (tab === "visitantes" && !clientId) {

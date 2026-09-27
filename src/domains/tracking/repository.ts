@@ -517,6 +517,7 @@ export type VisitorSessionRow = {
   lastSeen: Date
   sessionDurationMs: number
   firstEventName: string
+  firstPageUrl: string | null
   utmSource: string | null
   utmMedium: string | null
   utmCampaign: string | null
@@ -533,7 +534,8 @@ export async function getVisitorSessionsByClient(
   orgId: string,
   clientId: string,
   limit = 100,
-  days = 30
+  days = 30,
+  landingPath?: string
 ): Promise<VisitorSessionRow[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
@@ -608,6 +610,7 @@ export async function getVisitorSessionsByClient(
         lastSeen: obs.observedAt,
         sessionDurationMs: 0,
         firstEventName: isPing ? "PageView" : obs.eventName,
+        firstPageUrl: obs.pageUrl ?? null,
         utmSource: obs.utmSource,
         utmMedium: obs.utmMedium,
         utmCampaign: obs.utmCampaign,
@@ -635,9 +638,25 @@ export async function getVisitorSessionsByClient(
     session.uniquePageCount = pages.size
   }
 
-  return Array.from(map.values())
+  let sessions = Array.from(map.values())
+
+  if (landingPath) {
+    sessions = sessions.filter((s) => {
+      if (!s.firstPageUrl) return false
+      let path = "/"
+      try { path = new URL(s.firstPageUrl).pathname || "/" } catch { path = s.firstPageUrl }
+      return path === landingPath
+    })
+  }
+
+  return sessions
     .sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime())
     .slice(0, limit)
+}
+
+export function extractPagePath(url: string | null): string {
+  if (!url) return "(sin página)"
+  try { return new URL(url).pathname || "/" } catch { return url }
 }
 
 export async function getObservationsByVisitor(
