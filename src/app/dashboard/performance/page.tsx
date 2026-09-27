@@ -12,8 +12,9 @@ import { PageShell, PageHeader } from "@/components/app/ops"
 import { SummaryCards } from "./_components/SummaryCards"
 import { PerformanceView } from "./_components/PerformanceView"
 import { VisitorsTab } from "./_components/VisitorsTab"
+import { InsightsDecisionCenter } from "./_components/InsightsDecisionCenter"
 
-type Tab = "rendimiento" | "visitantes"
+type Tab = "rendimiento" | "visitantes" | "insights"
 
 export default async function PerformancePage({
   searchParams,
@@ -45,26 +46,34 @@ export default async function PerformancePage({
   const sp = await searchParams
   const range = parseDateRange(sp.range ?? "30d", sp.from, sp.to)
   const clientId = sp.clientId || undefined
-  const tab: Tab = sp.tab === "visitantes" ? "visitantes" : "rendimiento"
+  const tab: Tab =
+    sp.tab === "visitantes"
+      ? "visitantes"
+      : sp.tab === "insights"
+      ? "insights"
+      : "rendimiento"
   const currentAction = sp.action ?? "all"
   const currentDays = sp.days ?? "30"
   const daysNum = currentDays === "7" ? 7 : currentDays === "90" ? 90 : 30
+  const insightsDays = sp.days === "7" ? 7 : sp.days === "90" ? 90 : 30
 
   const clients = await getClientsByOrgId(ctx.orgId)
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
   // Only fetch performance data when on that tab
-  const [rows, prevRows] = tab === "rendimiento"
-    ? await Promise.all([
-        getPerformanceTable(ctx.orgId, range.from, range.to, clientId),
-        getPerformanceTable(ctx.orgId, range.prevFrom, range.prevTo, clientId),
-      ])
-    : [[], []]
+  const [rows, prevRows] =
+    tab === "rendimiento"
+      ? await Promise.all([
+          getPerformanceTable(ctx.orgId, range.from, range.to, clientId),
+          getPerformanceTable(ctx.orgId, range.prevFrom, range.prevTo, clientId),
+        ])
+      : [[], []]
 
   // Only fetch visitor data when on that tab and a client is selected
-  const allSessions = tab === "visitantes" && clientId
-    ? await getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum)
-    : []
+  const allSessions =
+    tab === "visitantes" && clientId
+      ? await getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum)
+      : []
 
   // Base URL params to preserve across tab/filter links in the visitors tab
   const baseParams: Record<string, string> = { tab: "visitantes" }
@@ -73,14 +82,62 @@ export default async function PerformancePage({
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "rendimiento", label: "Rendimiento" },
-    { key: "visitantes",  label: "Visitantes" },
+    { key: "visitantes", label: "Visitantes" },
+    { key: "insights", label: "Insights Meta" },
   ]
 
   function tabHref(key: Tab): string {
     const p = new URLSearchParams({ tab: key })
     if (clientId) p.set("clientId", clientId)
-    if (sp.range) p.set("range", sp.range)
+    if (key !== "insights" && sp.range) p.set("range", sp.range)
     return `/dashboard/performance?${p}`
+  }
+
+  let tabContent: React.ReactNode = null
+
+  if (tab === "rendimiento") {
+    tabContent = (
+      <>
+        <SummaryCards rows={rows} />
+        <PerformanceView rows={rows} prevRows={prevRows} />
+      </>
+    )
+  } else if (tab === "visitantes" && clientId) {
+    tabContent = (
+      <VisitorsTab
+        clientId={clientId}
+        allSessions={allSessions}
+        currentAction={currentAction}
+        currentDays={currentDays}
+        baseParams={baseParams}
+      />
+    )
+  } else if (tab === "visitantes" && !clientId) {
+    tabContent = (
+      <div className="rounded-lg border border-ops-line bg-ops-s1 px-6 py-16 text-center space-y-2">
+        <p className="text-sm font-medium text-ops-tx">Selecciona un cliente</p>
+        <p className="text-xs text-ops-tx3">
+          Usa el filtro de arriba para elegir un cliente y ver sus visitantes de Meta.
+        </p>
+      </div>
+    )
+  } else if (tab === "insights" && clientId) {
+    tabContent = (
+      <InsightsDecisionCenter
+        clientId={clientId}
+        orgId={ctx.orgId}
+        days={insightsDays}
+      />
+    )
+  } else if (tab === "insights" && !clientId) {
+    tabContent = (
+      <div className="rounded-lg border border-ops-line bg-ops-s1 px-6 py-16 text-center space-y-2">
+        <p className="text-sm font-medium text-ops-tx">Selecciona un cliente</p>
+        <p className="text-xs text-ops-tx3">
+          Usa el filtro de arriba para elegir un cliente y ver el Centro de Decisiones de Meta Ads.
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -120,31 +177,7 @@ export default async function PerformancePage({
         ))}
       </div>
 
-      {tab === "rendimiento" && (
-        <>
-          <SummaryCards rows={rows} />
-          <PerformanceView rows={rows} prevRows={prevRows} />
-        </>
-      )}
-
-      {tab === "visitantes" && clientId && (
-        <VisitorsTab
-          clientId={clientId}
-          allSessions={allSessions}
-          currentAction={currentAction}
-          currentDays={currentDays}
-          baseParams={baseParams}
-        />
-      )}
-
-      {tab === "visitantes" && !clientId && (
-        <div className="rounded-lg border border-ops-line bg-ops-s1 px-6 py-16 text-center space-y-2">
-          <p className="text-sm font-medium text-ops-tx">Selecciona un cliente</p>
-          <p className="text-xs text-ops-tx3">
-            Usa el filtro de arriba para elegir un cliente y ver sus visitantes de Meta.
-          </p>
-        </div>
-      )}
+      {tabContent}
     </PageShell>
   )
 }
