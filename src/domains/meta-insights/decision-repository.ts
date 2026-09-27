@@ -303,8 +303,6 @@ export async function getCampaignMetrics(
         and(
           eq(leads.orgId, orgId),
           inArray(leads.campaignId, internalCampaignIds),
-          gte(leads.createdAt, new Date(currentFrom)),
-          lte(leads.createdAt, new Date(currentTo)),
         )
       )
       .groupBy(leads.campaignId)

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
 import { leads, leadStageHistory, campaigns, conversions, leadBehaviorEvents, metaEvents } from "@/lib/db/schema"
 import type { Lead, LeadStageHistory, Temperature, LeadStage } from "@/lib/db/schema"
-import { and, desc, eq, ilike, inArray, isNotNull, isNull, ne, or } from "drizzle-orm"
+import { and, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, ne, or } from "drizzle-orm"
 
 export interface ConversionData {
   conversionAmount: string
@@ -64,6 +64,7 @@ export interface LeadFilters {
   converted?: boolean
   source?: "meta_ads" | "organic" | "imported" | ""
   activity?: "has_sale" | "pending_capi" | "checkout" | "cart_abandoned" | "form_submitted" | "info_requested" | ""
+  landingPage?: string
 }
 
 export interface LeadActivitySummary {
@@ -107,6 +108,7 @@ export async function getLeadsByCampaign(
       filters.platform ? eq(leads.platform, filters.platform) : undefined,
       filters.device ? eq(leads.device, filters.device) : undefined,
       filters.source ? eq(leads.leadSource, filters.source) : undefined,
+      filters.landingPage ? ilike(leads.landingUrl, `%${filters.landingPage}%`) : undefined,
       searchCond,
     ),
     orderBy: (l, { desc }) => [desc(l.createdAt)],
@@ -511,4 +513,93 @@ export async function assignLead(
       .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId))),
     logChange(leadId, orgId, "assignedTo", current.assignedTo ?? null, assignedTo, changedBy),
   ])
+}
+
+export interface LandingPageEntry {
+  path: string
+  count: number
+}
+
+export async function getLandingPageBreakdown(
+  orgId: string,
+  campaignId: string
+): Promise<LandingPageEntry[]> {
+  const rows = await db
+    .select({
+      landingUrl: leads.landingUrl,
+      total: count(leads.id).as("total"),
+    })
+    .from(leads)
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        eq(leads.campaignId, campaignId),
+        isNotNull(leads.landingUrl),
+      )
+    )
+    .groupBy(leads.landingUrl)
+
+  const pathMap = new Map<string, number>()
+  for (const row of rows) {
+    if (!row.landingUrl) continue
+    let path = "/"
+    try { path = new URL(row.landingUrl).pathname || "/" } catch { path = row.landingUrl }
+    pathMap.set(path, (pathMap.get(path) ?? 0) + Number(row.total))
+  }
+
+  return Array.from(pathMap.entries())
+    .map(([path, total]) => ({ path, count: total }))
+    .sort((a, b) => b.count - a.count)
+}
+
+export async function getClientLeadLandingStats(
+  orgId: string,
+  clientId: string,
+  days: number
+): Promise<{ total: number; breakdown: LandingPageEntry[] }> {
+  const clientCampaigns = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.orgId, orgId), eq(campaigns.clientId, clientId)))
+
+  if (clientCampaigns.length === 0) return { total: 0, breakdown: [] }
+  const campaignIds = clientCampaigns.map((c) => c.id)
+
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+
+  const rows = await db
+    .select({
+      landingUrl: leads.landingUrl,
+      total: count(leads.id).as("total"),
+    })
+    .from(leads)
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        inArray(leads.campaignId, campaignIds),
+        gte(leads.createdAt, since),
+      )
+    )
+    .groupBy(leads.landingUrl)
+
+  let grandTotal = 0
+  const pathMap = new Map<string, number>()
+  for (const row of rows) {
+    const n = Number(row.total)
+    grandTotal += n
+    if (!row.landingUrl) {
+      pathMap.set("(sin landing)", (pathMap.get("(sin landing)") ?? 0) + n)
+      continue
+    }
+    let path = "/"
+    try { path = new URL(row.landingUrl).pathname || "/" } catch { path = row.landingUrl }
+    pathMap.set(path, (pathMap.get(path) ?? 0) + n)
+  }
+
+  const breakdown = Array.from(pathMap.entries())
+    .map(([path, c]) => ({ path, count: c }))
+    .sort((a, b) => b.count - a.count)
+
+  return { total: grandTotal, breakdown }
 }

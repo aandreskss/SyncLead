@@ -7,6 +7,7 @@ import { getClientsByOrgId } from "@/domains/clients/repository"
 import { parseDateRange, formatRangeLabel } from "@/lib/date-range"
 import { getPerformanceTable, getMetaSpendForPeriod, getMetaAdsetSpendForPeriod } from "@/domains/analytics/repository"
 import { getVisitorSessionsByClient } from "@/domains/tracking/repository"
+import { getClientLeadLandingStats } from "@/domains/leads/repository"
 import { DateRangeSelector } from "../_components/DateRangeSelector"
 import { PageShell, PageHeader } from "@/components/app/ops"
 import { SummaryCards } from "./_components/SummaryCards"
@@ -83,10 +84,14 @@ export default async function PerformancePage({
   })
 
   // Only fetch visitor data when on that tab and a client is selected
-  const allSessions =
+  const [allSessions, leadLandingStats] = await (
     tab === "visitantes" && clientId
-      ? await getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum)
-      : []
+      ? Promise.all([
+          getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum),
+          getClientLeadLandingStats(ctx.orgId, clientId, daysNum),
+        ])
+      : Promise.resolve([[], { total: 0, breakdown: [] }] as [Awaited<ReturnType<typeof getVisitorSessionsByClient>>, { total: number; breakdown: { path: string; count: number }[] }])
+  )
 
   // Base URL params to preserve across tab/filter links in the visitors tab
   const baseParams: Record<string, string> = { tab: "visitantes" }
@@ -123,6 +128,7 @@ export default async function PerformancePage({
         currentAction={currentAction}
         currentDays={currentDays}
         baseParams={baseParams}
+        leadLandingStats={leadLandingStats}
       />
     )
   } else if (tab === "visitantes" && !clientId) {
