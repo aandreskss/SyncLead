@@ -159,6 +159,55 @@ export interface BehaviorCapiParams {
   contentIds?: string[]
 }
 
+export interface BehaviorEventPayload {
+  event_name: string
+  event_time: number
+  event_id: string
+  action_source: "website"
+  user_data: Record<string, unknown>
+  custom_data?: Record<string, unknown>
+}
+
+export function buildBehaviorPayload(params: {
+  behaviorEventType: "view_product" | "add_to_cart" | "begin_checkout"
+  leadId: string
+  email?: string | null
+  phone?: string | null
+  name?: string | null
+  city?: string | null
+  value?: number | null
+  currency?: string | null
+  contentIds?: string[]
+}): BehaviorEventPayload | null {
+  const metaEventName = BEHAVIOR_EVENT_MAP[params.behaviorEventType]
+  if (!metaEventName) return null
+
+  const firstName = params.name?.split(" ")[0] ?? params.name
+  const userData: Record<string, unknown> = {
+    em: hashIfPresent(params.email),
+    ph: hashIfPresent(params.phone?.replace(/\D/g, "")),
+    fn: hashIfPresent(firstName),
+    ct: hashIfPresent(params.city),
+  }
+
+  const customData: Record<string, unknown> = {}
+  if (params.value) customData.value = params.value
+  if (params.currency) customData.currency = params.currency.toUpperCase()
+  if (params.contentIds?.length) customData.content_ids = params.contentIds
+
+  // Minute-level granularity keeps idempotency while allowing retries after 60 s
+  const eventId = `${params.behaviorEventType}_${params.leadId}_${Math.floor(Date.now() / 60000)}`
+
+  return {
+    event_name: metaEventName,
+    event_time: Math.floor(Date.now() / 1000),
+    event_id: eventId,
+    action_source: "website",
+    user_data: userData,
+    ...(Object.keys(customData).length > 0 ? { custom_data: customData } : {}),
+  }
+}
+
 export async function sendBehaviorCapiEvent(
   params: BehaviorCapiParams
 ): Promise<{ sent: boolean; status: string }> {
