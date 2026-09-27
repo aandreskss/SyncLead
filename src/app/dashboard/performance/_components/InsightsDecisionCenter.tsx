@@ -20,6 +20,8 @@ import {
   type AccountHealthResult,
   type Recommendation,
 } from "@/domains/meta-insights/decision-engine"
+import { getClientCampaignsAction } from "@/domains/meta-insights/actions"
+import { CampaignLinkButton } from "./CampaignLinkButton"
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -267,9 +269,15 @@ function ScoreBar({ score }: { score: number }) {
 function CampaignDecisionTable({
   decisions,
   rows,
+  clientId,
+  internalCampaigns,
+  metaToInternalMap,
 }: {
   decisions: CampaignDecisionResult[]
   rows: CampaignMetricsRow[]
+  clientId: string
+  internalCampaigns: { id: string; name: string }[]
+  metaToInternalMap: Map<string, string>
 }) {
   const rowMap = new Map(rows.map((r) => [r.metaCampaignId, r]))
 
@@ -311,7 +319,7 @@ function CampaignDecisionTable({
                   key={d.metaCampaignId}
                   className="border-b border-ops-line last:border-0 hover:bg-ops-hover transition-colors"
                 >
-                  <td className="px-4 py-3 max-w-[200px]">
+                  <td className="px-4 py-3 max-w-[220px]">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <CampaignTypeBadge type={d.campaignType} />
                     </div>
@@ -323,6 +331,13 @@ function CampaignDecisionTable({
                         Último dato: hace {row.daysSinceActivity}d
                       </p>
                     )}
+                    <CampaignLinkButton
+                      clientId={clientId}
+                      metaCampaignId={d.metaCampaignId}
+                      metaCampaignName={d.name ?? d.metaCampaignId}
+                      currentInternalId={metaToInternalMap.get(d.metaCampaignId) ?? null}
+                      internalCampaigns={internalCampaigns}
+                    />
                   </td>
                   <td className="px-4 py-3 text-right text-xs tabular-nums text-ops-tx">
                     {fmtCurrency(row.spend, row.currency)}
@@ -608,14 +623,15 @@ export async function InsightsDecisionCenter({ clientId, orgId, days }: Props) {
   const { adAccountId } = connection
 
   // 2. Fetch all data in parallel — individual failures don't crash the panel
-  const [campaignMetrics, accountMetrics, adMetrics, leadsData, syncInfo] =
+  const [campaignMetrics, accountMetrics, adMetrics, leadsData, syncInfo, internalCampaigns] =
     await Promise.allSettled([
       getCampaignMetrics(orgId, clientId, adAccountId, days),
       getAccountMetrics(orgId, clientId, adAccountId, days),
       getAdMetrics(orgId, clientId, adAccountId, days),
       getLeadCampaignData(orgId, clientId, days),
       getLastSyncInfo(orgId, adAccountId),
-    ]).then(([cm, am, adm, ld, si]) => [
+      getClientCampaignsAction(clientId),
+    ]).then(([cm, am, adm, ld, si, ic]) => [
       cm.status === "fulfilled" ? cm.value : [],
       am.status === "fulfilled" ? am.value : {
         totalSpend: 0, totalImpressions: 0, totalClicks: 0,
@@ -625,6 +641,7 @@ export async function InsightsDecisionCenter({ clientId, orgId, days }: Props) {
       adm.status === "fulfilled" ? adm.value : [],
       ld.status === "fulfilled" ? ld.value : [],
       si.status === "fulfilled" ? si.value : null,
+      ic.status === "fulfilled" ? ic.value : [],
     ] as const)
 
   // 3. Compute decisions
@@ -642,6 +659,13 @@ export async function InsightsDecisionCenter({ clientId, orgId, days }: Props) {
     accountMetrics,
     campaignMetrics,
     leadsData
+  )
+
+  // Map: metaCampaignId → internalCampaignId (for link button)
+  const metaToInternalMap = new Map<string, string>(
+    campaignMetrics
+      .filter((r) => r.internalCampaignId !== null)
+      .map((r) => [r.metaCampaignId, r.internalCampaignId!])
   )
 
   const hasData = accountMetrics.totalSpend > 0 || campaignMetrics.length > 0
@@ -721,7 +745,13 @@ export async function InsightsDecisionCenter({ clientId, orgId, days }: Props) {
       )}
 
       {/* Campaign Decision Table */}
-      <CampaignDecisionTable decisions={campaignDecisions} rows={campaignMetrics} />
+      <CampaignDecisionTable
+        decisions={campaignDecisions}
+        rows={campaignMetrics}
+        clientId={clientId}
+        internalCampaigns={internalCampaigns}
+        metaToInternalMap={metaToInternalMap}
+      />
 
       {/* Bottom row: Ads + Leads */}
       <div className="grid gap-4 lg:grid-cols-2">

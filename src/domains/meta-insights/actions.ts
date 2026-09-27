@@ -9,7 +9,8 @@ import { isAdAccountAllowed, getAllowedAdAccounts, addToAllowlist, removeFromAll
 import { runInsightsSync, getLastSyncRun } from "./sync-engine"
 import { calculateCPL, calculateCPA, assertSingleCurrency } from "./kpi"
 import { SaveInsightsConnectionSchema, AddToAllowlistSchema, TriggerSyncSchema } from "./types"
-import { and, eq, gte, lte, isNotNull, sum, max, desc, sql } from "drizzle-orm"
+import { and, eq, gte, lte, isNotNull, sum, max, desc, sql, or } from "drizzle-orm"
+import { campaigns } from "@/lib/db/schema"
 import type { InsightsSummary, InsightsConnectionPublic, SyncRunPublic, AllowlistEntry, InsightsTableRow, InsightsLevel } from "./types"
 
 // ─── Feature flag check ───────────────────────────────────────────────────────
@@ -578,4 +579,48 @@ export async function disconnectInsightsConnectionAction(
     ))
 
   return { success: true }
+}
+
+// ─── Link Meta campaign to SyncLead campaign ──────────────────────────────────
+
+export async function linkMetaCampaignAction(
+  clientId: string,
+  metaCampaignId: string,
+  internalCampaignId: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const ctx = await requireClientAccess(clientId)
+
+    await db
+      .update(metaCatalogCampaigns)
+      .set({ internalCampaignId })
+      .where(
+        and(
+          eq(metaCatalogCampaigns.orgId, ctx.orgId),
+          eq(metaCatalogCampaigns.clientId, clientId),
+          eq(metaCatalogCampaigns.metaCampaignId, metaCampaignId),
+        )
+      )
+
+    return { success: true }
+  } catch {
+    return { success: false, error: "No se pudo guardar el vínculo" }
+  }
+}
+
+// ─── Get SyncLead campaigns for a client (for linking UI) ────────────────────
+
+export async function getClientCampaignsAction(
+  clientId: string
+): Promise<{ id: string; name: string }[]> {
+  try {
+    const ctx = await requireClientAccess(clientId)
+    const rows = await db
+      .select({ id: campaigns.id, name: campaigns.name })
+      .from(campaigns)
+      .where(and(eq(campaigns.orgId, ctx.orgId), eq(campaigns.clientId, clientId)))
+    return rows
+  } catch {
+    return []
+  }
 }

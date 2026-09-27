@@ -18,6 +18,7 @@ export interface CampaignMetricsRow {
   metaCampaignId: string
   name: string | null
   objective: string | null
+  internalCampaignId: string | null
   spend: number
   impressions: number
   clicks: number
@@ -354,6 +355,7 @@ export async function getCampaignMetrics(
       metaCampaignId: cr.objectId,
       name: nameMap.get(cr.objectId) ?? null,
       objective: objectiveMap.get(cr.objectId) ?? null,
+      internalCampaignId: internalCampaignId,
       spend,
       impressions,
       clicks,
