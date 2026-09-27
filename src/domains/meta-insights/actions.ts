@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { auditLogs, adInsightsDaily, metaConnections, metaSyncRuns } from "@/lib/db/schema"
+import { auditLogs, adInsightsDaily, metaConnections, metaSyncRuns, metaCatalogCampaigns, metaCatalogAdsets, metaCatalogAds } from "@/lib/db/schema"
 import { requireClientAccess, requireRole } from "@/lib/auth/server"
 import { encryptTokenVersioned, decryptTokenVersioned } from "@/lib/crypto"
 import { MetaAdsClient } from "@/lib/meta-ads/client"
@@ -9,8 +9,8 @@ import { isAdAccountAllowed, getAllowedAdAccounts, addToAllowlist, removeFromAll
 import { runInsightsSync, getLastSyncRun } from "./sync-engine"
 import { calculateCPL, calculateCPA, assertSingleCurrency } from "./kpi"
 import { SaveInsightsConnectionSchema, AddToAllowlistSchema, TriggerSyncSchema } from "./types"
-import { and, eq, gte, lte, isNotNull, sum, max } from "drizzle-orm"
-import type { InsightsSummary, InsightsConnectionPublic, SyncRunPublic, AllowlistEntry } from "./types"
+import { and, eq, gte, lte, isNotNull, sum, max, desc, sql } from "drizzle-orm"
+import type { InsightsSummary, InsightsConnectionPublic, SyncRunPublic, AllowlistEntry, InsightsTableRow, InsightsLevel } from "./types"
 
 // ─── Feature flag check ───────────────────────────────────────────────────────
 // ENABLE_EXTERNAL_META_OAUTH=false blocks the external_oauth flow
@@ -309,6 +309,141 @@ export async function getInsightsSummaryAction(
     roas,
     lastSyncedAt: lastRun?.completedAt ?? null,
   }
+}
+
+// ─── Insights table ───────────────────────────────────────────────────────────
+
+export async function getInsightsTableAction(
+  clientId: string,
+  adAccountId: string,
+  dateFrom: string,
+  dateTo: string,
+  level: InsightsLevel = "campaign"
+): Promise<InsightsTableRow[]> {
+  let ctx
+  try { ctx = await requireClientAccess(clientId) } catch { return [] }
+
+  if (level === "campaign") {
+    const rows = await db
+      .select({
+        entityId: adInsightsDaily.objectId,
+        name: metaCatalogCampaigns.name,
+        impressions: sum(adInsightsDaily.impressions),
+        clicks: sum(adInsightsDaily.clicks),
+        spend: sql<string>`sum(${adInsightsDaily.spend}::numeric)`,
+        conversions: sum(adInsightsDaily.conversionsCount),
+        currency: max(adInsightsDaily.currency),
+      })
+      .from(adInsightsDaily)
+      .leftJoin(
+        metaCatalogCampaigns,
+        and(
+          eq(adInsightsDaily.objectId, metaCatalogCampaigns.metaCampaignId),
+          eq(metaCatalogCampaigns.orgId, ctx.orgId),
+        )
+      )
+      .where(and(
+        eq(adInsightsDaily.orgId, ctx.orgId),
+        eq(adInsightsDaily.clientId, clientId),
+        eq(adInsightsDaily.adAccountId, adAccountId),
+        eq(adInsightsDaily.level, "campaign"),
+        gte(adInsightsDaily.date, dateFrom),
+        lte(adInsightsDaily.date, dateTo),
+      ))
+      .groupBy(adInsightsDaily.objectId, metaCatalogCampaigns.name)
+      .orderBy(desc(sql`sum(${adInsightsDaily.spend}::numeric)`))
+
+    return rows.map((r) => ({
+      entityId: r.entityId,
+      name: r.name ?? r.entityId,
+      impressions: parseInt(r.impressions ?? "0", 10),
+      clicks: parseInt(r.clicks ?? "0", 10),
+      spend: parseFloat(r.spend ?? "0"),
+      conversions: parseInt(r.conversions ?? "0", 10),
+      currency: r.currency,
+    }))
+  }
+
+  if (level === "adset") {
+    const rows = await db
+      .select({
+        entityId: adInsightsDaily.objectId,
+        name: metaCatalogAdsets.name,
+        impressions: sum(adInsightsDaily.impressions),
+        clicks: sum(adInsightsDaily.clicks),
+        spend: sql<string>`sum(${adInsightsDaily.spend}::numeric)`,
+        conversions: sum(adInsightsDaily.conversionsCount),
+        currency: max(adInsightsDaily.currency),
+      })
+      .from(adInsightsDaily)
+      .leftJoin(
+        metaCatalogAdsets,
+        and(
+          eq(adInsightsDaily.objectId, metaCatalogAdsets.metaAdsetId),
+          eq(metaCatalogAdsets.orgId, ctx.orgId),
+        )
+      )
+      .where(and(
+        eq(adInsightsDaily.orgId, ctx.orgId),
+        eq(adInsightsDaily.clientId, clientId),
+        eq(adInsightsDaily.adAccountId, adAccountId),
+        eq(adInsightsDaily.level, "adset"),
+        gte(adInsightsDaily.date, dateFrom),
+        lte(adInsightsDaily.date, dateTo),
+      ))
+      .groupBy(adInsightsDaily.objectId, metaCatalogAdsets.name)
+      .orderBy(desc(sql`sum(${adInsightsDaily.spend}::numeric)`))
+
+    return rows.map((r) => ({
+      entityId: r.entityId,
+      name: r.name ?? r.entityId,
+      impressions: parseInt(r.impressions ?? "0", 10),
+      clicks: parseInt(r.clicks ?? "0", 10),
+      spend: parseFloat(r.spend ?? "0"),
+      conversions: parseInt(r.conversions ?? "0", 10),
+      currency: r.currency,
+    }))
+  }
+
+  // level === "ad"
+  const rows = await db
+    .select({
+      entityId: adInsightsDaily.objectId,
+      name: metaCatalogAds.name,
+      impressions: sum(adInsightsDaily.impressions),
+      clicks: sum(adInsightsDaily.clicks),
+      spend: sql<string>`sum(${adInsightsDaily.spend}::numeric)`,
+      conversions: sum(adInsightsDaily.conversionsCount),
+      currency: max(adInsightsDaily.currency),
+    })
+    .from(adInsightsDaily)
+    .leftJoin(
+      metaCatalogAds,
+      and(
+        eq(adInsightsDaily.objectId, metaCatalogAds.metaAdId),
+        eq(metaCatalogAds.orgId, ctx.orgId),
+      )
+    )
+    .where(and(
+      eq(adInsightsDaily.orgId, ctx.orgId),
+      eq(adInsightsDaily.clientId, clientId),
+      eq(adInsightsDaily.adAccountId, adAccountId),
+      eq(adInsightsDaily.level, "ad"),
+      gte(adInsightsDaily.date, dateFrom),
+      lte(adInsightsDaily.date, dateTo),
+    ))
+    .groupBy(adInsightsDaily.objectId, metaCatalogAds.name)
+    .orderBy(desc(sql`sum(${adInsightsDaily.spend}::numeric)`))
+
+  return rows.map((r) => ({
+    entityId: r.entityId,
+    name: r.name ?? r.entityId,
+    impressions: parseInt(r.impressions ?? "0", 10),
+    clicks: parseInt(r.clicks ?? "0", 10),
+    spend: parseFloat(r.spend ?? "0"),
+    conversions: parseInt(r.conversions ?? "0", 10),
+    currency: r.currency,
+  }))
 }
 
 // ─── Allowlist management ─────────────────────────────────────────────────────

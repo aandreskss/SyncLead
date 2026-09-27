@@ -39,6 +39,9 @@ import { ArrowLeft, Building2 } from "lucide-react"
 import { PageShell, StatusChip } from "@/components/app/ops"
 import Link from "next/link"
 import type { LeadStage, Temperature } from "@/lib/db/schema"
+import { InsightsTab } from "./_components/InsightsTab"
+import { getInsightsSummaryAction, getInsightsTableAction, getLastSyncRunAction } from "@/domains/meta-insights/actions"
+import type { InsightsLevel } from "@/domains/meta-insights/types"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -53,6 +56,8 @@ interface Props {
     converted?: string
     source?: string
     activity?: string
+    days?: string
+    level?: string
   }>
 }
 
@@ -152,6 +157,58 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     }))
     tabContent = (
       <LeadSourcesPanel clientId={id} metaConnections={publicConnections} />
+    )
+  } else if (tab === "insights") {
+    const insightsDays = sp.days === "7" ? 7 : sp.days === "90" ? 90 : 30
+    const insightsLevel: InsightsLevel =
+      sp.level === "adset" ? "adset" : sp.level === "ad" ? "ad" : "campaign"
+
+    const insightsConns = await db.query.metaConnections.findMany({
+      where: and(
+        eq(metaConnections.clientId, id),
+        eq(metaConnections.orgId, ctx.orgId),
+        isNotNull(metaConnections.adAccountId),
+      ),
+    })
+
+    const publicInsightsConnections = insightsConns.map((c) => ({
+      id: c.id,
+      adAccountId: c.adAccountId,
+      connectionMode: c.connectionMode as "internal_manual" | "external_oauth",
+      status: c.status as "active" | "error" | "expired" | "pending",
+      lastVerifiedAt: c.lastVerifiedAt,
+      lastError: c.lastError,
+      createdAt: c.createdAt,
+    }))
+
+    const activeConn = publicInsightsConnections.find((c) => c.status === "active" && c.adAccountId) ?? null
+
+    const dateFrom = (() => {
+      const d = new Date()
+      d.setUTCDate(d.getUTCDate() - insightsDays)
+      return d.toISOString().slice(0, 10)
+    })()
+    const dateTo = new Date().toISOString().slice(0, 10)
+
+    const [summary, tableRows, lastRun] = activeConn
+      ? await Promise.all([
+          getInsightsSummaryAction(id, activeConn.adAccountId!, dateFrom, dateTo),
+          getInsightsTableAction(id, activeConn.adAccountId!, dateFrom, dateTo, insightsLevel),
+          getLastSyncRunAction(id, activeConn.adAccountId!),
+        ])
+      : [null, [], null]
+
+    tabContent = (
+      <InsightsTab
+        clientId={id}
+        connections={publicInsightsConnections}
+        activeConn={activeConn}
+        summary={summary}
+        tableRows={tableRows}
+        lastRun={lastRun}
+        days={insightsDays}
+        level={insightsLevel}
+      />
     )
   } else if (tab === "configuracion") {
     const [metaConnectionsList, salesRepsData, waConfig, templates, insightsConnections, capiStats, trackingSitesData, campaignsData] =
