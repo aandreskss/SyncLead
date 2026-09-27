@@ -17,6 +17,7 @@ import { and, eq, gte, lte, sum, max, count, desc, sql, or, isNotNull, inArray }
 export interface CampaignMetricsRow {
   metaCampaignId: string
   name: string | null
+  objective: string | null
   spend: number
   impressions: number
   clicks: number
@@ -183,6 +184,7 @@ export async function getCampaignMetrics(
   // Fetch campaign names + internal campaign mapping
   const objectIds = currentRows.map((r) => r.objectId).filter((id): id is string => id !== null)
   const nameMap = new Map<string, string>()
+  const objectiveMap = new Map<string, string | null>()
   // Map: metaCampaignId → internalCampaignId (uuid of campaigns.id)
   const metaToInternalMap = new Map<string, string>()
 
@@ -191,6 +193,7 @@ export async function getCampaignMetrics(
       .select({
         metaCampaignId: metaCatalogCampaigns.metaCampaignId,
         name: metaCatalogCampaigns.name,
+        objective: metaCatalogCampaigns.objective,
         internalCampaignId: metaCatalogCampaigns.internalCampaignId,
       })
       .from(metaCatalogCampaigns)
@@ -200,10 +203,24 @@ export async function getCampaignMetrics(
           eq(metaCatalogCampaigns.clientId, clientId)
         )
       )
+
+    // Fallback: match by name if internalCampaignId not set
+    const internalCampaignRows = await db
+      .select({ id: campaigns.id, name: campaigns.name })
+      .from(campaigns)
+      .where(and(eq(campaigns.orgId, orgId), eq(campaigns.clientId, clientId)))
+    const internalByName = new Map(
+      internalCampaignRows.map((c) => [c.name.toLowerCase().trim(), c.id])
+    )
+
     for (const nr of nameRows) {
       nameMap.set(nr.metaCampaignId, nr.name)
-      if (nr.internalCampaignId) {
-        metaToInternalMap.set(nr.metaCampaignId, nr.internalCampaignId)
+      objectiveMap.set(nr.metaCampaignId, nr.objective ?? null)
+      const linked = nr.internalCampaignId
+        ?? internalByName.get(nr.name.toLowerCase().trim())
+        ?? null
+      if (linked) {
+        metaToInternalMap.set(nr.metaCampaignId, linked)
       }
     }
   }
@@ -310,6 +327,7 @@ export async function getCampaignMetrics(
     result.push({
       metaCampaignId: cr.objectId,
       name: nameMap.get(cr.objectId) ?? null,
+      objective: objectiveMap.get(cr.objectId) ?? null,
       spend,
       impressions,
       clicks,

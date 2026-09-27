@@ -14,7 +14,9 @@ import {
   computeCampaignDecision,
   computeAccountHealth,
   generateRecommendations,
+  getCampaignTypeLabel,
   type CampaignDecisionResult,
+  type CampaignType,
   type AccountHealthResult,
   type Recommendation,
 } from "@/domains/meta-insights/decision-engine"
@@ -205,6 +207,24 @@ function RecommendationsPanel({ recs }: { recs: Recommendation[] }) {
   )
 }
 
+// ─── Campaign Type Badge ──────────────────────────────────────────────────────
+
+function CampaignTypeBadge({ type }: { type: CampaignType }) {
+  const map: Record<CampaignType, string> = {
+    leads: "bg-ops-blue/10 text-ops-blue",
+    sales: "bg-ops-green/10 text-ops-green",
+    traffic: "bg-ops-amber/10 text-ops-amber",
+    awareness: "bg-ops-s2 text-ops-tx3",
+    engagement: "bg-ops-s2 text-ops-tx3",
+    unknown: "bg-ops-s2 text-ops-tx3",
+  }
+  return (
+    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${map[type]}`}>
+      {getCampaignTypeLabel(type)}
+    </span>
+  )
+}
+
 // ─── Campaign Decision Badge ──────────────────────────────────────────────────
 
 function DecisionBadge({ decision }: { decision: CampaignDecisionResult["decision"] }) {
@@ -291,8 +311,11 @@ function CampaignDecisionTable({
                   key={d.metaCampaignId}
                   className="border-b border-ops-line last:border-0 hover:bg-ops-hover transition-colors"
                 >
-                  <td className="px-4 py-3 max-w-[180px]">
-                    <p className="truncate font-medium text-ops-tx text-xs">
+                  <td className="px-4 py-3 max-w-[200px]">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <CampaignTypeBadge type={d.campaignType} />
+                    </div>
+                    <p className="truncate font-medium text-ops-tx text-xs" title={d.name ?? d.metaCampaignId}>
                       {d.name ?? d.metaCampaignId}
                     </p>
                     {row.daysSinceActivity > 7 && (
