@@ -492,8 +492,14 @@ export async function getVisitorSessionsByClient(
 ): Promise<VisitorSessionRow[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
-  const rows = await db
-    .select()
+  // Step 1: Find the most recently active Meta visitor_ids (facebook/instagram/whatsapp).
+  // We overshoot by 5× so that after re-sorting by true lastSeen (Step 3) we still have
+  // enough candidates to fill the requested limit.
+  // Using GROUP BY + MAX avoids the cost of DISTINCT + a separate sort pass.
+  const topMetaVisitors = await db
+    .select({
+      visitorId: conversionObservations.visitorId,
+    })
     .from(conversionObservations)
     .where(
       and(
@@ -508,8 +514,32 @@ export async function getVisitorSessionsByClient(
         )
       )
     )
+    .groupBy(conversionObservations.visitorId)
+    .orderBy(desc(sql<Date>`max(${conversionObservations.observedAt})`))
+    .limit(limit * 5)
+
+  const visitorIds = topMetaVisitors
+    .map((r) => r.visitorId)
+    .filter((v): v is string => v !== null)
+  if (visitorIds.length === 0) return []
+
+  // Step 2: Fetch ALL events for those visitor_ids within the time window.
+  // No global row limit — we bounded the set in Step 1, so the result is manageable.
+  // Including events without Meta utm_source ensures conversion badges (AddToCart,
+  // ViewContent, etc. fired on product pages that strip UTM params) are counted.
+  const rows = await db
+    .select()
+    .from(conversionObservations)
+    .where(
+      and(
+        eq(conversionObservations.orgId, orgId),
+        eq(conversionObservations.clientId, clientId),
+        isNotNull(conversionObservations.visitorId),
+        gte(conversionObservations.observedAt, since),
+        inArray(conversionObservations.visitorId, visitorIds),
+      )
+    )
     .orderBy(asc(conversionObservations.observedAt))
-    .limit(10000)
 
   const map = new Map<string, VisitorSessionRow>()
   const eventsByVisitor = new Map<string, Set<string>>()
