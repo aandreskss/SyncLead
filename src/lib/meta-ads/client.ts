@@ -187,8 +187,11 @@ export class MetaAdsClient {
     while (cursor) {
       const res = await fetch(cursor, { cache: "no-store" })
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: { code?: number } }
-        throw new Error(`meta_api_error:${err.error?.code ?? res.status}`)
+        const err = await res.json().catch(() => ({})) as { error?: { code?: number; error_subcode?: number; message?: string; type?: string } }
+        const code = err.error?.code ?? res.status
+        const subcode = err.error?.error_subcode
+        const suffix = subcode ? `:${subcode}` : ""
+        throw new Error(`meta_api_error:${code}${suffix}`)
       }
       const data = await res.json() as {
         data: T[]
