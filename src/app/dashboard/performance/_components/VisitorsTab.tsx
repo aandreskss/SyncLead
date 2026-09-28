@@ -346,8 +346,9 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                     aria-label={`Ver sesión ${session.visitorId.slice(0, 8)}`}
                   />
 
-                  {/* Row content — sits above the overlay; interactive elements need relative z-10 */}
-                  <div className="relative flex items-center gap-3 px-4 py-3">
+                  {/* Row content — pointer-events-none so clicks pass through to the overlay link;
+                      interactive elements re-enable pointer events individually */}
+                  <div className="relative flex items-center gap-3 px-4 py-3 pointer-events-none">
                     <span className="shrink-0 rounded-md bg-ops-blue/10 px-2 py-1 font-mono text-xs font-semibold text-ops-blue">
                       #{session.visitorId.slice(0, 8)}
                     </span>
@@ -373,7 +374,7 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                             <Link
                               href={leadSearchUrl}
                               target="_blank"
-                              className="relative z-10 inline-flex items-center gap-0.5 rounded border border-green-700 bg-green-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-green-400 hover:bg-green-900/60 hover:border-green-600 transition-colors"
+                              className="pointer-events-auto relative z-10 inline-flex items-center gap-0.5 rounded border border-green-700 bg-green-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-green-400 hover:bg-green-900/60 hover:border-green-600 transition-colors"
                               title={session.linkedLeadName ? `Ver lead: ${session.linkedLeadName}` : "Ver lead vinculado"}
                             >
                               <FileText className="h-2.5 w-2.5" />
