@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import { LeadDrawer } from "@/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer"
 import type { Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
-import type { LeadWithActivity } from "@/domains/leads/repository"
+import type { LeadWithActivity, LandingPageEntry } from "@/domains/leads/repository"
 import { deleteLeadsAction, deleteLeadsByClientAction } from "@/domains/leads/actions"
 import { CreateLeadDialog } from "./CreateLeadDialog"
 
@@ -19,6 +19,7 @@ interface Props {
   campaigns: { id: string; name: string }[]
   salesReps: SalesRep[]
   whatsappNumbers: string[]
+  landingBreakdown?: LandingPageEntry[]
   filters: {
     search: string
     temperature: string
@@ -29,6 +30,7 @@ interface Props {
     converted: string
     source: string
     activity: string
+    landingPage: string
   }
 }
 
@@ -187,6 +189,11 @@ function ActivityBadges({ activity, hasPendingCapi }: { activity: LeadWithActivi
   return <div className="flex items-center gap-1 flex-wrap">{badges}</div>
 }
 
+function parsePath(url: string | null): string | null {
+  if (!url) return null
+  try { return new URL(url).pathname || "/" } catch { return url }
+}
+
 export function ClientLeadsTab({
   clientId,
   leads,
@@ -194,6 +201,7 @@ export function ClientLeadsTab({
   campaigns,
   salesReps,
   whatsappNumbers,
+  landingBreakdown = [],
   filters,
 }: Props) {
   const router = useRouter()
@@ -309,7 +317,7 @@ export function ClientLeadsTab({
 
   const hasActiveFilters =
     filters.search || filters.temperature || filters.stage || filters.campaignId ||
-    filters.converted || filters.source || filters.activity
+    filters.converted || filters.source || filters.activity || filters.landingPage
 
   const allSelected = leads.length > 0 && selectedLeads.size === leads.length
   const someSelected = selectedLeads.size > 0 && selectedLeads.size < leads.length
@@ -513,6 +521,38 @@ export function ClientLeadsTab({
         )}
       </div>
 
+      {/* Landing page chips */}
+      {landingBreakdown.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-ops-tx3 mr-0.5 flex items-center gap-1">
+            <Globe className="h-3 w-3" />Landing:
+          </span>
+          <button
+            onClick={() => updateFilter("landingPage", "")}
+            className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${
+              !filters.landingPage
+                ? "bg-ops-blue/20 text-ops-blue-t border-ops-blue/30"
+                : "bg-ops-s2 text-ops-tx3 border-ops-bd hover:text-ops-tx2"
+            }`}
+          >
+            Todas
+          </button>
+          {landingBreakdown.map((entry) => (
+            <button
+              key={entry.path}
+              onClick={() => updateFilter("landingPage", entry.path)}
+              className={`px-2 py-0.5 rounded text-xs font-medium border font-mono transition-colors ${
+                filters.landingPage === entry.path
+                  ? "bg-ops-blue/20 text-ops-blue-t border-ops-blue/30"
+                  : "bg-ops-s2 text-ops-tx3 border-ops-bd hover:text-ops-tx2"
+              }`}
+            >
+              {entry.path} <span className="opacity-60">({entry.count})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Table */}
       {leads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -547,6 +587,7 @@ export function ClientLeadsTab({
                 <th className="px-4 py-3 text-left font-medium text-ops-tx2">Etapa</th>
                 <th className="px-4 py-3 text-left font-medium text-ops-tx2">Venta</th>
                 <th className="px-4 py-3 text-left font-medium text-ops-tx2">Actividad</th>
+                <th className="px-4 py-3 text-left font-medium text-ops-tx2">Landing</th>
                 <th className="px-4 py-3 text-left font-medium text-ops-tx2">Negocio</th>
                 <th className="px-4 py-3 text-left font-medium text-ops-tx2">Campaña</th>
                 <th className="px-4 py-3 text-left font-medium text-ops-tx2">Conjunto</th>
@@ -612,6 +653,22 @@ export function ClientLeadsTab({
                   </td>
                   <td className="px-4 py-3">
                     <ActivityBadges activity={lead.activity} hasPendingCapi={lead.hasPendingCapi} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const path = parsePath(lead.landingUrl ?? null)
+                      return path ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); updateFilter("landingPage", path) }}
+                          title={lead.landingUrl ?? undefined}
+                          className="font-mono text-xs text-ops-tx2 hover:text-ops-blue-t transition-colors max-w-[120px] truncate block"
+                        >
+                          {path}
+                        </button>
+                      ) : (
+                        <span className="text-ops-tx3 text-xs">—</span>
+                      )
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {lead.negocio ? (
