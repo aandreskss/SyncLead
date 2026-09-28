@@ -527,6 +527,9 @@ export type VisitorSessionRow = {
   hasCheckout: boolean
   hasAddToCart: boolean
   hasViewProduct: boolean
+  hasFormSubmit: boolean
+  hasPurchase: boolean
+  hasInfoRequest: boolean
   uniquePageCount: number
 }
 
@@ -620,6 +623,9 @@ export async function getVisitorSessionsByClient(
         hasCheckout: false,
         hasAddToCart: false,
         hasViewProduct: false,
+        hasFormSubmit: false,
+        hasPurchase: false,
+        hasInfoRequest: false,
         uniquePageCount: 0,
       })
     } else {
@@ -635,6 +641,9 @@ export async function getVisitorSessionsByClient(
     session.hasCheckout = events.has("begin_checkout") || events.has("InitiateCheckout")
     session.hasAddToCart = events.has("add_to_cart") || events.has("AddToCart")
     session.hasViewProduct = events.has("view_product") || events.has("ViewContent")
+    session.hasFormSubmit = events.has("form_submitted") || events.has("Lead") || events.has("CompleteRegistration") || events.has("Subscribe") || events.has("AddPaymentInfo")
+    session.hasPurchase = events.has("purchase") || events.has("Purchase")
+    session.hasInfoRequest = events.has("info_requested")
     session.uniquePageCount = pages.size
   }
 
