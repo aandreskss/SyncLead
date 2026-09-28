@@ -95,6 +95,7 @@ export async function persistLead(input: PersistInput): Promise<PersistResult> {
         fbclid: lead.fbclid,
         fbc: lead.fbc,
         fbp: lead.fbp,
+        visitorId: lead.visitorId,
         landingUrl: lead.landingUrl,
         referrerUrl: lead.referrerUrl,
         metaCampaignName: lead.metaCampaignName,

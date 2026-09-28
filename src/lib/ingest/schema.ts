@@ -49,6 +49,9 @@ export const LeadDataSchema = z.object({
   fbc: optStr(500),
   fbp: optStr(500),
 
+  // Pixel visitor identity — links this lead to a visitor session
+  visitor_id: optStr(255),
+
   // Meta Ads campaign/adset/ad identifiers and names (client-side snapshot)
   meta_campaign_id: optStr(255),
   meta_adset_id: optStr(255),

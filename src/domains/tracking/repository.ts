@@ -7,6 +7,8 @@ import {
   conversionTestSessions,
   conversionObservations,
   conversionIssues,
+  leads,
+  campaigns,
   type TrackingSite,
   type NewTrackingSite,
   type ConversionDefinition,
@@ -895,4 +897,66 @@ export async function getCheckoutFunnelMetrics(
     abandonmentRate: startedCount > 0 ? abandonedCount / startedCount : 0,
     bySource,
   }
+}
+
+// ─── Linked leads ─────────────────────────────────────────────────────────────
+
+export type LinkedLeadRow = {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  campaignId: string
+  campaignName: string
+  temperature: string
+  stage: string
+  createdAt: Date
+  leadSource: string | null
+}
+
+/**
+ * Finds leads associated with a visitor session by visitorId.
+ * Works for leads created after pixel.js was updated to send visitor_id.
+ */
+export async function getLeadsLinkedToVisitor(
+  orgId: string,
+  clientId: string,
+  visitorId: string,
+): Promise<LinkedLeadRow[]> {
+  const clientCampaigns = await db
+    .select({ id: campaigns.id, name: campaigns.name })
+    .from(campaigns)
+    .where(and(eq(campaigns.orgId, orgId), eq(campaigns.clientId, clientId)))
+  if (clientCampaigns.length === 0) return []
+
+  const campaignIds = clientCampaigns.map((c) => c.id)
+  const campaignMap = new Map(clientCampaigns.map((c) => [c.id, c.name]))
+
+  const rows = await db
+    .select({
+      id: leads.id,
+      name: leads.name,
+      phone: leads.phone,
+      email: leads.email,
+      campaignId: leads.campaignId,
+      temperature: leads.temperature,
+      stage: leads.stage,
+      createdAt: leads.createdAt,
+      leadSource: leads.leadSource,
+    })
+    .from(leads)
+    .where(
+      and(
+        eq(leads.orgId, orgId),
+        inArray(leads.campaignId, campaignIds),
+        eq(leads.visitorId, visitorId),
+      )
+    )
+    .orderBy(desc(leads.createdAt))
+    .limit(5)
+
+  return rows.map((r) => ({
+    ...r,
+    campaignName: campaignMap.get(r.campaignId) ?? r.campaignId,
+  }))
 }

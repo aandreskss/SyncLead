@@ -23,6 +23,7 @@ export interface NormalizedLead {
   fbclid: string | null
   fbc: string | null
   fbp: string | null
+  visitorId: string | null
   metaCampaignId: string | null
   metaAdsetId: string | null
   metaAdId: string | null
@@ -76,6 +77,7 @@ export function normalizeLeadData(data: LeadData): NormalizedLead {
     fbclid: nullable(data.fbclid),
     fbc: nullable(data.fbc),
     fbp: nullable(data.fbp),
+    visitorId: nullable(data.visitor_id),
     metaCampaignId: nullable(data.meta_campaign_id),
     metaAdsetId: nullable(data.meta_adset_id),
     metaAdId: nullable(data.meta_ad_id),
