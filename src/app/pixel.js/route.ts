@@ -20,13 +20,15 @@ try{
   ['utm_source','utm_medium','utm_campaign','utm_content'].forEach(function(k){var v=p.get(k);if(v&&!localStorage.getItem('_sl_'+k))localStorage.setItem('_sl_'+k,v);});
   var fbclid=p.get('fbclid');
   if(fbclid&&!ck('_fbc')&&!localStorage.getItem('_sl_fbc'))localStorage.setItem('_sl_fbc','fb.1.'+Date.now()+'.'+fbclid);
+  // Captura la URL de primera visita antes de cualquier navegación SPA
+  try{if(!sessionStorage.getItem('_sl_lp'))sessionStorage.setItem('_sl_lp',location.href);}catch(e2){}
 }catch(e){}
 
 function post(url,headers,body){try{fetch(url,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},headers),body:JSON.stringify(body),keepalive:true}).catch(function(){});}catch(e){}}
 function collect(n,x){post(B+'/api/collect/'+TOKEN,{},Object.assign({eventName:n,pageUrl:location.href,environment:'production',parameters:{}},ctx(),x||{}));}
 function behavior(t,d){post(B+'/api/behavior',{Authorization:'Bearer '+TOKEN},Object.assign({eventType:t,visitorId:vid()},d||{}));}
 function utms(){return compact({utm_source:localStorage.getItem('_sl_utm_source'),utm_medium:localStorage.getItem('_sl_utm_medium'),utm_campaign:localStorage.getItem('_sl_utm_campaign'),utm_content:localStorage.getItem('_sl_utm_content')});}
-function lead(d){var c=ctx();var ld=Object.assign(CAMPAIGN?{campaign_id:CAMPAIGN}:{},utms(),{landing_url:location.href,visitor_id:c.visitorId},c.fbc?{fbc:c.fbc}:{},c.fbp?{fbp:c.fbp}:{},d||{});if(!ld.referrer_url&&document.referrer)ld.referrer_url=document.referrer;if(!ld.event_id){try{ld.event_id=crypto.randomUUID();}catch(e){ld.event_id=Date.now().toString(36)+Math.random().toString(36).slice(2,9);}}post(B+'/api/ingest/form',{'X-Ingest-Token':TOKEN},ld);}
+function lead(d){var c=ctx();var lp;try{lp=sessionStorage.getItem('_sl_lp')||location.href;}catch(e){lp=location.href;}var ld=Object.assign(CAMPAIGN?{campaign_id:CAMPAIGN}:{},utms(),{landing_url:lp,visitor_id:c.visitorId},c.fbc?{fbc:c.fbc}:{},c.fbp?{fbp:c.fbp}:{},d||{});if(!ld.referrer_url&&document.referrer)ld.referrer_url=document.referrer;if(!ld.event_id){try{ld.event_id=crypto.randomUUID();}catch(e){ld.event_id=Date.now().toString(36)+Math.random().toString(36).slice(2,9);}}post(B+'/api/ingest/form',{'X-Ingest-Token':TOKEN},ld);}
 
 collect('PageView',{});
 setInterval(function(){collect('session_ping',{});},30000);
