@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react"
 import { Panel, opsTable } from "@/components/app/ops"
 import type { PerformanceRow, Metric } from "@/domains/analytics/types"
@@ -318,7 +319,15 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
                     <td className={`${opsTable.td} max-w-[180px] truncate text-ops-tx2`}>{row.utmContent}</td>
                   )}
                   <td className={`${opsTable.tdRight} ${opsTable.mono}`}>
-                    {row.totalLeads}
+                    <Link
+                      href={`/dashboard/campaigns/${row.campaignId}/leads`}
+                      target="_blank"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-ops-blue-t hover:underline"
+                      title="Ver leads de esta campaña"
+                    >
+                      {row.totalLeads}
+                    </Link>
                     <DeltaCell curr={row.totalLeads} prev={prev?.totalLeads ?? 0} />
                   </td>
                   <td className={`${opsTable.tdRight} ${opsTable.mono}`}>
