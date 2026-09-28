@@ -3,7 +3,8 @@
 import { useState, useEffect, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign, Trash2, Zap, Target, Globe, Upload, UserPlus } from "lucide-react"
+import * as XLSX from "xlsx"
+import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign, Trash2, Zap, Target, Globe, Upload, UserPlus, Download } from "lucide-react"
 import { LeadDrawer } from "./LeadDrawer"
 import { CreateLeadDialog } from "./CreateLeadDialog"
 import { LeadAdsPanel } from "./LeadAdsPanel"
@@ -110,6 +111,71 @@ function formatMoney(amount: string, currency: string) {
     currency,
     maximumFractionDigits: 0,
   }).format(parseFloat(amount))
+}
+
+function toWaPhone(phone: string): string {
+  return phone.replace(/\D/g, "")
+}
+
+function sourceLabel(s: string): string {
+  const map: Record<string, string> = {
+    meta_ads: "Meta Ads",
+    organic: "Orgánico",
+    imported: "Importado",
+    manual: "Manual",
+  }
+  return map[s] ?? s
+}
+
+function exportLeadsXlsx(leads: LeadWithActivity[], campaignName: string) {
+  const HEADERS = [
+    "Nombre", "Teléfono", "Email", "Ciudad",
+    "Temperatura", "Etapa", "Fuente",
+    "Conjunto", "Anuncio", "Asignado",
+    "Ventas", "Monto", "Moneda",
+    "WhatsApp", "Fecha",
+  ]
+  const waColIndex = HEADERS.indexOf("WhatsApp")
+
+  const rows = leads.map((lead) => ({
+    Nombre: lead.name ?? "",
+    Teléfono: lead.phone ?? "",
+    Email: lead.email ?? "",
+    Ciudad: lead.city ?? "",
+    Temperatura: tempLabel(lead.temperature),
+    Etapa: stageLabel(lead.stage),
+    Fuente: sourceLabel(lead.leadSource),
+    Conjunto: lead.metaAdsetName ?? "",
+    Anuncio: lead.metaAdName ?? "",
+    Asignado: lead.assignedTo ?? "",
+    Ventas: lead.saleCount,
+    Monto: lead.saleTotalAmount ? parseFloat(lead.saleTotalAmount) : "",
+    Moneda: lead.saleCurrency ?? "",
+    WhatsApp: lead.phone ? `https://wa.me/${toWaPhone(lead.phone)}` : "",
+    Fecha: new Date(lead.createdAt).toLocaleDateString("es"),
+  }))
+
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(rows, { header: HEADERS })
+
+  // Hyperlinks en columna WhatsApp
+  leads.forEach((lead, i) => {
+    if (!lead.phone) return
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: waColIndex })
+    if (ws[cellRef]) ws[cellRef].l = { Target: `https://wa.me/${toWaPhone(lead.phone)}` }
+  })
+
+  ws["!cols"] = [
+    { wch: 26 }, { wch: 16 }, { wch: 28 }, { wch: 15 },
+    { wch: 12 }, { wch: 12 }, { wch: 12 },
+    { wch: 22 }, { wch: 22 }, { wch: 15 },
+    { wch: 8 },  { wch: 12 }, { wch: 8 },
+    { wch: 34 }, { wch: 12 },
+  ]
+
+  const safeName = campaignName.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_")
+  XLSX.utils.book_append_sheet(wb, ws, "Leads")
+  XLSX.writeFile(wb, `leads_${safeName}_${new Date().toISOString().split("T")[0]}.xlsx`)
 }
 
 function SourceBadge({ source }: { source: string }) {
@@ -342,6 +408,16 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
         subtitle={`${campaign.client?.name ?? orgName} · ${leads.length} leads`}
         actions={
           <>
+            {leads.length > 0 && (
+              <button
+                onClick={() => exportLeadsXlsx(leads, campaign.name)}
+                title="Exportar leads visibles a Excel con link de WhatsApp"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd px-3 text-xs text-ops-tx transition-colors hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
+              >
+                <Download className="h-4 w-4" />
+                Exportar
+              </button>
+            )}
             <button
               onClick={() => setShowCreateDialog(true)}
               className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3 text-xs font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-ops-blue"
