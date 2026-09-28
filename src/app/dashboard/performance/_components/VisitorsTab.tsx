@@ -334,12 +334,20 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
             {sessions.map((session) => {
               const src = resolveSource(session.utmSource, session.referrer)
               const duration = formatDuration(session.sessionDurationMs)
+              const leadSearchUrl = session.linkedLeadId && session.linkedCampaignId
+                ? `/dashboard/campaigns/${session.linkedCampaignId}/leads?search=${encodeURIComponent(session.linkedLeadName ?? "")}`
+                : null
               return (
-                <li key={session.visitorId}>
+                <li key={session.visitorId} className="relative hover:bg-ops-s2/50 transition-colors">
+                  {/* Full-row overlay link → visitor detail */}
                   <Link
                     href={`/dashboard/clients/${clientId}/tracking/visitors/${session.visitorId}`}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-ops-s2/50 transition-colors"
-                  >
+                    className="absolute inset-0"
+                    aria-label={`Ver sesión ${session.visitorId.slice(0, 8)}`}
+                  />
+
+                  {/* Row content — sits above the overlay; interactive elements need relative z-10 */}
+                  <div className="relative flex items-center gap-3 px-4 py-3">
                     <span className="shrink-0 rounded-md bg-ops-blue/10 px-2 py-1 font-mono text-xs font-semibold text-ops-blue">
                       #{session.visitorId.slice(0, 8)}
                     </span>
@@ -361,9 +369,21 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                           </span>
                         )}
                         {session.hasFormSubmit && (
-                          <span className="inline-flex items-center gap-0.5 rounded border border-green-800 bg-green-900/20 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
-                            <FileText className="h-2.5 w-2.5" />lead
-                          </span>
+                          leadSearchUrl ? (
+                            <Link
+                              href={leadSearchUrl}
+                              target="_blank"
+                              className="relative z-10 inline-flex items-center gap-0.5 rounded border border-green-700 bg-green-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-green-400 hover:bg-green-900/60 hover:border-green-600 transition-colors"
+                              title={session.linkedLeadName ? `Ver lead: ${session.linkedLeadName}` : "Ver lead vinculado"}
+                            >
+                              <FileText className="h-2.5 w-2.5" />
+                              lead ↗
+                            </Link>
+                          ) : (
+                            <span className="inline-flex items-center gap-0.5 rounded border border-green-800 bg-green-900/20 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                              <FileText className="h-2.5 w-2.5" />lead
+                            </span>
+                          )
                         )}
                         {session.hasAddToCart && (
                           <span className="inline-flex items-center gap-0.5 rounded border border-amber-800 bg-amber-900/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
@@ -403,7 +423,7 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                     <svg className="shrink-0 h-4 w-4 text-ops-tx3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                       <path d="M9 18l6-6-6-6" />
                     </svg>
-                  </Link>
+                  </div>
                 </li>
               )
             })}

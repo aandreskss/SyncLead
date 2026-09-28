@@ -533,6 +533,9 @@ export type VisitorSessionRow = {
   hasPurchase: boolean
   hasInfoRequest: boolean
   uniquePageCount: number
+  linkedLeadId: string | null
+  linkedCampaignId: string | null
+  linkedLeadName: string | null
 }
 
 export async function getVisitorSessionsByClient(
@@ -629,6 +632,9 @@ export async function getVisitorSessionsByClient(
         hasPurchase: false,
         hasInfoRequest: false,
         uniquePageCount: 0,
+        linkedLeadId: null,
+        linkedCampaignId: null,
+        linkedLeadName: null,
       })
     } else {
       if (!isPing) existing.eventCount++
@@ -647,6 +653,55 @@ export async function getVisitorSessionsByClient(
     session.hasPurchase = events.has("purchase") || events.has("Purchase")
     session.hasInfoRequest = events.has("info_requested")
     session.uniquePageCount = pages.size
+  }
+
+  // Step 3: Link leads to sessions where the visitor submitted a form
+  const submitVisitorIds = Array.from(map.keys()).filter((vid) => map.get(vid)?.hasFormSubmit)
+  if (submitVisitorIds.length > 0) {
+    const clientCampaignIds = await db
+      .select({ id: campaigns.id })
+      .from(campaigns)
+      .where(and(eq(campaigns.clientId, clientId), eq(campaigns.orgId, orgId)))
+      .then((rows) => rows.map((r) => r.id))
+
+    if (clientCampaignIds.length > 0) {
+      const linkedLeads = await db
+        .select({
+          visitorId: leads.visitorId,
+          leadId: leads.id,
+          campaignId: leads.campaignId,
+          leadName: leads.name,
+        })
+        .from(leads)
+        .where(
+          and(
+            isNotNull(leads.visitorId),
+            inArray(leads.visitorId, submitVisitorIds),
+            inArray(leads.campaignId, clientCampaignIds),
+            eq(leads.orgId, orgId),
+          )
+        )
+
+      const leadByVisitor = new Map<string, { leadId: string; campaignId: string; leadName: string | null }>()
+      for (const l of linkedLeads) {
+        if (l.visitorId && !leadByVisitor.has(l.visitorId)) {
+          leadByVisitor.set(l.visitorId, {
+            leadId: l.leadId,
+            campaignId: l.campaignId,
+            leadName: l.leadName,
+          })
+        }
+      }
+
+      for (const session of map.values()) {
+        const linked = leadByVisitor.get(session.visitorId)
+        if (linked) {
+          session.linkedLeadId = linked.leadId
+          session.linkedCampaignId = linked.campaignId
+          session.linkedLeadName = linked.leadName
+        }
+      }
+    }
   }
 
   let sessions = Array.from(map.values())
