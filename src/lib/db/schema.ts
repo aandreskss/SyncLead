@@ -412,6 +412,7 @@ export const leads = pgTable(
     fbclid: text("fbclid"),
     fbc: text("fbc"),
     fbp: text("fbp"),
+    visitorId: text("visitor_id"),
     landingUrl: text("landing_url"),
     referrerUrl: text("referrer_url"),
     metaCampaignName: text("meta_campaign_name"),

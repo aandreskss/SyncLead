@@ -1,8 +1,8 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { requireClientAccess } from "@/lib/auth/server"
-import { getObservationsByVisitor } from "@/domains/tracking/repository"
-import { ArrowLeft } from "lucide-react"
+import { getObservationsByVisitor, getLeadsLinkedToVisitor } from "@/domains/tracking/repository"
+import { ArrowLeft, User, Phone, Mail, Thermometer } from "lucide-react"
 import type { ConversionObservation } from "@/lib/db/schema"
 
 type SourceInfo = { label: string; cls: string }
@@ -84,6 +84,7 @@ export default async function VisitorDetailPage({
   const realEvents = events.filter((e) => e.eventName !== "session_ping")
   const first = realEvents[0] ?? events[0]
   const last = events[events.length - 1]
+  const linkedLeads = await getLeadsLinkedToVisitor(ctx.orgId, clientId, visitorId)
   const source = resolveSource(first.utmSource, first.referrer)
   const hasAttribution = first.utmSource || first.utmMedium || first.utmCampaign || first.referrer
   const sessionDurationMs = last.observedAt.getTime() - events[0].observedAt.getTime()
@@ -186,6 +187,67 @@ export default async function VisitorDetailPage({
           <p className="text-sm text-ops-tx3">Tráfico directo</p>
         )}
       </div>
+
+      {/* Linked leads */}
+      {linkedLeads.length > 0 && (
+        <div className="rounded-lg border border-ops-green/30 bg-ops-green/5 overflow-hidden">
+          <div className="border-b border-ops-green/20 px-5 py-3 flex items-center gap-2">
+            <User className="h-4 w-4 text-ops-green" />
+            <p className="text-xs font-semibold uppercase tracking-wider text-ops-green">
+              {linkedLeads.length === 1 ? "Lead vinculado" : `${linkedLeads.length} leads vinculados`}
+            </p>
+          </div>
+          <div className="divide-y divide-ops-line/40">
+            {linkedLeads.map((lead) => {
+              const tempCls =
+                lead.temperature === "hot"
+                  ? "bg-red-900/30 text-red-400 border-red-700"
+                  : lead.temperature === "warm"
+                  ? "bg-amber-900/30 text-amber-400 border-amber-700"
+                  : "bg-ops-s2 text-ops-tx3 border-ops-bd"
+              const tempLabel =
+                lead.temperature === "hot" ? "Caliente" : lead.temperature === "warm" ? "Tibio" : "Frío"
+              return (
+                <div key={lead.id} className="px-5 py-4 flex items-start gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-ops-tx">{lead.name}</span>
+                      <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${tempCls}`}>
+                        <Thermometer className="h-2.5 w-2.5" />{tempLabel}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {lead.phone && (
+                        <span className="flex items-center gap-1 text-xs text-ops-tx2">
+                          <Phone className="h-3 w-3 text-ops-tx3" />{lead.phone}
+                        </span>
+                      )}
+                      {lead.email && (
+                        <span className="flex items-center gap-1 text-xs text-ops-tx2">
+                          <Mail className="h-3 w-3 text-ops-tx3" />{lead.email}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-ops-tx3">
+                      Campaña: <span className="text-ops-tx2">{lead.campaignName}</span>
+                      {" · "}
+                      {lead.createdAt.toLocaleDateString("es-ES", {
+                        day: "2-digit", month: "short", year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/dashboard/clients/${clientId}?tab=leads&search=${encodeURIComponent(lead.name)}`}
+                    className="shrink-0 rounded-md border border-ops-blue/30 bg-ops-blue/10 px-3 py-1.5 text-xs font-medium text-ops-blue hover:bg-ops-blue/20 transition-colors"
+                  >
+                    Ver lead
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Timeline */}
       <div className="rounded-lg border border-ops-line bg-ops-s1 overflow-hidden">
