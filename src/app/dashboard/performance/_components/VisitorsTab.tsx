@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Users, ShoppingCart, CreditCard, Eye, Activity, UserCheck, Globe } from "lucide-react"
+import { Users, ShoppingCart, CreditCard, Eye, Activity, UserCheck, Globe, FileText, DollarSign, Info } from "lucide-react"
 import type { VisitorSessionRow } from "@/domains/tracking/repository"
 import type { LandingPageEntry } from "@/domains/leads/repository"
 
@@ -69,7 +69,9 @@ function applyActionFilter(sessions: VisitorSessionRow[], action: string): Visit
     case "checkout": return sessions.filter((s) => s.hasCheckout)
     case "cart":     return sessions.filter((s) => s.hasAddToCart)
     case "product":  return sessions.filter((s) => s.hasViewProduct)
-    case "passive":  return sessions.filter((s) => !s.hasCheckout && !s.hasAddToCart && !s.hasViewProduct)
+    case "lead":     return sessions.filter((s) => s.hasFormSubmit)
+    case "purchase": return sessions.filter((s) => s.hasPurchase)
+    case "passive":  return sessions.filter((s) => !s.hasCheckout && !s.hasAddToCart && !s.hasViewProduct && !s.hasFormSubmit && !s.hasPurchase && !s.hasInfoRequest)
     default:         return sessions
   }
 }
@@ -121,12 +123,16 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
     checkout: allSessions.filter((s) => s.hasCheckout).length,
     cart:     allSessions.filter((s) => s.hasAddToCart).length,
     product:  allSessions.filter((s) => s.hasViewProduct).length,
-    passive:  allSessions.filter((s) => !s.hasCheckout && !s.hasAddToCart && !s.hasViewProduct).length,
+    lead:     allSessions.filter((s) => s.hasFormSubmit).length,
+    purchase: allSessions.filter((s) => s.hasPurchase).length,
+    passive:  allSessions.filter((s) => !s.hasCheckout && !s.hasAddToCart && !s.hasViewProduct && !s.hasFormSubmit && !s.hasPurchase && !s.hasInfoRequest).length,
   }
 
   const ACTION_FILTERS = [
     { key: "all",      label: "Todos",          icon: null,         count: counts.all },
+    { key: "purchase", label: "Con compra",      icon: DollarSign,   count: counts.purchase },
     { key: "checkout", label: "Con checkout",    icon: CreditCard,   count: counts.checkout },
+    { key: "lead",     label: "Envió formulario",icon: FileText,     count: counts.lead },
     { key: "cart",     label: "Con carrito",     icon: ShoppingCart, count: counts.cart },
     { key: "product",  label: "Vio productos",   icon: Eye,          count: counts.product },
     { key: "passive",  label: "Solo navegación", icon: Activity,     count: counts.passive },
@@ -344,17 +350,32 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                         <span className={`inline rounded border px-1.5 py-0.5 text-xs font-medium ${src.cls}`}>
                           {src.label}
                         </span>
+                        {session.hasPurchase && (
+                          <span className="inline-flex items-center gap-0.5 rounded border border-emerald-700 bg-emerald-900/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                            <DollarSign className="h-2.5 w-2.5" />compra
+                          </span>
+                        )}
                         {session.hasCheckout && (
                           <span className="inline-flex items-center gap-0.5 rounded border border-orange-800 bg-orange-900/20 px-1.5 py-0.5 text-[10px] font-medium text-orange-400">
                             <CreditCard className="h-2.5 w-2.5" />checkout
                           </span>
                         )}
-                        {session.hasAddToCart && !session.hasCheckout && (
+                        {session.hasFormSubmit && (
+                          <span className="inline-flex items-center gap-0.5 rounded border border-green-800 bg-green-900/20 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                            <FileText className="h-2.5 w-2.5" />lead
+                          </span>
+                        )}
+                        {session.hasAddToCart && (
                           <span className="inline-flex items-center gap-0.5 rounded border border-amber-800 bg-amber-900/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
                             <ShoppingCart className="h-2.5 w-2.5" />carrito
                           </span>
                         )}
-                        {session.hasViewProduct && !session.hasAddToCart && !session.hasCheckout && (
+                        {session.hasInfoRequest && (
+                          <span className="inline-flex items-center gap-0.5 rounded border border-indigo-800 bg-indigo-900/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-400">
+                            <Info className="h-2.5 w-2.5" />info
+                          </span>
+                        )}
+                        {session.hasViewProduct && (
                           <span className="inline-flex items-center gap-0.5 rounded border border-sky-800 bg-sky-900/20 px-1.5 py-0.5 text-[10px] font-medium text-sky-400">
                             <Eye className="h-2.5 w-2.5" />producto
                           </span>
