@@ -284,6 +284,11 @@ export async function getLeadsByClient(
       filters.temperature ? eq(leads.temperature, filters.temperature) : undefined,
       filters.stage ? eq(leads.stage, filters.stage) : undefined,
       filters.source ? eq(leads.leadSource, filters.source) : undefined,
+      filters.landingPage === "(sin seguimiento)"
+        ? isNull(leads.landingUrl)
+        : filters.landingPage
+        ? ilike(leads.landingUrl, `%${filters.landingPage}%`)
+        : undefined,
       convertedCond,
       searchCond,
     ),
@@ -609,4 +614,42 @@ export async function getClientLeadLandingStats(
     .sort((a, b) => b.count - a.count)
 
   return { total: grandTotal, breakdown }
+}
+
+export async function getClientLandingBreakdown(
+  orgId: string,
+  clientId: string
+): Promise<LandingPageEntry[]> {
+  const clientCampaigns = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.orgId, orgId), eq(campaigns.clientId, clientId)))
+
+  if (clientCampaigns.length === 0) return []
+  const campaignIds = clientCampaigns.map((c) => c.id)
+
+  const rows = await db
+    .select({
+      landingUrl: leads.landingUrl,
+      total: count(leads.id).as("total"),
+    })
+    .from(leads)
+    .where(and(eq(leads.orgId, orgId), inArray(leads.campaignId, campaignIds)))
+    .groupBy(leads.landingUrl)
+
+  const pathMap = new Map<string, number>()
+  for (const row of rows) {
+    const n = Number(row.total)
+    if (!row.landingUrl) {
+      pathMap.set("(sin seguimiento)", (pathMap.get("(sin seguimiento)") ?? 0) + n)
+      continue
+    }
+    let path = "/"
+    try { path = new URL(row.landingUrl).pathname || "/" } catch { path = row.landingUrl }
+    pathMap.set(path, (pathMap.get(path) ?? 0) + n)
+  }
+
+  return Array.from(pathMap.entries())
+    .map(([path, total]) => ({ path, count: total }))
+    .sort((a, b) => b.count - a.count)
 }
