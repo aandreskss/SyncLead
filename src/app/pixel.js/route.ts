@@ -26,7 +26,7 @@ function post(url,headers,body){try{fetch(url,{method:'POST',headers:Object.assi
 function collect(n,x){post(B+'/api/collect/'+TOKEN,{},Object.assign({eventName:n,pageUrl:location.href,environment:'production',parameters:{}},ctx(),x||{}));}
 function behavior(t,d){post(B+'/api/behavior',{Authorization:'Bearer '+TOKEN},Object.assign({eventType:t,visitorId:vid()},d||{}));}
 function utms(){return compact({utm_source:localStorage.getItem('_sl_utm_source'),utm_medium:localStorage.getItem('_sl_utm_medium'),utm_campaign:localStorage.getItem('_sl_utm_campaign'),utm_content:localStorage.getItem('_sl_utm_content')});}
-function lead(d){post(B+'/api/ingest/form',{'X-Ingest-Token':TOKEN},Object.assign(CAMPAIGN?{campaign_id:CAMPAIGN}:{},utms(),d||{}));}
+function lead(d){var ld=Object.assign(CAMPAIGN?{campaign_id:CAMPAIGN}:{},utms(),{landing_url:location.href},d||{});if(!ld.referrer_url&&document.referrer)ld.referrer_url=document.referrer;if(!ld.event_id){try{ld.event_id=crypto.randomUUID();}catch(e){ld.event_id=Date.now().toString(36)+Math.random().toString(36).slice(2,9);}}post(B+'/api/ingest/form',{'X-Ingest-Token':TOKEN},ld);}
 
 collect('PageView',{});
 setInterval(function(){collect('session_ping',{});},30000);
