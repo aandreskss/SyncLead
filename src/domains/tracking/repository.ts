@@ -542,8 +542,7 @@ export async function getVisitorSessionsByClient(
   orgId: string,
   clientId: string,
   limit = 100,
-  days = 30,
-  landingPath?: string
+  days = 30
 ): Promise<VisitorSessionRow[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
@@ -655,9 +654,14 @@ export async function getVisitorSessionsByClient(
     session.uniquePageCount = pages.size
   }
 
-  // Step 3: Link leads to sessions where the visitor submitted a form
-  const submitVisitorIds = Array.from(map.keys()).filter((vid) => map.get(vid)?.hasFormSubmit)
-  if (submitVisitorIds.length > 0) {
+  // Step 3: Link leads to sessions by matching leads.visitor_id.
+  // BUG FIX: the old code only checked visitors with hasFormSubmit=true in
+  // conversion_observations, but pixel.js lead() sends to /api/ingest/form
+  // (not the collect endpoint) so form_submitted never lands in
+  // conversion_observations → submitVisitorIds was always empty → no linking.
+  // Fix: check ALL visitor_ids unconditionally; if a lead links, mark hasFormSubmit=true.
+  const allVisitorIds = Array.from(map.keys())
+  if (allVisitorIds.length > 0) {
     const clientCampaignIds = await db
       .select({ id: campaigns.id })
       .from(campaigns)
@@ -671,24 +675,26 @@ export async function getVisitorSessionsByClient(
           leadId: leads.id,
           campaignId: leads.campaignId,
           leadName: leads.name,
+          temperature: leads.temperature,
         })
         .from(leads)
         .where(
           and(
             isNotNull(leads.visitorId),
-            inArray(leads.visitorId, submitVisitorIds),
+            inArray(leads.visitorId, allVisitorIds),
             inArray(leads.campaignId, clientCampaignIds),
             eq(leads.orgId, orgId),
           )
         )
 
-      const leadByVisitor = new Map<string, { leadId: string; campaignId: string; leadName: string | null }>()
+      const leadByVisitor = new Map<string, { leadId: string; campaignId: string; leadName: string | null; temperature: string }>()
       for (const l of linkedLeads) {
         if (l.visitorId && !leadByVisitor.has(l.visitorId)) {
           leadByVisitor.set(l.visitorId, {
             leadId: l.leadId,
             campaignId: l.campaignId,
             leadName: l.leadName,
+            temperature: l.temperature,
           })
         }
       }
@@ -699,23 +705,16 @@ export async function getVisitorSessionsByClient(
           session.linkedLeadId = linked.leadId
           session.linkedCampaignId = linked.campaignId
           session.linkedLeadName = linked.leadName
+          // A linked lead is definitive proof a form was submitted — mark accordingly
+          // so the hasFormSubmit badge appears even if there's no form_submitted event
+          // in conversion_observations (which is the typical case when using the ingest endpoint).
+          session.hasFormSubmit = true
         }
       }
     }
   }
 
-  let sessions = Array.from(map.values())
-
-  if (landingPath) {
-    sessions = sessions.filter((s) => {
-      if (!s.firstPageUrl) return false
-      let path = "/"
-      try { path = new URL(s.firstPageUrl).pathname || "/" } catch { path = s.firstPageUrl }
-      return path === landingPath
-    })
-  }
-
-  return sessions
+  return Array.from(map.values())
     .sort((a, b) => b.lastSeen.getTime() - a.lastSeen.getTime())
     .slice(0, limit)
 }

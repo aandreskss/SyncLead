@@ -29,6 +29,7 @@ export default async function PerformancePage({
     action?: string
     days?: string
     landingPath?: string
+    source?: string
   }>
 }) {
   let ctx: { orgId: string; userId: string }
@@ -57,6 +58,7 @@ export default async function PerformancePage({
   const currentAction = sp.action ?? "all"
   const currentDays = sp.days ?? "30"
   const currentLandingPath = sp.landingPath || undefined
+  const currentSource = sp.source || "all"
   const daysNum = currentDays === "7" ? 7 : currentDays === "90" ? 90 : 30
   const insightsDays = sp.days === "7" ? 7 : sp.days === "90" ? 90 : 30
 
@@ -89,7 +91,7 @@ export default async function PerformancePage({
   const [allSessions, leadLandingStats] = await (
     tab === "visitantes" && clientId
       ? Promise.all([
-          getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum, currentLandingPath),
+          getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum),
           getClientLeadLandingStats(ctx.orgId, clientId, daysNum),
         ])
       : Promise.resolve([[], { total: 0, breakdown: [] }] as [Awaited<ReturnType<typeof getVisitorSessionsByClient>>, { total: number; breakdown: { path: string; count: number }[] }])
@@ -99,7 +101,6 @@ export default async function PerformancePage({
   const baseParams: Record<string, string> = { tab: "visitantes" }
   if (clientId) baseParams.clientId = clientId
   if (sp.range) baseParams.range = sp.range
-  if (currentLandingPath) baseParams.landingPath = currentLandingPath
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "rendimiento", label: "Rendimiento" },
@@ -130,9 +131,10 @@ export default async function PerformancePage({
         allSessions={allSessions}
         currentAction={currentAction}
         currentDays={currentDays}
+        currentSource={currentSource}
+        currentLandingPath={currentLandingPath}
         baseParams={baseParams}
         leadLandingStats={leadLandingStats}
-        currentLandingPath={currentLandingPath}
       />
     )
   } else if (tab === "visitantes" && !clientId) {

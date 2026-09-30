@@ -1,5 +1,11 @@
+"use client"
+
 import Link from "next/link"
-import { Users, ShoppingCart, CreditCard, Eye, Activity, UserCheck, Globe, FileText, DollarSign, Info } from "lucide-react"
+import { useState } from "react"
+import {
+  Users, ShoppingCart, CreditCard, Eye, Activity, UserCheck, Globe,
+  FileText, DollarSign, Info, ChevronDown, ChevronUp,
+} from "lucide-react"
 import type { VisitorSessionRow } from "@/domains/tracking/repository"
 import type { LandingPageEntry } from "@/domains/leads/repository"
 
@@ -8,29 +14,29 @@ function extractPath(url: string | null): string | null {
   try { return new URL(url).pathname || "/" } catch { return url }
 }
 
-type SourceInfo = { label: string; cls: string }
+type SourceInfo = { label: string; cls: string; key: string }
 
 function resolveSource(utmSource: string | null, referrer: string | null): SourceInfo {
   const src = (utmSource ?? "").toLowerCase()
   const ref = (referrer ?? "").toLowerCase()
-  if (src.includes("google") || ref.includes("google.com"))
-    return { label: "Google", cls: "text-blue-400 bg-blue-400/10 border-blue-800" }
   if (src.includes("facebook") || src.includes("fb") || ref.includes("facebook.com"))
-    return { label: "Facebook", cls: "text-blue-300 bg-blue-300/10 border-blue-700" }
+    return { label: "Facebook", cls: "text-blue-300 bg-blue-300/10 border-blue-700", key: "facebook" }
   if (src.includes("instagram") || ref.includes("instagram.com"))
-    return { label: "Instagram", cls: "text-pink-400 bg-pink-400/10 border-pink-800" }
-  if (src.includes("tiktok") || ref.includes("tiktok.com"))
-    return { label: "TikTok", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
+    return { label: "Instagram", cls: "text-pink-400 bg-pink-400/10 border-pink-800", key: "instagram" }
   if (src.includes("whatsapp") || ref.includes("whatsapp.com") || ref.includes("wa.me"))
-    return { label: "WhatsApp", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-800" }
+    return { label: "WhatsApp", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-800", key: "whatsapp" }
+  if (src.includes("google") || ref.includes("google.com"))
+    return { label: "Google", cls: "text-blue-400 bg-blue-400/10 border-blue-800", key: "google" }
+  if (src.includes("tiktok") || ref.includes("tiktok.com"))
+    return { label: "TikTok", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd", key: "tiktok" }
   if (utmSource)
-    return { label: utmSource, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
+    return { label: utmSource, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd", key: "other" }
   if (referrer) {
     let host = referrer
     try { host = new URL(referrer).hostname.replace(/^www\./, "") } catch { /* invalid */ }
-    return { label: host, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
+    return { label: host, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd", key: "other" }
   }
-  return { label: "Directo", cls: "text-ops-tx3 bg-ops-s2 border-ops-bd" }
+  return { label: "Directo", cls: "text-ops-tx3 bg-ops-s2 border-ops-bd", key: "direct" }
 }
 
 function countryFlag(code: string): string {
@@ -64,15 +70,33 @@ function formatDuration(ms: number): string {
   return `${min}m ${sec}s`
 }
 
+function applySourceFilter(sessions: VisitorSessionRow[], source: string): VisitorSessionRow[] {
+  if (source === "all") return sessions
+  return sessions.filter((s) => resolveSource(s.utmSource, s.referrer).key === source)
+}
+
+function applyLandingFilter(sessions: VisitorSessionRow[], landingPath: string | undefined): VisitorSessionRow[] {
+  if (!landingPath) return sessions
+  if (landingPath === "__none__") return sessions.filter((s) => !s.firstPageUrl)
+  return sessions.filter((s) => {
+    if (!s.firstPageUrl) return false
+    let path = "/"
+    try { path = new URL(s.firstPageUrl).pathname || "/" } catch { path = s.firstPageUrl }
+    return path === landingPath
+  })
+}
+
 function applyActionFilter(sessions: VisitorSessionRow[], action: string): VisitorSessionRow[] {
   switch (action) {
-    case "checkout": return sessions.filter((s) => s.hasCheckout)
-    case "cart":     return sessions.filter((s) => s.hasAddToCart)
-    case "product":  return sessions.filter((s) => s.hasViewProduct)
-    case "lead":     return sessions.filter((s) => s.hasFormSubmit)
-    case "purchase": return sessions.filter((s) => s.hasPurchase)
-    case "passive":  return sessions.filter((s) => !s.hasCheckout && !s.hasAddToCart && !s.hasViewProduct && !s.hasFormSubmit && !s.hasPurchase && !s.hasInfoRequest)
-    default:         return sessions
+    case "checkout":  return sessions.filter((s) => s.hasCheckout)
+    case "cart":      return sessions.filter((s) => s.hasAddToCart)
+    case "product":   return sessions.filter((s) => s.hasViewProduct)
+    case "lead":      return sessions.filter((s) => s.hasFormSubmit)
+    case "purchase":  return sessions.filter((s) => s.hasPurchase)
+    case "info":      return sessions.filter((s) => s.hasInfoRequest)
+    case "linked":    return sessions.filter((s) => s.linkedLeadId !== null)
+    case "passive":   return sessions.filter((s) => !s.hasCheckout && !s.hasAddToCart && !s.hasViewProduct && !s.hasFormSubmit && !s.hasPurchase && !s.hasInfoRequest)
+    default:          return sessions
   }
 }
 
@@ -80,7 +104,9 @@ function buildTabUrl(base: Record<string, string>, overrides: Record<string, str
   const merged = { ...base, ...overrides }
   const sp = new URLSearchParams()
   for (const [k, v] of Object.entries(merged)) {
-    if (v) sp.set(k, v)
+    if (v && v !== "all" && v !== "") sp.set(k, v)
+    else if ((k === "action" || k === "source") && v === "all") { /* omit */ }
+    else if (v) sp.set(k, v)
   }
   return `/dashboard/performance?${sp}`
 }
@@ -90,55 +116,84 @@ interface Props {
   allSessions: VisitorSessionRow[]
   currentAction: string
   currentDays: string
+  currentSource: string
+  currentLandingPath?: string
   baseParams: Record<string, string>
   leadLandingStats?: { total: number; breakdown: LandingPageEntry[] }
-  currentLandingPath?: string
 }
 
-export function VisitorsTab({ clientId, allSessions, currentAction, currentDays, baseParams, leadLandingStats, currentLandingPath }: Props) {
-  const sessions = applyActionFilter(allSessions, currentAction)
+export function VisitorsTab({
+  clientId,
+  allSessions,
+  currentAction,
+  currentDays,
+  currentSource,
+  currentLandingPath,
+  baseParams,
+  leadLandingStats,
+}: Props) {
+  const [showAllLandings, setShowAllLandings] = useState(false)
 
-  // Landing page breakdown from pixel observations (firstPageUrl per session)
-  const visitorLandingMap = new Map<string, number>()
-  for (const s of allSessions) {
-    const path = extractPath(s.firstPageUrl) ?? "(sin página)"
-    visitorLandingMap.set(path, (visitorLandingMap.get(path) ?? 0) + 1)
-  }
-  const visitorLandingBreakdown = Array.from(visitorLandingMap.entries())
-    .map(([path, count]) => ({ path, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6)
+  // Apply filters in order: source → landing → action
+  const sourcedSessions = applySourceFilter(allSessions, currentSource)
+  const landedSessions = applyLandingFilter(sourcedSessions, currentLandingPath)
+  const sessions = applyActionFilter(landedSessions, currentAction)
 
-  const sourceMap = new Map<string, number>()
+  // ── Source breakdown from ALL sessions (for source filter chips)
+  const sourceMap = new Map<string, { count: number; cls: string; label: string }>()
   for (const s of allSessions) {
     const info = resolveSource(s.utmSource, s.referrer)
-    sourceMap.set(info.label, (sourceMap.get(info.label) ?? 0) + 1)
+    const existing = sourceMap.get(info.key)
+    if (existing) existing.count++
+    else sourceMap.set(info.key, { count: 1, cls: info.cls, label: info.label })
   }
-  const topSources = Array.from(sourceMap.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
+  const topSources = Array.from(sourceMap.entries()).sort((a, b) => b[1].count - a[1].count)
 
+  // ── Landing page breakdown from source-filtered (not action-filtered, not landing-filtered)
+  // This ensures chip counts reflect real distribution regardless of active filters.
+  const landingMap = new Map<string, number>()
+  for (const s of sourcedSessions) {
+    const path = extractPath(s.firstPageUrl) ?? "__none__"
+    landingMap.set(path, (landingMap.get(path) ?? 0) + 1)
+  }
+  const allLandingBreakdown = Array.from(landingMap.entries())
+    .map(([path, count]) => ({ path, count }))
+    .sort((a, b) => b.count - a.count)
+  const visitorLandingBreakdown = showAllLandings ? allLandingBreakdown : allLandingBreakdown.slice(0, 8)
+
+  // ── Action filter counts from landing-filtered sessions (before action filter)
   const counts = {
-    all:      allSessions.length,
-    checkout: allSessions.filter((s) => s.hasCheckout).length,
-    cart:     allSessions.filter((s) => s.hasAddToCart).length,
-    product:  allSessions.filter((s) => s.hasViewProduct).length,
-    lead:     allSessions.filter((s) => s.hasFormSubmit).length,
-    purchase: allSessions.filter((s) => s.hasPurchase).length,
-    passive:  allSessions.filter((s) => !s.hasCheckout && !s.hasAddToCart && !s.hasViewProduct && !s.hasFormSubmit && !s.hasPurchase && !s.hasInfoRequest).length,
+    all:      landedSessions.length,
+    purchase: landedSessions.filter((s) => s.hasPurchase).length,
+    checkout: landedSessions.filter((s) => s.hasCheckout).length,
+    lead:     landedSessions.filter((s) => s.hasFormSubmit).length,
+    linked:   landedSessions.filter((s) => s.linkedLeadId !== null).length,
+    cart:     landedSessions.filter((s) => s.hasAddToCart).length,
+    product:  landedSessions.filter((s) => s.hasViewProduct).length,
+    info:     landedSessions.filter((s) => s.hasInfoRequest).length,
+    passive:  landedSessions.filter((s) => !s.hasCheckout && !s.hasAddToCart && !s.hasViewProduct && !s.hasFormSubmit && !s.hasPurchase && !s.hasInfoRequest).length,
   }
 
-  const ACTION_FILTERS = [
-    { key: "all",      label: "Todos",          icon: null,         count: counts.all },
-    { key: "purchase", label: "Con compra",      icon: DollarSign,   count: counts.purchase },
-    { key: "checkout", label: "Con checkout",    icon: CreditCard,   count: counts.checkout },
-    { key: "lead",     label: "Envió formulario",icon: FileText,     count: counts.lead },
-    { key: "cart",     label: "Con carrito",     icon: ShoppingCart, count: counts.cart },
-    { key: "product",  label: "Vio productos",   icon: Eye,          count: counts.product },
-    { key: "passive",  label: "Solo navegación", icon: Activity,     count: counts.passive },
-  ]
+  const linkedCount = allSessions.filter((s) => s.linkedLeadId !== null).length
 
   const DAYS_FILTERS = ["7", "30", "90"]
+
+  const SOURCE_FILTERS = [
+    { key: "all", label: "Todas las fuentes", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" },
+    ...topSources.map(([key, { label, cls }]) => ({ key, label, cls })),
+  ]
+
+  const ACTION_FILTERS = [
+    { key: "all",      label: "Todos",             icon: null,         count: counts.all },
+    { key: "purchase", label: "Con compra",         icon: DollarSign,   count: counts.purchase },
+    { key: "checkout", label: "Con checkout",       icon: CreditCard,   count: counts.checkout },
+    { key: "linked",   label: "Lead vinculado",     icon: UserCheck,    count: counts.linked },
+    { key: "lead",     label: "Envió formulario",   icon: FileText,     count: counts.lead },
+    { key: "cart",     label: "Con carrito",        icon: ShoppingCart, count: counts.cart },
+    { key: "product",  label: "Vio productos",      icon: Eye,          count: counts.product },
+    { key: "info",     label: "Solicitó info",      icon: Info,         count: counts.info },
+    { key: "passive",  label: "Solo navegación",    icon: Activity,     count: counts.passive },
+  ]
 
   return (
     <div className="space-y-5">
@@ -159,7 +214,7 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
           {DAYS_FILTERS.map((d) => (
             <Link
               key={d}
-              href={buildTabUrl(baseParams, { days: d, action: currentAction })}
+              href={buildTabUrl(baseParams, { days: d, action: currentAction, source: currentSource })}
               className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 currentDays === d
                   ? "bg-ops-sel text-ops-tx"
@@ -172,66 +227,120 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-ops-line bg-ops-s1 p-4">
           <p className="text-xs text-ops-tx3 mb-1">Visitantes únicos</p>
           <p className="text-2xl font-bold text-ops-tx">{allSessions.length}</p>
         </div>
-        {topSources.map(([label, count]) => {
-          const info = resolveSource(
-            allSessions.find((s) => resolveSource(s.utmSource, s.referrer).label === label)?.utmSource ?? null,
-            allSessions.find((s) => resolveSource(s.utmSource, s.referrer).label === label)?.referrer ?? null,
-          )
-          return (
-            <div key={label} className="rounded-lg border border-ops-line bg-ops-s1 p-4">
-              <p className="text-xs text-ops-tx3 mb-1">
-                <span className={`inline rounded border px-1.5 py-0.5 text-xs font-medium ${info.cls}`}>
-                  {label}
-                </span>
-              </p>
-              <p className="text-2xl font-bold text-ops-tx">{count}</p>
-              <p className="text-xs text-ops-tx3">
-                {allSessions.length > 0 ? `${Math.round((count / allSessions.length) * 100)}%` : "—"}
-              </p>
-            </div>
-          )
-        })}
+        {linkedCount > 0 && (
+          <div className="rounded-lg border border-green-800/50 bg-green-900/10 p-4">
+            <p className="text-xs text-ops-tx3 mb-1 flex items-center gap-1">
+              <UserCheck className="h-3 w-3 text-green-400" />Leads vinculados
+            </p>
+            <p className="text-2xl font-bold text-green-400">{linkedCount}</p>
+            <p className="text-xs text-ops-tx3">
+              {allSessions.length > 0 ? `${Math.round((linkedCount / allSessions.length) * 100)}%` : "—"}
+            </p>
+          </div>
+        )}
+        {topSources.slice(0, linkedCount > 0 ? 2 : 3).map(([key, { label, cls, count }]) => (
+          <div key={key} className="rounded-lg border border-ops-line bg-ops-s1 p-4">
+            <p className="text-xs text-ops-tx3 mb-1">
+              <span className={`inline rounded border px-1.5 py-0.5 text-xs font-medium ${cls}`}>
+                {label}
+              </span>
+            </p>
+            <p className="text-2xl font-bold text-ops-tx">{count}</p>
+            <p className="text-xs text-ops-tx3">
+              {allSessions.length > 0 ? `${Math.round((count / allSessions.length) * 100)}%` : "—"}
+            </p>
+          </div>
+        ))}
       </div>
 
-      {/* Landing page filter chips (from pixel observations) */}
-      {visitorLandingBreakdown.length > 0 && (
+      {/* Source filter chips */}
+      {topSources.length > 1 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-ops-tx3 mr-0.5">Fuente:</span>
+          {SOURCE_FILTERS.map(({ key, label, cls }) => (
+            <Link
+              key={key}
+              href={buildTabUrl(baseParams, { source: key, action: currentAction, days: currentDays })}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                currentSource === key
+                  ? "border-ops-blue bg-ops-blue/10 text-ops-blue"
+                  : `${cls} hover:border-ops-bd`
+              }`}
+            >
+              {label}
+              {key !== "all" && (
+                <span className="ml-1 opacity-60">
+                  ({sourceMap.get(key)?.count ?? 0})
+                </span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Landing page filter chips */}
+      {allLandingBreakdown.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             <Globe className="h-3.5 w-3.5 text-ops-tx3 shrink-0" />
             <span className="text-xs text-ops-tx3 mr-0.5">Landing page:</span>
             <Link
-              href={buildTabUrl(baseParams, { action: currentAction, days: currentDays, landingPath: "" })}
+              href={buildTabUrl(baseParams, { action: currentAction, days: currentDays, source: currentSource, landingPath: "" })}
               className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
                 !currentLandingPath
                   ? "border-ops-blue bg-ops-blue/10 text-ops-blue"
                   : "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2"
               }`}
             >
-              Todas ({allSessions.length})
+              Todas ({sourcedSessions.length})
             </Link>
-            {visitorLandingBreakdown.map((entry) => (
-              <Link
-                key={entry.path}
-                href={buildTabUrl(baseParams, { action: currentAction, days: currentDays, landingPath: entry.path })}
-                className={`rounded-full border px-2.5 py-1 text-xs font-mono font-medium transition-colors ${
-                  currentLandingPath === entry.path
-                    ? "border-ops-blue bg-ops-blue/10 text-ops-blue"
-                    : "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2"
-                }`}
+            {visitorLandingBreakdown.map((entry) => {
+              const isNone = entry.path === "__none__"
+              const displayPath = isNone ? "(sin URL)" : entry.path
+              const isActive = currentLandingPath === entry.path
+              return (
+                <Link
+                  key={entry.path}
+                  href={buildTabUrl(baseParams, { action: currentAction, days: currentDays, source: currentSource, landingPath: entry.path })}
+                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                    isActive
+                      ? "border-ops-blue bg-ops-blue/10 text-ops-blue font-medium"
+                      : isNone
+                      ? "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2 italic"
+                      : "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2 font-mono"
+                  }`}
+                >
+                  {displayPath} ({entry.count})
+                </Link>
+              )
+            })}
+            {allLandingBreakdown.length > 8 && (
+              <button
+                onClick={() => setShowAllLandings((v) => !v)}
+                className="flex items-center gap-0.5 rounded-full border border-ops-line bg-ops-s1 px-2.5 py-1 text-xs text-ops-tx3 hover:text-ops-tx2 transition-colors"
               >
-                {entry.path} ({entry.count})
-              </Link>
-            ))}
+                {showAllLandings
+                  ? <><ChevronUp className="h-3 w-3" /> Menos</>
+                  : <><ChevronDown className="h-3 w-3" /> +{allLandingBreakdown.length - 8} más</>
+                }
+              </button>
+            )}
           </div>
-          {currentLandingPath && (
+          {currentLandingPath && currentLandingPath !== "__none__" && (
             <p className="text-xs text-ops-tx3">
-              Mostrando {sessions.length} visitante{sessions.length !== 1 ? "s" : ""} desde <code className="text-ops-tx2">{currentLandingPath}</code>
+              Mostrando {landedSessions.length} visitante{landedSessions.length !== 1 ? "s" : ""} desde{" "}
+              <code className="text-ops-tx2">{currentLandingPath}</code>
+            </p>
+          )}
+          {currentLandingPath === "__none__" && (
+            <p className="text-xs text-ops-tx3">
+              Mostrando {landedSessions.length} visitante{landedSessions.length !== 1 ? "s" : ""} sin URL de landing registrada
             </p>
           )}
         </div>
@@ -283,17 +392,23 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
         {ACTION_FILTERS.map(({ key, label, icon: Icon, count }) => (
           <Link
             key={key}
-            href={buildTabUrl(baseParams, { action: key, days: currentDays })}
+            href={buildTabUrl(baseParams, { action: key, days: currentDays, source: currentSource, ...(currentLandingPath ? { landingPath: currentLandingPath } : {}) })}
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
               currentAction === key
-                ? "border-ops-blue bg-ops-blue/10 text-ops-blue"
+                ? key === "linked"
+                  ? "border-green-700 bg-green-900/20 text-green-400"
+                  : "border-ops-blue bg-ops-blue/10 text-ops-blue"
                 : "border-ops-line bg-ops-s1 text-ops-tx3 hover:text-ops-tx2 hover:border-ops-bd"
             }`}
           >
             {Icon && <Icon className="h-3.5 w-3.5" />}
             {label}
             <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] ${
-              currentAction === key ? "bg-ops-blue/20 text-ops-blue" : "bg-ops-s2 text-ops-tx3"
+              currentAction === key
+                ? key === "linked"
+                  ? "bg-green-900/40 text-green-400"
+                  : "bg-ops-blue/20 text-ops-blue"
+                : "bg-ops-s2 text-ops-tx3"
             }`}>
               {count}
             </span>
@@ -316,9 +431,11 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
           <div className="px-4 py-16 text-center space-y-3">
             <Users className="h-8 w-8 text-ops-tx3 mx-auto" />
             <p className="text-sm text-ops-tx3">
-              {currentAction !== "all" ? "Ningún visitante coincide con este filtro" : "Sin visitantes aún"}
+              {currentAction !== "all" || currentLandingPath || currentSource !== "all"
+                ? "Ningún visitante coincide con los filtros activos"
+                : "Sin visitantes aún"}
             </p>
-            {currentAction === "all" && (
+            {currentAction === "all" && !currentLandingPath && currentSource === "all" && (
               <div className="max-w-sm mx-auto rounded-lg border border-ops-bd bg-ops-s2 px-4 py-3 text-left space-y-1.5">
                 <p className="text-xs font-semibold text-ops-tx2">Solo aparecen visitantes de campañas de Meta</p>
                 <p className="text-xs text-ops-tx3">
@@ -334,6 +451,7 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
             {sessions.map((session) => {
               const src = resolveSource(session.utmSource, session.referrer)
               const duration = formatDuration(session.sessionDurationMs)
+              const landingPathDisplay = extractPath(session.firstPageUrl)
               const leadSearchUrl = session.linkedLeadId && session.linkedCampaignId
                 ? `/dashboard/campaigns/${session.linkedCampaignId}/leads?search=${encodeURIComponent(session.linkedLeadName ?? "")}`
                 : null
@@ -346,19 +464,36 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                     aria-label={`Ver sesión ${session.visitorId.slice(0, 8)}`}
                   />
 
-                  {/* Row content — pointer-events-none so clicks pass through to the overlay link;
-                      interactive elements re-enable pointer events individually */}
-                  <div className="relative flex items-center gap-3 px-4 py-3 pointer-events-none">
-                    <span className="shrink-0 rounded-md bg-ops-blue/10 px-2 py-1 font-mono text-xs font-semibold text-ops-blue">
+                  {/* Row content — pointer-events-none so clicks pass to the overlay link */}
+                  <div className="relative flex items-start gap-3 px-4 py-3 pointer-events-none">
+                    <span className="shrink-0 rounded-md bg-ops-blue/10 px-2 py-1 font-mono text-xs font-semibold text-ops-blue mt-0.5">
                       #{session.visitorId.slice(0, 8)}
                     </span>
 
                     <div className="min-w-0 flex-1">
+                      {/* Row 1: event badges */}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-medium text-ops-tx">{session.firstEventName}</span>
                         <span className={`inline rounded border px-1.5 py-0.5 text-xs font-medium ${src.cls}`}>
                           {src.label}
                         </span>
+
+                        {/* Lead vinculado — most prominent badge */}
+                        {session.linkedLeadId && session.linkedCampaignId ? (
+                          <Link
+                            href={leadSearchUrl!}
+                            target="_blank"
+                            className="pointer-events-auto relative z-10 inline-flex items-center gap-1 rounded border border-green-700 bg-green-900/30 px-2 py-0.5 text-[10px] font-semibold text-green-400 hover:bg-green-900/60 hover:border-green-600 transition-colors"
+                            title={`Ver lead: ${session.linkedLeadName ?? "lead vinculado"}`}
+                          >
+                            <UserCheck className="h-3 w-3" />
+                            {session.linkedLeadName ? session.linkedLeadName : "lead ↗"}
+                          </Link>
+                        ) : session.hasFormSubmit ? (
+                          <span className="inline-flex items-center gap-0.5 rounded border border-green-800 bg-green-900/20 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                            <FileText className="h-2.5 w-2.5" />formulario
+                          </span>
+                        ) : null}
+
                         {session.hasPurchase && (
                           <span className="inline-flex items-center gap-0.5 rounded border border-emerald-700 bg-emerald-900/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
                             <DollarSign className="h-2.5 w-2.5" />compra
@@ -368,23 +503,6 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                           <span className="inline-flex items-center gap-0.5 rounded border border-orange-800 bg-orange-900/20 px-1.5 py-0.5 text-[10px] font-medium text-orange-400">
                             <CreditCard className="h-2.5 w-2.5" />checkout
                           </span>
-                        )}
-                        {session.hasFormSubmit && (
-                          leadSearchUrl ? (
-                            <Link
-                              href={leadSearchUrl}
-                              target="_blank"
-                              className="pointer-events-auto relative z-10 inline-flex items-center gap-0.5 rounded border border-green-700 bg-green-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-green-400 hover:bg-green-900/60 hover:border-green-600 transition-colors"
-                              title={session.linkedLeadName ? `Ver lead: ${session.linkedLeadName}` : "Ver lead vinculado"}
-                            >
-                              <FileText className="h-2.5 w-2.5" />
-                              lead ↗
-                            </Link>
-                          ) : (
-                            <span className="inline-flex items-center gap-0.5 rounded border border-green-800 bg-green-900/20 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
-                              <FileText className="h-2.5 w-2.5" />lead
-                            </span>
-                          )
                         )}
                         {session.hasAddToCart && (
                           <span className="inline-flex items-center gap-0.5 rounded border border-amber-800 bg-amber-900/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
@@ -402,16 +520,26 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-ops-tx3">
-                        {session.eventCount} evento{session.eventCount !== 1 ? "s" : ""}
-                        {session.uniquePageCount > 1 ? ` · ${session.uniquePageCount} páginas` : ""}
-                        {session.utmCampaign ? ` · ${session.utmCampaign}` : ""}
+
+                      {/* Row 2: metadata */}
+                      <p className="text-xs text-ops-tx3 mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                        <span>{session.eventCount} evento{session.eventCount !== 1 ? "s" : ""}</span>
+                        {session.uniquePageCount > 1 && <span>· {session.uniquePageCount} páginas</span>}
+                        {landingPathDisplay && (
+                          <span className="font-mono text-ops-tx3/70 truncate max-w-[180px]" title={session.firstPageUrl ?? ""}>
+                            · {landingPathDisplay}
+                          </span>
+                        )}
+                        {session.utmCampaign && (
+                          <span className="text-ops-tx3/70 truncate max-w-[160px]" title={session.utmCampaign}>
+                            · {session.utmCampaign}
+                          </span>
+                        )}
                         {(session.visitorCity || session.visitorCountry) && (
-                          <>
-                            {" · "}
-                            {session.visitorCountry && countryFlag(session.visitorCountry)}{" "}
+                          <span>
+                            · {session.visitorCountry && countryFlag(session.visitorCountry)}{" "}
                             {[session.visitorCity, session.visitorCountry].filter(Boolean).join(", ")}
-                          </>
+                          </span>
                         )}
                       </p>
                     </div>
@@ -421,7 +549,7 @@ export function VisitorsTab({ clientId, allSessions, currentAction, currentDays,
                       <p className="text-[10px] text-ops-tx3">{relativeTime(session.lastSeen)}</p>
                     </div>
 
-                    <svg className="shrink-0 h-4 w-4 text-ops-tx3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <svg className="shrink-0 h-4 w-4 text-ops-tx3 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                       <path d="M9 18l6-6-6-6" />
                     </svg>
                   </div>
