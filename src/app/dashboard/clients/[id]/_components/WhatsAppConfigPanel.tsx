@@ -54,7 +54,7 @@ export function WhatsAppConfigPanel({ clientId, initial }: Props) {
           onClick={() => handleModeChange("manual")}
           className={`text-left rounded-lg border p-4 transition-colors ${
             config.confirmationMode === "manual"
-              ? "border-emerald-500/50 bg-emerald-500/10"
+              ? "border-ops-green/50 bg-ops-green/10"
               : "border-ops-bd bg-ops-s2/50 hover:border-ops-bd"
           }`}
         >
@@ -75,7 +75,7 @@ export function WhatsAppConfigPanel({ clientId, initial }: Props) {
           onClick={() => handleModeChange("provider")}
           className={`text-left rounded-lg border p-4 transition-colors ${
             config.confirmationMode === "provider"
-              ? "border-blue-500/50 bg-blue-500/10"
+              ? "border-ops-blue/50 bg-ops-blue/10"
               : "border-ops-bd bg-ops-s2/50 hover:border-ops-bd"
           }`}
         >
@@ -88,7 +88,7 @@ export function WhatsAppConfigPanel({ clientId, initial }: Props) {
           {config.confirmationMode === "provider" && (
             <div className="mt-2">
               {config.hasProvider ? (
-                <p className="text-xs text-blue-400 font-medium flex items-center gap-1">
+                <p className="text-xs text-ops-blue font-medium flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" /> Proveedor conectado{config.providerName ? `: ${config.providerName}` : ""}
                 </p>
               ) : (

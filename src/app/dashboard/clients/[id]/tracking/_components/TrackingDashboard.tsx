@@ -90,7 +90,7 @@ function HealthSummary({
             {metaConnections.map((conn) => (
               <div key={conn.id} className="flex items-center gap-2">
                 {conn.status === "active" ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-ops-green shrink-0" />
                 ) : conn.status === "error" ? (
                   <XCircle className="h-3.5 w-3.5 text-ops-coral shrink-0" />
                 ) : (
@@ -131,7 +131,7 @@ function HealthSummary({
           <p className="text-xs text-ops-tx3 mb-1">Pixel base</p>
           <div className="flex items-center gap-2">
             {pixelStatus === "detectado" ? (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <CheckCircle2 className="h-4 w-4 text-ops-green" />
             ) : pixelStatus === "configurado" ? (
               <CircleDot className="h-4 w-4 text-amber-500" />
             ) : (
@@ -151,7 +151,7 @@ function HealthSummary({
           <p className="text-xs text-ops-tx3 mb-1">CAPI</p>
           <div className="flex items-center gap-2">
             {capiStatus === "activo_con_señal" || capiStatus === "conectado" ? (
-              <CheckCircle2 className={`h-4 w-4 ${capiStatus === "activo_con_señal" ? "text-green-500" : "text-emerald-600"}`} />
+              <CheckCircle2 className={`h-4 w-4 ${capiStatus === "activo_con_señal" ? "text-ops-green" : "text-ops-green"}`} />
             ) : capiStatus === "error" ? (
               <XCircle className="h-4 w-4 text-ops-coral" />
             ) : (
@@ -448,7 +448,7 @@ function ApplyTemplateModal({
         </div>
         {result ? (
           <div className="p-5 text-center space-y-3">
-            <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto" />
+            <CheckCircle2 className="h-8 w-8 text-ops-green mx-auto" />
             <p className="text-sm text-ops-tx">
               {result.created} evento{result.created !== 1 ? "s" : ""} creado{result.created !== 1 ? "s" : ""}
               {result.skipped > 0 && `, ${result.skipped} ya existía${result.skipped !== 1 ? "n" : ""}`}

@@ -8,7 +8,7 @@ type EventScore = { eventName: string; score: number | null }
 
 function scoreColor(score: number | null): string {
   if (score === null) return "text-ops-tx3"
-  if (score >= 8) return "text-emerald-400"
+  if (score >= 8) return "text-ops-green"
   if (score >= 6) return "text-amber-400"
   if (score >= 4) return "text-orange-400"
   return "text-red-400"
@@ -16,7 +16,7 @@ function scoreColor(score: number | null): string {
 
 function scoreBg(score: number | null): string {
   if (score === null) return "bg-ops-s2 border-ops-bd"
-  if (score >= 8) return "bg-emerald-900/20 border-emerald-800"
+  if (score >= 8) return "bg-ops-green/10 border-ops-green/30"
   if (score >= 6) return "bg-amber-900/20 border-amber-800"
   if (score >= 4) return "bg-orange-900/20 border-orange-800"
   return "bg-red-900/20 border-red-800"
@@ -105,7 +105,7 @@ export function SignalQualityCard({ clientId }: { clientId: string }) {
                   <div
                     className={`h-full rounded-full transition-all ${
                       ev.score !== null
-                        ? ev.score >= 8 ? "bg-emerald-500"
+                        ? ev.score >= 8 ? "bg-ops-green"
                         : ev.score >= 6 ? "bg-amber-500"
                         : ev.score >= 4 ? "bg-orange-500"
                         : "bg-red-500"

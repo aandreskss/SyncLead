@@ -20,13 +20,13 @@ function resolveSource(utmSource: string | null, referrer: string | null): Sourc
   const src = (utmSource ?? "").toLowerCase()
   const ref = (referrer ?? "").toLowerCase()
   if (src.includes("facebook") || src.includes("fb") || ref.includes("facebook.com"))
-    return { label: "Facebook", cls: "text-blue-300 bg-blue-300/10 border-blue-700", key: "facebook" }
+    return { label: "Facebook", cls: "text-ops-blue bg-ops-blue/10 border-ops-blue/30", key: "facebook" }
   if (src.includes("instagram") || ref.includes("instagram.com"))
     return { label: "Instagram", cls: "text-pink-400 bg-pink-400/10 border-pink-800", key: "instagram" }
   if (src.includes("whatsapp") || ref.includes("whatsapp.com") || ref.includes("wa.me"))
-    return { label: "WhatsApp", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-800", key: "whatsapp" }
+    return { label: "WhatsApp", cls: "text-ops-green bg-ops-green/10 border-ops-green/30", key: "whatsapp" }
   if (src.includes("google") || ref.includes("google.com"))
-    return { label: "Google", cls: "text-blue-400 bg-blue-400/10 border-blue-800", key: "google" }
+    return { label: "Google", cls: "text-ops-blue bg-ops-blue/10 border-ops-blue/30", key: "google" }
   if (src.includes("tiktok") || ref.includes("tiktok.com"))
     return { label: "TikTok", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd", key: "tiktok" }
   if (utmSource)
@@ -495,7 +495,7 @@ export function VisitorsTab({
                         ) : null}
 
                         {session.hasPurchase && (
-                          <span className="inline-flex items-center gap-0.5 rounded border border-emerald-700 bg-emerald-900/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                          <span className="inline-flex items-center gap-0.5 rounded border border-ops-green/30 bg-ops-green/10 px-1.5 py-0.5 text-[10px] font-medium text-ops-green">
                             <DollarSign className="h-2.5 w-2.5" />compra
                           </span>
                         )}

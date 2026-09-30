@@ -34,7 +34,7 @@ const STATUS_CONFIG: Record<DiagConversionStatus, { label: string; className: st
   },
   awaiting_test: {
     label: "Esperando evento",
-    className: "bg-blue-900 text-blue-300 border-blue-800 animate-pulse",
+    className: "bg-ops-blue/10 text-ops-blue border-ops-blue/30 animate-pulse",
   },
   observed_browser: {
     label: "Pixel activo",
@@ -46,11 +46,11 @@ const STATUS_CONFIG: Record<DiagConversionStatus, { label: string; className: st
   },
   observed_both: {
     label: "Pixel + CAPI",
-    className: "bg-emerald-900 text-ops-green border-emerald-800",
+    className: "bg-ops-green/10 text-ops-green border-ops-green/30",
   },
   accepted_by_meta: {
     label: "Aceptado por Meta",
-    className: "bg-emerald-900 text-ops-green border-emerald-800",
+    className: "bg-ops-green/10 text-ops-green border-ops-green/30",
   },
   misconfigured: {
     label: "Mal configurado",

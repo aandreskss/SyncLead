@@ -469,7 +469,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
                   {/* Revenue */}
                   <td className="border-b border-ops-line/50 px-3 py-2.5 text-right font-plex tabular-nums">
                     <span className="inline-flex items-center justify-end">
-                      <span className={row.totalRevenue > 0 ? "font-semibold text-emerald-400" : "text-ops-tx2"}>
+                      <span className={row.totalRevenue > 0 ? "font-semibold text-ops-green" : "text-ops-tx2"}>
                         {fmtRevenue(row.totalRevenue)}
                       </span>
                       <DeltaBadge curr={row.totalRevenue} prev={prev?.totalRevenue ?? 0} />
@@ -542,7 +542,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
 
                 {/* Revenue */}
                 <td className="border-t border-ops-line px-3 py-2.5 text-right font-plex tabular-nums">
-                  <span className={`text-[14px] font-bold ${totals.tRevenue > 0 ? "text-emerald-400" : "text-ops-tx"}`}>
+                  <span className={`text-[14px] font-bold ${totals.tRevenue > 0 ? "text-ops-green" : "text-ops-tx"}`}>
                     {fmtRevenue(totals.tRevenue)}
                   </span>
                 </td>

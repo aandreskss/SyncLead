@@ -30,10 +30,10 @@ function formatRelativeTime(date: Date): string {
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    sent: { label: "Enviado", cls: "bg-emerald-500/15 text-ops-green border border-emerald-500/30" },
+    sent: { label: "Enviado", cls: "bg-ops-green/10 text-ops-green border border-ops-green/30" },
     pending: { label: "Pendiente", cls: "bg-amber-500/15 text-ops-amber border border-amber-500/30" },
     retrying: { label: "Reintentando", cls: "bg-amber-500/15 text-ops-amber border border-amber-500/30" },
-    processing: { label: "Enviando", cls: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
+    processing: { label: "Enviando", cls: "bg-ops-blue/10 text-ops-blue border border-ops-blue/30" },
     failed: { label: "Fallido", cls: "bg-red-500/15 text-ops-coral border border-red-500/30" },
     skipped: { label: "Omitido", cls: "bg-ops-sel/50 text-ops-tx3 border border-ops-bd/50" },
     cancelled: { label: "Cancelado", cls: "bg-ops-sel/50 text-ops-tx3 border border-ops-bd/50" },
@@ -49,7 +49,7 @@ function StatusPill({ status }: { status: string }) {
 function EventBadge({ eventName }: { eventName: string }) {
   const map: Record<string, string> = {
     Purchase: "bg-purple-500/15 text-purple-400 border border-purple-500/30",
-    Lead: "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+    Lead: "bg-ops-blue/10 text-ops-blue border border-ops-blue/30",
     Contact: "bg-teal-500/15 text-teal-400 border border-teal-500/30",
     AddToCart: "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30",
     InitiateCheckout: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30",
@@ -253,7 +253,7 @@ export function HealthCapiLogPanel({ clientId }: Props) {
       {message && (
         <div className={`mx-4 mt-3 flex items-center gap-2 text-xs rounded-lg px-3 py-2 border ${
           message.tone === "green"
-            ? "text-ops-green bg-emerald-500/10 border-emerald-500/20"
+            ? "text-ops-green bg-ops-green/10 border-ops-green/20"
             : message.tone === "coral"
             ? "text-ops-coral bg-red-500/10 border-red-500/20"
             : "text-ops-amber bg-amber-500/10 border-amber-500/20"
@@ -323,7 +323,7 @@ export function HealthCapiLogPanel({ clientId }: Props) {
                         onClick={() => handleSendEvent(evt.id)}
                         disabled={isSending || !!sendingEventId}
                         title={orphan ? "El payload está en la DB — se puede enviar aunque el lead fue eliminado" : "Enviar ahora"}
-                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium bg-ops-blue/15 text-blue-400 border border-blue-500/30 hover:bg-ops-blue/25 transition-colors disabled:opacity-40"
+                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium bg-ops-blue/15 text-ops-blue border border-ops-blue/30 hover:bg-ops-blue/25 transition-colors disabled:opacity-40"
                       >
                         {isSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                         {isSending ? "..." : "Enviar"}

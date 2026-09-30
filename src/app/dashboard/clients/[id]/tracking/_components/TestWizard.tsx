@@ -440,7 +440,7 @@ export function TestWizard({ definition, clientId, onClose, siteId }: Props) {
                 </pre>
               </div>
 
-              <div className="rounded border border-blue-900 bg-blue-950 px-4 py-3 text-sm text-blue-300 space-y-2">
+              <div className="rounded border border-ops-bd bg-ops-s2 px-4 py-3 text-sm text-ops-tx2 space-y-2">
                 <p>
                   <strong className="text-blue-200">1.</strong> Agrega el script al HTML de{" "}
                   <a

@@ -103,8 +103,8 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
             </p>
           </div>
           {leadAdsEnabled && (
-            <span className="ml-auto flex-shrink-0 flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium text-ops-green bg-emerald-400/10">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="ml-auto flex-shrink-0 flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium text-ops-green bg-ops-green/10">
+              <span className="h-1.5 w-1.5 rounded-full bg-ops-green" />
               Activo
             </span>
           )}
@@ -189,7 +189,7 @@ export function LeadSourcesPanel({ clientId, metaConnections }: Props) {
       {/* ─── Section 2: Capture script ──────────────────────────────── */}
       <div className="space-y-4">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+          <div className="mt-0.5 h-8 w-8 rounded-lg bg-ops-green/10 flex items-center justify-center flex-shrink-0">
             <Globe className="h-4 w-4 text-ops-green" />
           </div>
           <div>

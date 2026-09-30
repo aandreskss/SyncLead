@@ -10,15 +10,15 @@ function resolveSource(utmSource: string | null, referrer: string | null): Sourc
   const src = (utmSource ?? "").toLowerCase()
   const ref = (referrer ?? "").toLowerCase()
   if (src.includes("google") || ref.includes("google.com"))
-    return { label: "Google", cls: "text-blue-400 bg-blue-400/10 border-blue-800" }
+    return { label: "Google", cls: "text-ops-blue bg-ops-blue/10 border-ops-blue/30" }
   if (src.includes("facebook") || src.includes("fb") || ref.includes("facebook.com"))
-    return { label: "Facebook", cls: "text-blue-300 bg-blue-300/10 border-blue-700" }
+    return { label: "Facebook", cls: "text-ops-blue bg-ops-blue/10 border-ops-blue/30" }
   if (src.includes("instagram") || ref.includes("instagram.com"))
     return { label: "Instagram", cls: "text-pink-400 bg-pink-400/10 border-pink-800" }
   if (src.includes("tiktok") || ref.includes("tiktok.com"))
     return { label: "TikTok", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
   if (src.includes("whatsapp") || ref.includes("whatsapp.com") || ref.includes("wa.me"))
-    return { label: "WhatsApp", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-800" }
+    return { label: "WhatsApp", cls: "text-ops-green bg-ops-green/10 border-ops-green/30" }
   if (utmSource)
     return { label: utmSource, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
   if (referrer) {
