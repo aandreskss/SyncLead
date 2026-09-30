@@ -57,7 +57,7 @@ function StatusBadge({ status }: { status: QualificationProfile["status"] }) {
     { label: string; cls: string }
   > = {
     draft: { label: "Borrador", cls: "bg-ops-sel text-ops-tx2 hover:bg-ops-sel" },
-    published: { label: "Publicado", cls: "bg-emerald-500/20 text-ops-green hover:bg-emerald-500/20" },
+    published: { label: "Publicado", cls: "bg-ops-green/12 text-ops-green hover:bg-ops-green/15" },
     archived: { label: "Archivado", cls: "bg-ops-s2 text-ops-tx3 hover:bg-ops-s2" },
   }
   const s = map[status] ?? map.draft
@@ -190,7 +190,7 @@ function ProfileCard({
           <button
             onClick={handlePublish}
             disabled={anyPending}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-emerald-900/30 hover:text-ops-green text-ops-tx2 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-ops-green/10 hover:text-ops-green text-ops-tx2 transition-colors disabled:opacity-50"
           >
             {publishPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

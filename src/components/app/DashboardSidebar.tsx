@@ -55,7 +55,7 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
   return (
     <aside
       className={cn(
-        "hidden shrink-0 flex-col border-r border-ops-line bg-ops-side transition-[width] duration-200 md:flex",
+        "ops-always-dark hidden shrink-0 flex-col border-r border-ops-line bg-ops-side transition-[width] duration-200 md:flex",
         collapsed ? "w-16" : "w-[220px]"
       )}
     >

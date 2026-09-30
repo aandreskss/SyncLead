@@ -25,10 +25,10 @@ function formatRelativeTime(date: Date): string {
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    sent: { label: "Enviado", cls: "bg-emerald-500/15 text-ops-green border border-emerald-500/30" },
+    sent: { label: "Enviado", cls: "bg-ops-green/10 text-ops-green border border-ops-green/30" },
     pending: { label: "Pendiente", cls: "bg-amber-500/15 text-ops-amber border border-amber-500/30" },
     retrying: { label: "Reintentando", cls: "bg-amber-500/15 text-ops-amber border border-amber-500/30" },
-    processing: { label: "Enviando", cls: "bg-blue-500/15 text-blue-400 border border-blue-500/30" },
+    processing: { label: "Enviando", cls: "bg-ops-blue/10 text-ops-blue border border-ops-blue/30" },
     failed: { label: "Fallido", cls: "bg-red-500/15 text-ops-coral border border-red-500/30" },
     skipped: { label: "Omitido", cls: "bg-ops-sel/50 text-ops-tx3 border border-ops-bd/50" },
     cancelled: { label: "Cancelado", cls: "bg-ops-sel/50 text-ops-tx3 border border-ops-bd/50" },
@@ -44,7 +44,7 @@ function StatusPill({ status }: { status: string }) {
 function EventBadge({ eventName }: { eventName: string }) {
   const map: Record<string, string> = {
     Purchase: "bg-purple-500/15 text-purple-400 border border-purple-500/30",
-    Lead: "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+    Lead: "bg-ops-blue/10 text-ops-blue border border-ops-blue/30",
     Contact: "bg-teal-500/15 text-teal-400 border border-teal-500/30",
   }
   const cls = map[eventName] ?? "bg-ops-sel/50 text-ops-tx2 border border-ops-bd/50"

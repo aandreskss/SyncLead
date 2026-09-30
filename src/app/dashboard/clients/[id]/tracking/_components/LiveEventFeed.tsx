@@ -17,7 +17,7 @@ function countryFlag(code: string): string {
 const POLL_INTERVAL_MS = 4000
 
 const SOURCE_CONFIG = {
-  browser_pixel: { label: "Pixel", icon: Globe, cls: "text-blue-400 bg-blue-400/10 border-blue-800" },
+  browser_pixel: { label: "Pixel", icon: Globe, cls: "text-ops-blue bg-ops-blue/10 border-ops-blue/30" },
   server_capi: { label: "CAPI", icon: Monitor, cls: "text-purple-400 bg-purple-400/10 border-purple-800" },
   diagnostic_collector: { label: "Simulado", icon: Zap, cls: "text-ops-amber bg-amber-400/10 border-amber-800" },
   scan: { label: "Scan", icon: Radio, cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" },
@@ -52,15 +52,15 @@ function resolveTrafficSource(utmSource: string | null, referrer: string | null)
   const src = (utmSource ?? "").toLowerCase()
   const ref = (referrer ?? "").toLowerCase()
   if (src.includes("google") || ref.includes("google.com"))
-    return { label: "Google", cls: "text-blue-400 bg-blue-400/10 border-blue-800" }
+    return { label: "Google", cls: "text-ops-blue bg-ops-blue/10 border-ops-blue/30" }
   if (src.includes("facebook") || src.includes("fb") || ref.includes("facebook.com"))
-    return { label: "Facebook", cls: "text-blue-300 bg-blue-300/10 border-blue-700" }
+    return { label: "Facebook", cls: "text-ops-blue bg-ops-blue/10 border-ops-blue/30" }
   if (src.includes("instagram") || ref.includes("instagram.com"))
     return { label: "Instagram", cls: "text-pink-400 bg-pink-400/10 border-pink-800" }
   if (src.includes("tiktok") || ref.includes("tiktok.com"))
     return { label: "TikTok", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
   if (src.includes("whatsapp") || ref.includes("whatsapp.com") || ref.includes("wa.me"))
-    return { label: "WhatsApp", cls: "text-emerald-400 bg-emerald-400/10 border-emerald-800" }
+    return { label: "WhatsApp", cls: "text-ops-green bg-ops-green/10 border-ops-green/30" }
   if (src.includes("twitter") || src.includes("x.com") || ref.includes("x.com"))
     return { label: "X / Twitter", cls: "text-ops-tx2 bg-ops-s2 border-ops-bd" }
   // No attribution data collected — don't show anything (data was never sent)
@@ -88,7 +88,7 @@ function EventRow({ event, isNew }: { event: LiveEvent; isNew: boolean }) {
     >
       <div className="mt-0.5 shrink-0">
         {event.allParamsOk ? (
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <CheckCircle2 className="h-4 w-4 text-ops-green" />
         ) : (
           <AlertCircle className="h-4 w-4 text-ops-amber" />
         )}
@@ -209,7 +209,7 @@ export function LiveEventFeed({ clientId }: Props) {
         <div className="ml-auto flex items-center gap-2">
           {connected ? (
             <span className="flex items-center gap-1.5 text-xs text-ops-green">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="h-1.5 w-1.5 rounded-full bg-ops-green animate-pulse" />
               En vivo
             </span>
           ) : (

@@ -161,7 +161,7 @@ function CredentialRow({
         <div className="flex items-center gap-2">
           <code className="text-xs font-mono text-ops-tx2">{cred.keyPrefix}…</code>
           {isActive ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-900/40 border border-emerald-700/40 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+            <span className="inline-flex items-center gap-1 rounded-full bg-ops-green/10 border border-ops-green/30 px-1.5 py-0.5 text-[10px] font-medium text-ops-green">
               <CheckCircle2 className="h-2.5 w-2.5" />Activa
             </span>
           ) : (

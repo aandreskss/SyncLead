@@ -34,8 +34,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" storageKey="sl-theme" disableTransitionOnChange>
-      <div className="sg-app flex min-h-screen bg-ops-bg text-sg-ink">
+    <ThemeProvider attribute="class" defaultTheme="light" storageKey="sl-theme" disableTransitionOnChange>
+      <div className="sg-app flex min-h-screen bg-ops-bg text-ops-tx">
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-sg-accent focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-sg-on-accent"

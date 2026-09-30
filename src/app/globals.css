@@ -244,6 +244,31 @@
   --ops-ws-badge: #1a2740;
 }
 
+/* ─── ops-always-dark: sidebar y elementos que siempre deben verse oscuros ── */
+.ops-always-dark {
+  --ops-bg: #0b0f14;
+  --ops-side: #0e1319;
+  --ops-s1: #121821;
+  --ops-s2: #161d27;
+  --ops-raised: #1b2431;
+  --ops-sel: #1e2836;
+  --ops-hover: #151d28;
+  --ops-line: #1e2834;
+  --ops-bd: #273140;
+  --ops-bd2: #3a475a;
+  --ops-tx: #f2f5f8;
+  --ops-tx2: #98a4b3;
+  --ops-tx3: #7b8898;
+  --ops-blue: #4c7dff;
+  --ops-blue-t: #6e95ff;
+  --ops-green: #37c790;
+  --ops-amber: #e7a84b;
+  --ops-coral: #f06f65;
+  --ops-cold: #6bb7e8;
+  --ops-ws-badge: #1a2740;
+  color-scheme: dark;
+}
+
 /* ─── ops-* tokens: modo claro ────────────────────────────────────────────── */
 html.light .sg-app {
   --ops-bg: #f0f2f5;

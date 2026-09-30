@@ -154,20 +154,20 @@ export function SummaryCards({ rows, metaSpend }: Props) {
           value={revenue >= 10000 ? `$${fmtBig(revenue)}` : `$${revenue.toLocaleString("es", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
           sub={sales > 0 ? `avg $${(revenue / sales).toFixed(0)} por venta` : undefined}
           icon={<DollarSign className="h-4.5 w-4.5" />}
-          iconBg="bg-emerald-500/10"
-          iconColor="text-emerald-400"
-          accent={revenue > 0 ? "border-l-emerald-500/50" : ""}
+          iconBg="bg-ops-green/10"
+          iconColor="text-ops-green"
+          accent={revenue > 0 ? "border-l-ops-green/60" : ""}
         />
       </div>
 
       {/* Meta Ads row */}
       {hasMetaData ? (
-        <div className="rounded-xl border border-blue-900/30 bg-blue-950/20 p-4">
+        <div className="rounded-xl border border-ops-blue/20 bg-ops-blue/5 p-4">
           <div className="mb-3 flex items-center gap-2">
-            <div className="flex h-5 w-5 items-center justify-center rounded bg-blue-600/20">
-              <BarChart3 className="h-3 w-3 text-blue-400" />
+            <div className="flex h-5 w-5 items-center justify-center rounded bg-ops-blue/12">
+              <BarChart3 className="h-3 w-3 text-ops-blue" />
             </div>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-blue-400/80">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-ops-blue">
               Meta Ads Insights
             </span>
           </div>

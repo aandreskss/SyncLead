@@ -291,7 +291,7 @@ function ClientCredentialsSection({ clientId, campaigns }: { clientId: string; c
                   >
                     <code className="flex-1 text-xs font-mono text-ops-tx2 truncate">{c.keyPrefix}…</code>
                     <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
-                      c.status === "active" ? "bg-emerald-900/40 text-emerald-400" : "bg-ops-s3 text-ops-tx3"
+                      c.status === "active" ? "bg-ops-green/10 text-ops-green" : "bg-ops-s3 text-ops-tx3"
                     }`}>
                       {c.status === "active" ? "activo" : "revocado"}
                     </span>

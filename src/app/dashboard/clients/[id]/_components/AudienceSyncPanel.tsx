@@ -8,7 +8,7 @@ const AUDIENCE_LABELS: Record<string, { label: string; description: string; colo
   buyers: {
     label: "Compradores",
     description: "Leads que completaron una compra. Usa para excluir de prospección o crear Lookalike.",
-    color: "text-emerald-400 bg-emerald-900/20 border-emerald-800",
+    color: "text-ops-green bg-ops-green/10 border-ops-green/30",
   },
   cart_abandoners: {
     label: "Carrito abandonado",
@@ -120,7 +120,7 @@ export function AudienceSyncPanel({ clientId, hasAdAccount }: { clientId: string
         )}
 
         {syncMsg && (
-          <div className="flex items-center gap-2 rounded border border-emerald-900 bg-emerald-900/20 px-3 py-2 text-xs text-emerald-400">
+          <div className="flex items-center gap-2 rounded border border-ops-green/30 bg-ops-green/10 px-3 py-2 text-xs text-ops-green">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
             {syncMsg}
           </div>
