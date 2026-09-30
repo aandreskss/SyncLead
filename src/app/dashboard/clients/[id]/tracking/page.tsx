@@ -46,7 +46,7 @@ export default async function TrackingPage({ params }: Props) {
   const checkoutFunnel = funnelResult.data ?? { startedCount: 0, completedCount: 0, abandonedCount: 0, abandonmentRate: 0, bySource: [] }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-ops-bg">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <TrackingDashboard
           clientId={id}

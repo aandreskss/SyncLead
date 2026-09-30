@@ -43,7 +43,7 @@ export function Panel({
   bodyClassName?: string
 }) {
   return (
-    <section className={cn("overflow-hidden rounded-lg border border-ops-line bg-ops-s1", className)}>
+    <section className={cn("overflow-hidden rounded-lg border border-ops-line bg-ops-s1 shadow-ops-card", className)}>
       {title ? (
         <div className="flex items-center justify-between gap-3 px-4 py-3.5">
           <div className="min-w-0">
@@ -81,8 +81,8 @@ export function StatusChip({ tone, children }: { tone: Tone; children: ReactNode
 export const opsTable = {
   wrap: "overflow-x-auto",
   table: "w-full min-w-[720px] border-collapse text-[13px]",
-  th: "h-9 border-y border-ops-line bg-ops-side px-3 text-left text-xs font-medium text-ops-tx3",
-  thRight: "h-9 border-y border-ops-line bg-ops-side px-3 text-right text-xs font-medium text-ops-tx3",
+  th: "h-9 border-y border-ops-line bg-ops-th-bg px-3 text-left text-xs font-medium text-ops-tx3",
+  thRight: "h-9 border-y border-ops-line bg-ops-th-bg px-3 text-right text-xs font-medium text-ops-tx3",
   td: "border-b border-ops-line px-3 py-3 text-ops-tx",
   tdRight: "border-b border-ops-line px-3 py-3 text-right text-ops-tx",
   row: "transition-colors hover:bg-ops-hover",

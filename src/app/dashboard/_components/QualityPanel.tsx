@@ -83,10 +83,10 @@ function Attribution({ checks, totalLeads, diagnosticHref }: Omit<Props, "temp">
   const okCount = checks.filter((c) => c.status === "ok").length
   const verdict =
     totalLeads === 0
-      ? { text: "Sin datos", cls: "bg-[#1a222d] text-ops-tx2" }
+      ? { text: "Sin datos", cls: "bg-ops-s2 text-ops-tx2" }
       : okCount === checks.length
-        ? { text: "Tracking completo", cls: "bg-[#12241f] text-ops-green" }
-        : { text: "Tracking incompleto", cls: "bg-[#2a2213] text-ops-amber" }
+        ? { text: "Tracking completo", cls: "bg-ops-green/10 text-ops-green" }
+        : { text: "Tracking incompleto", cls: "bg-ops-amber/10 text-ops-amber" }
   return (
     <div className="p-4 lg:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">

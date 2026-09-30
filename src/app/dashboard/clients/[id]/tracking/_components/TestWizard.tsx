@@ -35,7 +35,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="flex items-center gap-1.5 rounded border border-ops-bd bg-ops-sel px-2.5 py-1 text-xs text-ops-tx2 hover:bg-zinc-600 transition-colors"
+      className="flex items-center gap-1.5 rounded border border-ops-bd bg-ops-sel px-2.5 py-1 text-xs text-ops-tx2 hover:bg-ops-raised transition-colors"
     >
       {copied ? (
         <>
@@ -356,7 +356,7 @@ export function TestWizard({ definition, clientId, onClose, siteId }: Props) {
                       thisIndex < stepIndex
                         ? "bg-green-700 text-white"
                         : thisIndex === stepIndex
-                        ? "bg-zinc-600 text-ops-tx"
+                        ? "bg-ops-sel text-ops-tx"
                         : "bg-ops-s2 text-ops-tx3"
                     }`}
                   >
@@ -406,7 +406,7 @@ export function TestWizard({ definition, clientId, onClose, siteId }: Props) {
                   size="sm"
                   onClick={handleStartSession}
                   disabled={isLoading || !targetUrl}
-                  className="bg-ops-sel hover:bg-zinc-600 text-ops-tx"
+                  className="bg-ops-sel hover:bg-ops-raised text-ops-tx"
                 >
                   {isLoading && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                   Iniciar sesión de prueba
@@ -470,7 +470,7 @@ export function TestWizard({ definition, clientId, onClose, siteId }: Props) {
                 <Button
                   size="sm"
                   onClick={() => { setPollCount(0); setStep("waiting") }}
-                  className="bg-ops-sel hover:bg-zinc-600 text-ops-tx"
+                  className="bg-ops-sel hover:bg-ops-raised text-ops-tx"
                 >
                   Listo, esperando evento
                 </Button>
@@ -540,7 +540,7 @@ export function TestWizard({ definition, clientId, onClose, siteId }: Props) {
                 <Button
                   size="sm"
                   onClick={onClose}
-                  className="bg-ops-sel hover:bg-zinc-600 text-ops-tx"
+                  className="bg-ops-sel hover:bg-ops-raised text-ops-tx"
                 >
                   Cerrar
                 </Button>

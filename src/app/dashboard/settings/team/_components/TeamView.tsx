@@ -209,11 +209,11 @@ export default function TeamView({ members, currentUserId, currentUserRole }: Pr
           <table className="w-full min-w-[560px] border-collapse text-[13px]">
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 h-9 border-y border-ops-line bg-ops-side px-3 text-left text-xs font-medium text-ops-tx3">
+                <th className="sticky left-0 z-10 h-9 border-y border-ops-line bg-ops-th-bg px-3 text-left text-xs font-medium text-ops-tx3">
                   Permiso
                 </th>
                 {ROLE_ORDER.map((r) => (
-                  <th key={r} className="h-9 border-y border-ops-line bg-ops-side px-3 text-center text-xs font-medium text-ops-tx3">
+                  <th key={r} className="h-9 border-y border-ops-line bg-ops-th-bg px-3 text-center text-xs font-medium text-ops-tx3">
                     {ROLE_LABELS[r]}
                   </th>
                 ))}

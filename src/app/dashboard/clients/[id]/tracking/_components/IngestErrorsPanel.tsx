@@ -47,7 +47,7 @@ export function IngestErrorsPanel({ errors }: { errors: IngestErrorPublic[] }) {
       <div className="divide-y divide-ops-bd">
         {visible.map((err) => (
           <div key={err.id} className="px-4 py-2.5 flex items-start gap-3 text-sm">
-            <span className="mt-0.5 flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase bg-zinc-800 text-ops-tx3">
+            <span className="mt-0.5 flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase bg-ops-s2 text-ops-tx3">
               {SOURCE_LABEL[err.source] ?? err.source}
             </span>
             <div className="flex-1 min-w-0">

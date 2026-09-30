@@ -582,7 +582,7 @@ export function TrackingDashboard({ clientId, sites: initialSites, definitions, 
           </Button>
           <Button
             size="sm"
-            className="bg-ops-sel hover:bg-zinc-600 text-ops-tx"
+            className="bg-ops-sel hover:bg-ops-raised text-ops-tx"
             onClick={() => setShowAddSite(true)}
           >
             <Plus className="h-4 w-4 mr-1.5" />

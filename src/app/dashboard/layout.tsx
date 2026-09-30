@@ -34,7 +34,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" storageKey="sl-theme" disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="light" storageKey="sl-theme-v2" disableTransitionOnChange>
       <div className="sg-app flex min-h-screen bg-ops-bg text-ops-tx">
         <a
           href="#main"
@@ -47,7 +47,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <DashboardSidebar isAdmin={isAdmin} orgName={orgName} roleLabel={roleLabel} />
 
         {/* Contenido */}
-        <main id="main" className="min-w-0 flex-1 overflow-auto pb-20 text-sg-ink md:pb-0">
+        <main id="main" className="min-w-0 flex-1 overflow-auto pb-20 text-ops-tx md:pb-0">
           {children}
         </main>
 

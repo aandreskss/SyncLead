@@ -156,7 +156,7 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
               type="button"
               onClick={() => handleConnect(false)}
               disabled={isPending || !adAccountId || !accessToken}
-              className="flex items-center gap-1.5 text-xs bg-ops-sel hover:bg-zinc-600 disabled:opacity-50 text-ops-tx px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs bg-ops-sel hover:bg-ops-raised disabled:opacity-50 text-ops-tx px-3 py-1.5 rounded-lg transition-colors"
             >
               {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
               Verificar y conectar
@@ -262,7 +262,7 @@ export function MetaInsightsPanel({ clientId, initialConnections }: Props) {
                       type="button"
                       onClick={() => handleUpdateToken(conn.id, false)}
                       disabled={isPending || !updateToken}
-                      className="flex items-center gap-1.5 text-xs bg-ops-sel hover:bg-zinc-600 disabled:opacity-50 text-ops-tx px-3 py-1.5 rounded-lg transition-colors"
+                      className="flex items-center gap-1.5 text-xs bg-ops-sel hover:bg-ops-raised disabled:opacity-50 text-ops-tx px-3 py-1.5 rounded-lg transition-colors"
                     >
                       {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                       Guardar token

@@ -27,7 +27,7 @@ function StatusChip({ active }: { active: boolean | null }) {
   return (
     <span
       className={`inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium ${
-        active ? "bg-[#12241f] text-ops-green" : "bg-[#1a222d] text-ops-tx2"
+        active ? "bg-ops-green/10 text-ops-green" : "bg-ops-s2 text-ops-tx2"
       }`}
     >
       <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${active ? "bg-ops-green" : "bg-ops-tx2"}`} />
@@ -141,7 +141,7 @@ export function CampaignTable({ rows, total }: { rows: CampaignRow[]; total: num
 
       {rows.length === 0 ? (
         <div className="flex items-start gap-4 border-t border-ops-line p-6">
-          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#16213a] text-ops-blue-t">
+          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ops-blue/12 text-ops-blue-t">
             <Megaphone className="h-5 w-5" />
           </span>
           <div>
@@ -162,7 +162,7 @@ export function CampaignTable({ rows, total }: { rows: CampaignRow[]; total: num
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-y border-ops-line bg-ops-side">
+                <tr className="border-y border-ops-line bg-ops-th-bg">
                   {th("name", "Campaña")}
                   <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-ops-tx3">Estado</th>
                   {th("leads", "Leads", true)}
