@@ -24,7 +24,7 @@ export function ColumnMapper({ columns, mapping, onChange, fieldLabels }: Props)
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-ops-line">
+    <div className="overflow-hidden rounded-[20px] border border-ops-line shadow-ops-card">
       <div className={opsTable.wrap}>
       <table className={cn(opsTable.table, "min-w-[480px]")}>
         <thead>

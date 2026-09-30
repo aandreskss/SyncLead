@@ -36,7 +36,8 @@ export default async function DashboardPage({
       {/* Header */}
       <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ops-tx">Resumen ejecutivo</h1>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-ops-tx3">Panorama general</p>
+          <h1 className="text-[22px] font-semibold text-ops-tx">Resumen ejecutivo</h1>
           <p className="mt-0.5 text-sm text-ops-tx2">
             Resultados de {selectedClient ? selectedClient.name : org.name} · {formatRangeLabel(range.from, range.to)}
           </p>

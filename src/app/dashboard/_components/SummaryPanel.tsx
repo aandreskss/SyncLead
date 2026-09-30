@@ -25,31 +25,31 @@ export function SummaryPanel({ leads, sales, conversionRate, avgTicket, insights
     { v: avgTicket === null ? "N/D" : fmtMoney(avgTicket).replace(/,00$/, ""), t: "de ingreso promedio por venta" },
   ]
   return (
-    <section aria-label="Resumen del periodo" className="h-full rounded-lg border border-ops-line bg-ops-s1 p-4 lg:p-5">
-      <h2 className="text-base font-semibold text-ops-tx">Resumen del periodo</h2>
+    <section aria-label="Resumen del periodo" className="h-full rounded-[20px] border border-transparent bg-ops-navy p-5 shadow-ops-card">
+      <h2 className="text-base font-semibold text-ops-navy-tx">Resumen del periodo</h2>
       <ol className="mt-4">
         {steps.map((s, i) => (
           <li key={s.t} className="relative flex items-baseline gap-3.5 pb-3.5 pl-[22px] last:pb-0">
-            {i < steps.length - 1 && <span aria-hidden className="absolute bottom-[-14px] left-[5px] top-[18px] w-px bg-ops-bd" />}
-            <span aria-hidden className="absolute left-px top-[9px] h-[9px] w-[9px] rounded-full border-2 border-ops-blue bg-ops-s1" />
-            <span className="font-plex min-w-14 text-[22px] font-medium tracking-tight text-ops-tx">{s.v}</span>
-            <span className="text-sm text-ops-tx2">{s.t}</span>
+            {i < steps.length - 1 && <span aria-hidden className="absolute bottom-[-14px] left-[5px] top-[18px] w-px bg-ops-navy-tx2/30" />}
+            <span aria-hidden className="absolute left-px top-[9px] h-[9px] w-[9px] rounded-full border-2 border-ops-blue bg-ops-navy" />
+            <span className="font-plex min-w-14 text-[22px] font-medium tracking-tight text-ops-navy-tx">{s.v}</span>
+            <span className="text-sm text-ops-navy-tx2">{s.t}</span>
           </li>
         ))}
       </ol>
 
-      <h3 className="mb-1 mt-6 text-xs font-semibold uppercase tracking-[0.08em] text-ops-tx3">Qué revisar</h3>
+      <h3 className="mb-1 mt-6 text-[11px] font-semibold uppercase tracking-widest text-ops-navy-tx2">Qué revisar</h3>
       <ul>
         {insights.map((i) => (
-          <li key={i.text} className="flex items-start gap-2.5 border-t border-ops-line py-2.5">
+          <li key={i.text} className="flex items-start gap-2.5 border-t border-ops-navy-tx2/20 py-2.5">
             {i.ok ? (
               <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-ops-green" aria-hidden="true" />
             ) : (
               <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-ops-amber" aria-hidden="true" />
             )}
-            <span className="text-sm leading-snug text-ops-tx">
+            <span className="text-sm leading-snug text-ops-navy-tx">
               {i.text}
-              {i.hint && <span className="mt-0.5 block text-[13px] text-ops-tx3">{i.hint}</span>}
+              {i.hint && <span className="mt-0.5 block text-[13px] text-ops-navy-tx2">{i.hint}</span>}
             </span>
           </li>
         ))}
@@ -57,7 +57,7 @@ export function SummaryPanel({ leads, sales, conversionRate, avgTicket, insights
 
       <Link
         href={trackingHref}
-        className="mt-2 inline-flex h-9 items-center gap-2 rounded-lg border border-ops-bd px-3 text-[13px] font-medium text-ops-tx transition-colors duration-150 hover:border-ops-bd2 hover:bg-ops-raised"
+        className="mt-2 inline-flex h-9 items-center gap-2 rounded-lg border border-ops-navy-tx2/30 px-3 text-[13px] font-medium text-ops-navy-tx transition-colors duration-150 hover:border-ops-navy-tx2/50 hover:bg-white/5"
       >
         Revisar configuración del tracking
         <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />

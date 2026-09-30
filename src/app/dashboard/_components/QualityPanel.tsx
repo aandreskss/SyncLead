@@ -83,10 +83,10 @@ function Attribution({ checks, totalLeads, diagnosticHref }: Omit<Props, "temp">
   const okCount = checks.filter((c) => c.status === "ok").length
   const verdict =
     totalLeads === 0
-      ? { text: "Sin datos", cls: "bg-ops-s2 text-ops-tx2" }
+      ? { text: "Sin datos", cls: "border-ops-line bg-ops-s2 text-ops-tx2" }
       : okCount === checks.length
-        ? { text: "Tracking completo", cls: "bg-ops-green/10 text-ops-green" }
-        : { text: "Tracking incompleto", cls: "bg-ops-amber/10 text-ops-amber" }
+        ? { text: "Tracking completo", cls: "border-ops-green/30 bg-ops-green-bg text-ops-green" }
+        : { text: "Tracking incompleto", cls: "border-ops-amber/30 bg-ops-amber-bg text-ops-amber" }
   return (
     <div className="p-4 lg:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -96,7 +96,7 @@ function Attribution({ checks, totalLeads, diagnosticHref }: Omit<Props, "temp">
             {okCount} de {checks.length} comprobaciones completas
           </p>
         </div>
-        <span className={`inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium ${verdict.cls}`}>{verdict.text}</span>
+        <span className={`inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold ${verdict.cls}`}>{verdict.text}</span>
       </div>
       <ul className="mt-3.5">
         {checks.map((c, i) => (
@@ -130,7 +130,7 @@ function Attribution({ checks, totalLeads, diagnosticHref }: Omit<Props, "temp">
 
 export function QualityPanel({ temp, checks, totalLeads, diagnosticHref }: Props) {
   return (
-    <section aria-label="Calidad y distribución de leads" className="grid rounded-lg border border-ops-line bg-ops-s1 lg:grid-cols-[1fr_1px_1fr]">
+    <section aria-label="Calidad y distribución de leads" className="grid rounded-[20px] border border-ops-line bg-ops-s1 shadow-ops-card lg:grid-cols-[1fr_1px_1fr]">
       <Temperature temp={temp} />
       <div aria-hidden className="h-px bg-ops-line lg:h-auto lg:w-px" />
       <Attribution checks={checks} totalLeads={totalLeads} diagnosticHref={diagnosticHref} />

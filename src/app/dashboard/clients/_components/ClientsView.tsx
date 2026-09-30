@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField, opsIconBtn } from "@/components/app/ops"
+import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField, opsIconBtn, opsBtnPrimary } from "@/components/app/ops"
 import { ClientDialog } from "./ClientDialog"
 import { deleteClientAction, toggleClientActiveAction } from "@/domains/clients/actions"
 import type { Client } from "@/lib/db/schema"
@@ -70,14 +69,14 @@ export function ClientsView({ clients: allClients }: Props) {
         <button
           onClick={() => handleDelete(client.id)}
           disabled={deletePending}
-          className="h-8 rounded-md bg-ops-coral px-3 text-xs font-medium text-ops-bg transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
+          className="h-8 rounded-full bg-ops-coral px-3 text-xs font-medium text-white transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
         >
           {deletePending ? "…" : "Confirmar"}
         </button>
         <button
           onClick={() => setConfirmDeleteId(null)}
           disabled={deletePending}
-          className="h-8 rounded-md border border-ops-bd px-3 text-xs text-ops-tx transition-colors hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
+          className="h-8 rounded-full border border-ops-bd px-3 text-xs text-ops-tx transition-colors hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
         >
           Cancelar
         </button>
@@ -131,13 +130,14 @@ export function ClientsView({ clients: allClients }: Props) {
   return (
     <PageShell>
       <PageHeader
+        eyebrow="CLIENTES"
         title="Clientes"
         subtitle="Cada cliente tiene su pixel, sus números de WhatsApp y su tracking."
         actions={
-          <Button onClick={openCreate} className="gap-2">
+          <button onClick={openCreate} className={opsBtnPrimary}>
             <Plus className="h-4 w-4" />
             Nuevo cliente
-          </Button>
+          </button>
         }
       />
 
@@ -172,10 +172,10 @@ export function ClientsView({ clients: allClients }: Props) {
             title="Sin clientes todavía"
             text="Agrega tu primer cliente para comenzar a gestionar sus campañas y leads."
             action={
-              <Button onClick={openCreate} className="mt-2 gap-2">
+              <button onClick={openCreate} className={`${opsBtnPrimary} mt-2`}>
                 <Plus className="h-4 w-4" />
                 Agregar cliente
-              </Button>
+              </button>
             }
           />
         </Panel>

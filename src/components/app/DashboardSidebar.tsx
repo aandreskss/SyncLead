@@ -55,8 +55,8 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
   return (
     <aside
       className={cn(
-        "ops-always-dark hidden shrink-0 flex-col border-r border-ops-line bg-ops-side transition-[width] duration-200 md:flex",
-        collapsed ? "w-16" : "w-[220px]"
+        "hidden shrink-0 flex-col border-r border-ops-line bg-ops-side transition-[width] duration-200 md:flex",
+        collapsed ? "w-16" : "w-[232px]"
       )}
     >
       {/* Marca */}
@@ -79,14 +79,14 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
         <div
           title={orgName}
           className={cn(
-            "flex items-center gap-2.5 rounded-lg border border-ops-bd bg-ops-s1",
+            "flex items-center gap-2.5 rounded-xl border border-ops-bd bg-ops-s1 shadow-ops-card",
             collapsed ? "h-10 w-10 justify-center" : "h-11 px-2.5"
           )}
         >
-          <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--ops-ws-badge)] text-[11px] font-semibold text-ops-blue-t">
+          <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-ops-blue-bg text-[11px] font-semibold text-ops-blue">
             {initials(orgName)}
           </span>
-          {!collapsed && <span className="min-w-0 flex-1 truncate text-sm font-medium text-ops-tx">{orgName}</span>}
+          {!collapsed && <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ops-tx">{orgName}</span>}
           {collapsed && <span className="sr-only">{orgName}</span>}
         </div>
       </div>
@@ -114,13 +114,12 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
                     title={collapsed ? label : undefined}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "relative mx-2 flex h-10 items-center rounded-md text-sm font-medium transition-colors duration-150",
-                      collapsed ? "justify-center" : "gap-3 px-3.5",
-                      active ? "bg-ops-s2 text-ops-tx" : "text-ops-tx2 hover:bg-ops-hover hover:text-ops-tx"
+                      "mx-2 flex h-9 items-center rounded-full text-sm font-medium transition-colors duration-150",
+                      collapsed ? "justify-center" : "gap-2.5 px-3",
+                      active ? "bg-ops-sel text-ops-blue" : "text-ops-tx2 hover:bg-ops-hover hover:text-ops-tx"
                     )}
                   >
-                    {active && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-[3px] rounded-r bg-ops-blue" />}
-                    <Icon className={cn("shrink-0", collapsed ? "h-5 w-5" : "h-[18px] w-[18px]", active && "text-ops-blue-t")} aria-hidden="true" />
+                    <Icon className={cn("shrink-0", collapsed ? "h-5 w-5" : "h-[18px] w-[18px]", active && "text-ops-blue")} aria-hidden="true" />
                     {collapsed ? <span className="sr-only">{label}</span> : <span>{label}</span>}
                   </Link>
                 )
@@ -144,8 +143,8 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
             title="Mi cuenta"
             aria-current={isActive(pathname, "/dashboard/settings/account") ? "page" : undefined}
             className={cn(
-              "flex h-9 items-center gap-2 rounded-md border border-ops-bd text-[13px] text-ops-tx2 transition-colors duration-150 hover:border-ops-bd2 hover:bg-ops-raised hover:text-ops-tx",
-              collapsed ? "w-9 justify-center" : "flex-1 px-2.5"
+              "flex h-9 items-center gap-2 rounded-full border border-ops-bd text-[13px] text-ops-tx2 transition-colors duration-150 hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-tx",
+              collapsed ? "w-9 justify-center" : "flex-1 px-3"
             )}
           >
             <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -158,7 +157,7 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
             aria-label={collapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
             aria-pressed={collapsed}
             title={collapsed ? "Expandir" : "Contraer"}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-ops-bd text-ops-tx2 transition-colors duration-150 hover:border-ops-bd2 hover:bg-ops-raised hover:text-ops-tx"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ops-bd text-ops-tx2 transition-colors duration-150 hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-tx"
           >
             {collapsed ? <PanelLeft className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
           </button>

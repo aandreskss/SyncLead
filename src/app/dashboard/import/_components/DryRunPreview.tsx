@@ -76,7 +76,7 @@ export function DryRunPreview({ result, fieldLabels: _fieldLabels, mapping: _map
   return (
     <div className="space-y-4">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-ops-line bg-ops-line sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[20px] border border-ops-line bg-ops-line shadow-ops-card sm:grid-cols-3 lg:grid-cols-6">
         <SummaryCard label="Total filas"     value={result.totalRows}    color="text-ops-tx" />
         <SummaryCard label="Válidos"         value={result.validRows}    color="text-ops-green" />
         <SummaryCard label="Con advertencia" value={result.warningRows}  color="text-ops-amber" />
@@ -87,13 +87,13 @@ export function DryRunPreview({ result, fieldLabels: _fieldLabels, mapping: _map
 
       {/* Batch warnings */}
       {result.batchWarnings.length > 0 && (
-        <div className="rounded-lg border border-ops-amber/40 bg-ops-amber/10 px-4 py-3 text-sm text-ops-amber space-y-1">
+        <div className="rounded-[20px] border border-ops-amber/40 bg-ops-amber-bg px-4 py-3 text-sm text-ops-amber space-y-1">
           {result.batchWarnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
         </div>
       )}
 
       {/* Info banner */}
-      <div className="rounded-lg border border-ops-line bg-ops-s1 px-4 py-3 text-[13px] text-ops-tx2">
+      <div className="rounded-[20px] border border-ops-line bg-ops-s1 px-4 py-3 text-[13px] text-ops-tx2 shadow-ops-card">
         {importable > 0
           ? `Se importarán ${importable} leads${result.warningRows > 0 ? ` (${result.warningRows} con advertencia)` : ""}. Los duplicados y vacíos se omitirán.`
           : "No hay filas importables. Corrige los errores o ajusta el mapeo de columnas."}

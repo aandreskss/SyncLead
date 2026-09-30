@@ -11,12 +11,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { addMemberAction } from "@/domains/members/actions"
 import type { AddMemberState } from "@/domains/members/actions"
-import { opsField } from "@/components/app/ops"
+import { opsField, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
 import type { MemberRole } from "@/lib/db/schema"
 
 const ROLES_BY_ACTOR: Record<string, { value: MemberRole; label: string; description: string }[]> = {
@@ -70,7 +68,7 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>Agregar miembro</Button>
+        <button type="button" className={opsBtnPrimary}>Agregar miembro</button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -94,18 +92,18 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
                     Comparte estas credenciales con el usuario para que pueda iniciar sesión.
                   </p>
                 </div>
-                <Button onClick={() => handleOpenChange(false)}>
+                <button type="button" onClick={() => handleOpenChange(false)} className={opsBtnPrimary}>
                   Listo
-                </Button>
+                </button>
               </div>
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-ops-green">
                   Miembro agregado correctamente.
                 </p>
-                <Button onClick={() => handleOpenChange(false)}>
+                <button type="button" onClick={() => handleOpenChange(false)} className={opsBtnPrimary}>
                   Cerrar
-                </Button>
+                </button>
               </div>
             )}
           </div>
@@ -115,14 +113,14 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
               <Label htmlFor="invite-email" className="text-sm text-ops-tx">
                 Email
               </Label>
-              <Input
+              <input
                 id="invite-email"
                 name="email"
                 type="email"
                 placeholder="usuario@ejemplo.com"
                 required
                 disabled={isPending}
-               
+                className={`${opsField} w-full disabled:opacity-50`}
               />
             </div>
 
@@ -150,14 +148,14 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
                 Contraseña <span className="text-ops-tx3 font-normal">(min. 8 caracteres)</span>
               </Label>
               <div className="relative">
-                <Input
+                <input
                   id={pwId}
                   name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Escribe la contraseña del usuario"
                   minLength={8}
                   disabled={isPending}
-                  className="pr-16"
+                  className={`${opsField} w-full pr-16 disabled:opacity-50`}
                 />
                 <button
                   type="button"
@@ -177,12 +175,12 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
             )}
 
             <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)} disabled={isPending}>
+              <button type="button" onClick={() => handleOpenChange(false)} disabled={isPending} className={opsBtnSecondary}>
                 Cancelar
-              </Button>
-              <Button type="submit" disabled={isPending}>
+              </button>
+              <button type="submit" disabled={isPending} className={opsBtnPrimary}>
                 {isPending ? "Agregando..." : "Agregar"}
-              </Button>
+              </button>
             </DialogFooter>
           </form>
         )}

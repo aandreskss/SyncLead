@@ -244,6 +244,14 @@
   --ops-ws-badge: #1a2740;
   --ops-card-shadow: none;
   --ops-th-bg: #0e1319;
+  /* Extended tokens (dark defaults) */
+  --ops-navy: #12142A;
+  --ops-navy-tx: #f5f6fb;
+  --ops-navy-tx2: #9aa0c0;
+  --ops-coral-bg: rgba(240, 104, 77, 0.15);
+  --ops-blue-bg: rgba(78, 92, 250, 0.15);
+  --ops-green-bg: rgba(18, 180, 138, 0.15);
+  --ops-amber-bg: rgba(228, 167, 48, 0.15);
 }
 
 /* ─── ops-always-dark: sidebar y elementos que siempre deben verse oscuros ── */
@@ -271,30 +279,38 @@
   color-scheme: dark;
 }
 
-/* ─── ops-* tokens: modo claro ────────────────────────────────────────────── */
+/* ─── ops-* tokens: modo claro (nuevo sistema de diseño) ─────────────────── */
 html.light .sg-app {
-  --ops-bg: #f0f2f5;
-  --ops-side: #ffffff;
-  --ops-s1: #ffffff;
-  --ops-s2: #f4f7fa;
-  --ops-raised: #ffffff;
-  --ops-sel: #eef3ff;
-  --ops-hover: #f0f4ff;
-  --ops-line: #e3e9f2;
-  --ops-bd: #d5dde9;
-  --ops-bd2: #adb8cc;
-  --ops-tx: #0d1520;
-  --ops-tx2: #48566c;
-  --ops-tx3: #677285;
-  --ops-blue: #3b6dff;
-  --ops-blue-t: #2255e5;
-  --ops-green: #0e9b6b;
-  --ops-amber: #b07800;
-  --ops-coral: #d63030;
-  --ops-cold: #2563eb;
-  --ops-ws-badge: #eef3ff;
-  --ops-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --ops-th-bg: #eef2f7;
+  --ops-bg: #F6F6F9;
+  --ops-side: #F6F6F9;
+  --ops-s1: #FFFFFF;
+  --ops-s2: #FAFAFC;
+  --ops-raised: #FFFFFF;
+  --ops-sel: #E9EDFF;
+  --ops-hover: #F0F1FF;
+  --ops-line: #EAEBF0;
+  --ops-bd: #EAEBF0;
+  --ops-bd2: #D8D9E3;
+  --ops-tx: #14172A;
+  --ops-tx2: #5B6178;
+  --ops-tx3: #9297AA;
+  --ops-blue: #3E5CFA;
+  --ops-blue-t: #3E5CFA;
+  --ops-green: #12B48A;
+  --ops-amber: #E4A730;
+  --ops-coral: #F0684D;
+  --ops-cold: #3E5CFA;
+  --ops-ws-badge: #E9EDFF;
+  --ops-card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 24px -12px rgba(16, 24, 40, 0.10);
+  --ops-th-bg: #FAFAFC;
+  /* Extended tokens (light values) */
+  --ops-navy: #12142A;
+  --ops-navy-tx: #F5F6FB;
+  --ops-navy-tx2: #9AA0C0;
+  --ops-coral-bg: #FDE6E0;
+  --ops-blue-bg: #E9EDFF;
+  --ops-green-bg: #E1F7EF;
+  --ops-amber-bg: #FCF1DC;
 
   /* Revertir remapeo zinc/indigo a valores estándar de Tailwind */
   --color-zinc-50: #f9fafb;
@@ -364,6 +380,14 @@ html.light .sg-app {
   --color-ops-amber: var(--ops-amber, #e7a84b);
   --color-ops-coral: var(--ops-coral, #f06f65);
   --color-ops-cold: var(--ops-cold, #6bb7e8);
+  /* Extended design tokens */
+  --color-ops-navy: var(--ops-navy, #12142A);
+  --color-ops-navy-tx: var(--ops-navy-tx, #f5f6fb);
+  --color-ops-navy-tx2: var(--ops-navy-tx2, #9aa0c0);
+  --color-ops-coral-bg: var(--ops-coral-bg, rgba(240,104,77,0.15));
+  --color-ops-blue-bg: var(--ops-blue-bg, rgba(78,92,250,0.15));
+  --color-ops-green-bg: var(--ops-green-bg, rgba(18,180,138,0.15));
+  --color-ops-amber-bg: var(--ops-amber-bg, rgba(228,167,48,0.15));
   --font-plex: var(--font-plex-mono), ui-monospace, monospace;
   --color-sg-bg: var(--sg-bg);
   --color-sg-s1: var(--sg-s1);

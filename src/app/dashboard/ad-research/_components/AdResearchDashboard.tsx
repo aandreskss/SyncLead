@@ -7,6 +7,7 @@ import { AdLibrary } from "./AdLibrary"
 import { searchAdsAction } from "@/domains/ad-research/actions"
 import type { AdResult, SavedAd, AdCollection } from "@/domains/ad-research/types"
 import type { SearchParams } from "./AdSearchForm"
+import { PageShell, PageHeader, Panel, opsBtnPrimary } from "@/components/app/ops"
 
 interface Props {
   initialCollections: AdCollection[]
@@ -54,33 +55,26 @@ export function AdResearchDashboard({ initialCollections, initialSavedAds }: Pro
   ]
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: "var(--sg-ink)" }}>
-          Investigador de Anuncios
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--sg-muted)" }}>
-          Explora anuncios de la competencia en Meta Ad Library y TikTok Creative Center
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        eyebrow="INVESTIGADOR DE ANUNCIOS"
+        title="Investigador de Anuncios"
+        subtitle="Explora anuncios de la competencia en Meta Ad Library y TikTok Creative Center"
+      />
 
-      <div className="flex gap-1 border-b" style={{ borderColor: "var(--sg-border)" }}>
+      {/* Tab switcher */}
+      <div className="flex gap-1 rounded-full bg-ops-s2 border border-ops-line p-1 self-start w-fit">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className="px-4 py-2.5 text-sm font-medium transition-colors relative"
-            style={{
-              color: activeTab === tab.id ? "var(--sg-ink)" : "var(--sg-muted)",
-            }}
+            className={
+              activeTab === tab.id
+                ? "rounded-full bg-ops-sel px-4 py-1.5 text-sm font-semibold text-ops-blue transition-colors"
+                : "rounded-full px-4 py-1.5 text-sm text-ops-tx3 transition-colors hover:text-ops-tx2"
+            }
           >
             {tab.label}
-            {activeTab === tab.id && (
-              <span
-                className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t"
-                style={{ background: "var(--sg-accent)" }}
-              />
-            )}
           </button>
         ))}
       </div>
@@ -89,30 +83,28 @@ export function AdResearchDashboard({ initialCollections, initialSavedAds }: Pro
         <div className="space-y-4">
           <AdSearchForm onSearch={handleSearch} loading={loading} />
           {error && (
-            <p className="text-sm" style={{ color: "var(--sg-danger)" }}>{error}</p>
+            <p className="text-sm text-ops-coral">{error}</p>
           )}
           {pendingAccess && (
-            <div
-              className="rounded-xl border p-6 text-center space-y-3"
-              style={{ borderColor: "var(--sg-border)", background: "var(--sg-s1)" }}
-            >
-              <p className="text-sm font-medium" style={{ color: "var(--sg-ink)" }}>
-                Acceso a Meta Ad Library pendiente de aprobación
-              </p>
-              <p className="text-sm" style={{ color: "var(--sg-muted)" }}>
-                Para buscar anuncios de competidores necesitas solicitar acceso al API de Meta Ad Library.
-                El proceso toma entre 1 y 7 días.
-              </p>
-              <a
-                href="https://www.facebook.com/ads/library/api/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block px-4 py-2 rounded-lg text-sm font-medium"
-                style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
-              >
-                Solicitar acceso en Meta →
-              </a>
-            </div>
+            <Panel variant="coral">
+              <div className="flex flex-col items-center gap-3 px-6 py-8 text-center">
+                <p className="text-sm font-semibold text-ops-tx">
+                  Acceso a Meta Ad Library pendiente de aprobación
+                </p>
+                <p className="text-sm text-ops-tx2 max-w-md">
+                  Para buscar anuncios de competidores necesitas solicitar acceso al API de Meta Ad Library.
+                  El proceso toma entre 1 y 7 días.
+                </p>
+                <a
+                  href="https://www.facebook.com/ads/library/api/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={opsBtnPrimary}
+                >
+                  Solicitar acceso en Meta →
+                </a>
+              </div>
+            </Panel>
           )}
           <AdResultsGrid
             results={results}
@@ -156,6 +148,6 @@ export function AdResearchDashboard({ initialCollections, initialSavedAds }: Pro
           onAdSaved={(ad) => setSavedAds((prev) => [ad, ...prev])}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

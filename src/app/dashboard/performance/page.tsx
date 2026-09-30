@@ -187,6 +187,7 @@ export default async function PerformancePage({
   return (
     <PageShell>
       <PageHeader
+        eyebrow="RENDIMIENTO"
         title="Rendimiento"
         subtitle="Resultados por campaña, conjunto y anuncio."
         actions={
@@ -205,15 +206,15 @@ export default async function PerformancePage({
       </p>
 
       {/* Tab switcher */}
-      <div className="flex gap-1 border-b border-ops-line">
+      <div className="flex gap-1 mb-2">
         {TABS.map(({ key, label }) => (
           <Link
             key={key}
             href={tabHref(key)}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
               tab === key
-                ? "border-ops-blue text-ops-tx"
-                : "border-transparent text-ops-tx3 hover:text-ops-tx2"
+                ? "bg-ops-sel text-ops-blue font-semibold"
+                : "text-ops-tx3 hover:text-ops-tx2"
             }`}
           >
             {label}

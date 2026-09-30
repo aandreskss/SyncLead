@@ -26,11 +26,13 @@ function StatusChip({ active }: { active: boolean | null }) {
   if (active === null) return <span className="text-[13px] text-ops-tx3">—</span>
   return (
     <span
-      className={`inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium ${
-        active ? "bg-ops-green/10 text-ops-green" : "bg-ops-s2 text-ops-tx2"
+      className={`inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold ${
+        active
+          ? "border-ops-green/30 bg-ops-green-bg text-ops-green"
+          : "border-ops-line bg-ops-s2 text-ops-tx2"
       }`}
     >
-      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${active ? "bg-ops-green" : "bg-ops-tx2"}`} />
+      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${active ? "bg-ops-green" : "bg-ops-tx3"}`} />
       {active ? "Activa" : "Pausada"}
     </span>
   )
@@ -95,15 +97,15 @@ export function CampaignTable({ rows, total }: { rows: CampaignRow[]; total: num
   const th = (k: Key, label: string, right = false) => {
     const on = key === k
     return (
-      <th scope="col" aria-sort={on ? (dir === "asc" ? "ascending" : "descending") : "none"} className={`px-3 py-2 font-medium ${right ? "text-right" : "text-left"}`}>
+      <th scope="col" aria-sort={on ? (dir === "asc" ? "ascending" : "descending") : "none"} className={`px-3 py-2.5 ${right ? "text-right" : "text-left"}`}>
         <button
           type="button"
           onClick={() => sortBy(k)}
-          className={`inline-flex items-center gap-1 text-xs font-medium transition-colors duration-150 hover:text-ops-tx ${on ? "text-ops-tx" : "text-ops-tx3"} ${right ? "flex-row-reverse" : ""}`}
+          className={`inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-widest transition-colors duration-150 hover:text-ops-tx ${on ? "text-ops-tx" : "text-ops-tx3"} ${right ? "flex-row-reverse" : ""}`}
         >
           {label}
           {on ? (
-            <ChevronDown className={`h-3.5 w-3.5 text-ops-blue-t transition-transform duration-150 ${dir === "asc" ? "rotate-180" : ""}`} aria-hidden="true" />
+            <ChevronDown className={`h-3.5 w-3.5 text-ops-blue transition-transform duration-150 ${dir === "asc" ? "rotate-180" : ""}`} aria-hidden="true" />
           ) : (
             <ChevronsUpDown className="h-3 w-3" aria-hidden="true" />
           )}
@@ -113,7 +115,7 @@ export function CampaignTable({ rows, total }: { rows: CampaignRow[]; total: num
   }
 
   return (
-    <section aria-label="Rendimiento por campaña" className="overflow-hidden rounded-lg border border-ops-line bg-ops-s1">
+    <section aria-label="Rendimiento por campaña" className="overflow-hidden rounded-[20px] border border-ops-line bg-ops-s1 shadow-ops-card">
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 pb-4 lg:p-5">
         <div>
           <h2 className="text-base font-semibold text-ops-tx">Rendimiento por campaña</h2>
@@ -164,12 +166,12 @@ export function CampaignTable({ rows, total }: { rows: CampaignRow[]; total: num
               <thead>
                 <tr className="border-y border-ops-line bg-ops-th-bg">
                   {th("name", "Campaña")}
-                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-ops-tx3">Estado</th>
+                  <th scope="col" className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-widest text-ops-tx3">Estado</th>
                   {th("leads", "Leads", true)}
                   {th("sales", "Ventas", true)}
                   {th("conv", "Conversión")}
                   {th("revenue", "Ingresos", true)}
-                  <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-ops-tx3">Acciones</th>
+                  <th scope="col" className="px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-widest text-ops-tx3">Acciones</th>
                 </tr>
               </thead>
               <tbody>
