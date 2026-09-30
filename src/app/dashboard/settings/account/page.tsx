@@ -20,7 +20,7 @@ export default async function AccountPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Mi cuenta" subtitle="Tus datos personales y de acceso." />
+      <PageHeader eyebrow="CUENTA" title="Mi cuenta" subtitle="Tus datos personales y de acceso." />
       <div className="max-w-3xl">
         <AccountView profile={profile} />
       </div>

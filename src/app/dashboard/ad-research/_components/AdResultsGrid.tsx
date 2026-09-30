@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { Search } from "lucide-react"
 import { AdCard } from "./AdCard"
 import type { AdResult, SavedAd, AdCollection } from "@/domains/ad-research/types"
+import { EmptyState, Panel } from "@/components/app/ops"
 
 interface Props {
   results: AdResult[]
@@ -42,8 +44,7 @@ export function AdResultsGrid({ results, loading, collections, country, onSaved 
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-xl border h-72 animate-pulse"
-            style={{ borderColor: "var(--sg-border)", background: "var(--sg-s1)" }}
+            className="rounded-[20px] border border-ops-line bg-ops-s1 h-72 animate-pulse shadow-ops-card"
           />
         ))}
       </div>
@@ -52,34 +53,28 @@ export function AdResultsGrid({ results, loading, collections, country, onSaved 
 
   if (results.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <p className="text-lg font-medium" style={{ color: "var(--sg-ink)" }}>
-          Busca anuncios de la competencia
-        </p>
-        <p className="text-sm mt-1" style={{ color: "var(--sg-muted)" }}>
-          Ingresa un keyword o nombre de advertiser y selecciona la plataforma
-        </p>
-      </div>
+      <Panel>
+        <EmptyState
+          icon={<Search className="h-6 w-6" />}
+          title="Busca anuncios de la competencia"
+          text="Ingresa un keyword o nombre de advertiser y selecciona la plataforma"
+        />
+      </Panel>
     )
   }
 
   return (
     <div className="mt-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm" style={{ color: "var(--sg-muted)" }}>
+        <p className="text-sm text-ops-tx3">
           {results.length} anuncios encontrados
         </p>
         <div className="flex items-center gap-2">
-          <span className="text-xs" style={{ color: "var(--sg-muted)" }}>Ordenar:</span>
+          <span className="text-xs text-ops-tx3">Ordenar:</span>
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="px-2 py-1 rounded-lg text-xs focus:outline-none"
-            style={{
-              background: "var(--sg-s2)",
-              border: "1px solid var(--sg-border)",
-              color: "var(--sg-ink)",
-            }}
+            className="h-8 rounded-full border border-ops-bd bg-ops-s1 px-3 text-xs text-ops-tx outline-none transition-colors hover:border-ops-bd2"
           >
             <option value="days">Días activo</option>
             <option value="impressions">Impresiones</option>

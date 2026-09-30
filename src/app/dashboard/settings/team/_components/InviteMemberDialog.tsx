@@ -80,12 +80,12 @@ export default function InviteMemberDialog({ currentUserRole }: Props) {
           <div className="space-y-4">
             {result.tempPassword ? (
               <div className="space-y-3">
-                <div className="bg-ops-amber/10 border border-ops-amber/30 rounded-md p-4 space-y-2">
+                <div className="bg-ops-amber-bg border border-ops-amber/30 rounded-[20px] p-4 space-y-2">
                   <p className="text-sm font-medium text-ops-amber">Cuenta nueva creada</p>
                   <p className="text-sm text-ops-tx">
                     Se creó la cuenta para <strong>{result.email}</strong> con esta contraseña:
                   </p>
-                  <div className="bg-ops-s1 border border-ops-bd rounded-md px-3 py-2 font-plex tabular-nums text-sm text-ops-tx select-all">
+                  <div className="bg-ops-s1 border border-ops-bd rounded-[20px] px-3 py-2 font-plex tabular-nums text-sm text-ops-tx select-all">
                     {result.tempPassword}
                   </div>
                   <p className="text-xs text-ops-tx2">

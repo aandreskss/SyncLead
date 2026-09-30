@@ -6,6 +6,7 @@ import { AdCard } from "./AdCard"
 import { ImportFromUrlForm } from "./ImportFromUrlForm"
 import type { SavedAd, AdCollection, AdPlatform } from "@/domains/ad-research/types"
 import { createCollectionAction, deleteCollectionAction } from "@/domains/ad-research/actions"
+import { EmptyState, Panel, opsBtnPrimary, opsBtnSecondary, opsField } from "@/components/app/ops"
 
 interface Props {
   savedAds: SavedAd[]
@@ -82,24 +83,22 @@ export function AdLibrary({
         <div className="flex items-center gap-2 flex-1 flex-wrap">
           <button
             onClick={() => setSelectedCollectionId(null)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              background: selectedCollectionId === null ? "var(--sg-accent)" : "var(--sg-s2)",
-              color: selectedCollectionId === null ? "var(--sg-on-accent)" : "var(--sg-muted)",
-              border: "1px solid var(--sg-border)",
-            }}
+            className={
+              selectedCollectionId === null
+                ? "rounded-full bg-ops-sel px-3 py-1.5 text-xs font-semibold text-ops-blue transition-colors"
+                : "rounded-full border border-ops-bd bg-ops-s2 px-3 py-1.5 text-xs font-medium text-ops-tx3 transition-colors hover:text-ops-tx2"
+            }
           >
             Todos
           </button>
 
           <button
             onClick={() => setSelectedCollectionId('__none__')}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              background: selectedCollectionId === '__none__' ? "var(--sg-accent)" : "var(--sg-s2)",
-              color: selectedCollectionId === '__none__' ? "var(--sg-on-accent)" : "var(--sg-muted)",
-              border: "1px solid var(--sg-border)",
-            }}
+            className={
+              selectedCollectionId === '__none__'
+                ? "rounded-full bg-ops-sel px-3 py-1.5 text-xs font-semibold text-ops-blue transition-colors"
+                : "rounded-full border border-ops-bd bg-ops-s2 px-3 py-1.5 text-xs font-medium text-ops-tx3 transition-colors hover:text-ops-tx2"
+            }
           >
             Sin colección
           </button>
@@ -108,19 +107,17 @@ export function AdLibrary({
             <div key={col.id} className="flex items-center gap-1">
               <button
                 onClick={() => setSelectedCollectionId(col.id)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                style={{
-                  background: selectedCollectionId === col.id ? "var(--sg-accent)" : "var(--sg-s2)",
-                  color: selectedCollectionId === col.id ? "var(--sg-on-accent)" : "var(--sg-muted)",
-                  border: "1px solid var(--sg-border)",
-                }}
+                className={
+                  selectedCollectionId === col.id
+                    ? "rounded-full bg-ops-sel px-3 py-1.5 text-xs font-semibold text-ops-blue transition-colors"
+                    : "rounded-full border border-ops-bd bg-ops-s2 px-3 py-1.5 text-xs font-medium text-ops-tx3 transition-colors hover:text-ops-tx2"
+                }
               >
                 {col.name} ({col.itemCount})
               </button>
               <button
                 onClick={() => handleDeleteCollection(col.id)}
-                className="p-1 rounded transition-colors"
-                style={{ color: "var(--sg-subtle)" }}
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full text-ops-tx3 transition-colors hover:text-ops-coral"
               >
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -129,8 +126,7 @@ export function AdLibrary({
 
           <button
             onClick={() => setShowNewCollectionForm(!showNewCollectionForm)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{ color: "var(--sg-muted)", background: "var(--sg-s2)", border: "1px solid var(--sg-border)" }}
+            className={opsBtnSecondary + " text-xs"}
           >
             <Plus className="h-3 w-3" />
             Nueva colección
@@ -139,22 +135,16 @@ export function AdLibrary({
 
         <button
           onClick={() => { setShowImportForm(true); setShowNewCollectionForm(false) }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-          style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+          className={opsBtnPrimary}
         >
-          <Link className="h-3 w-3" />
+          <Link className="h-3.5 w-3.5" />
           Importar desde URL
         </button>
 
         <select
           value={platformFilter}
           onChange={(e) => setPlatformFilter(e.target.value as AdPlatform | '')}
-          className="px-3 py-1.5 rounded-lg text-xs focus:outline-none"
-          style={{
-            background: "var(--sg-s2)",
-            border: "1px solid var(--sg-border)",
-            color: "var(--sg-ink)",
-          }}
+          className="h-9 rounded-full border border-ops-bd bg-ops-s1 px-3 text-xs text-ops-tx outline-none transition-colors hover:border-ops-bd2"
         >
           <option value="">Todas las plataformas</option>
           <option value="meta">Meta</option>
@@ -171,56 +161,50 @@ export function AdLibrary({
       )}
 
       {showNewCollectionForm && (
-        <form
-          onSubmit={handleCreateCollection}
-          className="flex gap-2 items-center p-3 rounded-xl border"
-          style={{ borderColor: "var(--sg-border)", background: "var(--sg-s1)" }}
-        >
-          <input
-            type="text"
-            placeholder="Nombre de la colección..."
-            value={newColName}
-            onChange={(e) => setNewColName(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none"
-            style={{
-              background: "var(--sg-s2)",
-              border: "1px solid var(--sg-border)",
-              color: "var(--sg-ink)",
-            }}
-          />
-          <button
-            type="submit"
-            disabled={isPending || !newColName.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-            style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+        <Panel>
+          <form
+            onSubmit={handleCreateCollection}
+            className="flex gap-2 items-center p-4"
           >
-            Crear
-          </button>
-        </form>
+            <input
+              type="text"
+              placeholder="Nombre de la colección..."
+              value={newColName}
+              onChange={(e) => setNewColName(e.target.value)}
+              className={opsField + " flex-1"}
+            />
+            <button
+              type="submit"
+              disabled={isPending || !newColName.trim()}
+              className={opsBtnPrimary + " disabled:opacity-50"}
+            >
+              Crear
+            </button>
+          </form>
+        </Panel>
       )}
 
       {error && (
-        <p className="text-sm" style={{ color: "var(--sg-danger)" }}>{error}</p>
+        <p className="text-sm text-ops-coral">{error}</p>
       )}
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <BookOpen className="h-10 w-10 mb-3" style={{ color: "var(--sg-subtle)" }} />
-          <p className="text-base font-medium" style={{ color: "var(--sg-ink)" }}>
-            No hay anuncios guardados
-          </p>
-          <p className="text-sm mt-1" style={{ color: "var(--sg-muted)" }}>
-            Importa anuncios pegando su URL o búscalos desde la pestaña Buscar
-          </p>
-          <button
-            onClick={() => setShowImportForm(true)}
-            className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium mx-auto"
-            style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
-          >
-            <Link className="h-3.5 w-3.5" />
-            Importar desde URL
-          </button>
-        </div>
+        <Panel>
+          <EmptyState
+            icon={<BookOpen className="h-6 w-6" />}
+            title="No hay anuncios guardados"
+            text="Importa anuncios pegando su URL o búscalos desde la pestaña Buscar"
+            action={
+              <button
+                onClick={() => setShowImportForm(true)}
+                className={opsBtnPrimary}
+              >
+                <Link className="h-3.5 w-3.5" />
+                Importar desde URL
+              </button>
+            }
+          />
+        </Panel>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((ad) => (
