@@ -165,7 +165,7 @@ function CredentialRow({
               <CheckCircle2 className="h-2.5 w-2.5" />Activa
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 border border-zinc-700 px-1.5 py-0.5 text-[10px] font-medium text-ops-tx3">
+            <span className="inline-flex items-center gap-1 rounded-full bg-ops-s2 border border-ops-bd px-1.5 py-0.5 text-[10px] font-medium text-ops-tx3">
               <XCircle className="h-2.5 w-2.5" />Revocada
             </span>
           )}

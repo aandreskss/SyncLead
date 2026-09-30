@@ -106,7 +106,7 @@ export function WhatsAppConfigPanel({ clientId, initial }: Props) {
           type="button"
           onClick={handleSave}
           disabled={isPending}
-          className="flex items-center gap-2 text-sm bg-ops-sel hover:bg-zinc-600 disabled:opacity-50 text-ops-tx px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-2 text-sm bg-ops-sel hover:bg-ops-raised disabled:opacity-50 text-ops-tx px-4 py-2 rounded-lg transition-colors"
         >
           {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           Guardar configuración

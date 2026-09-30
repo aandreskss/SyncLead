@@ -33,7 +33,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      className="flex items-center gap-1.5 rounded border border-ops-bd bg-ops-sel px-2.5 py-1 text-xs text-ops-tx2 hover:bg-zinc-600 transition-colors"
+      className="flex items-center gap-1.5 rounded border border-ops-bd bg-ops-sel px-2.5 py-1 text-xs text-ops-tx2 hover:bg-ops-raised transition-colors"
     >
       {copied ? (
         <>

@@ -242,6 +242,8 @@
   --ops-coral: #f06f65;
   --ops-cold: #6bb7e8;
   --ops-ws-badge: #1a2740;
+  --ops-card-shadow: none;
+  --ops-th-bg: #0e1319;
 }
 
 /* ─── ops-always-dark: sidebar y elementos que siempre deben verse oscuros ── */
@@ -291,6 +293,8 @@ html.light .sg-app {
   --ops-coral: #d63030;
   --ops-cold: #2563eb;
   --ops-ws-badge: #eef3ff;
+  --ops-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ops-th-bg: #eef2f7;
 
   /* Revertir remapeo zinc/indigo a valores estándar de Tailwind */
   --color-zinc-50: #f9fafb;
@@ -342,6 +346,8 @@ html.light .sg-app {
   --color-ops-bg: var(--ops-bg, #0b0f14);
   --color-ops-side: var(--ops-side, #0e1319);
   --color-ops-s1: var(--ops-s1, #121821);
+  --color-ops-th-bg: var(--ops-th-bg, #0e1319);
+  --shadow-ops-card: var(--ops-card-shadow, none);
   --color-ops-s2: var(--ops-s2, #161d27);
   --color-ops-raised: var(--ops-raised, #1b2431);
   --color-ops-sel: var(--ops-sel, #1e2836);

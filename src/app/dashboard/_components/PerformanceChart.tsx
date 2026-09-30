@@ -43,7 +43,7 @@ function Segmented<T extends string>({
   onChange: (v: T) => void
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex gap-0.5 rounded-lg border border-ops-bd bg-ops-side p-[3px]">
+    <div role="group" aria-label={label} className="inline-flex gap-0.5 rounded-lg border border-ops-bd bg-ops-s2 p-[3px]">
       {options.map((o) => (
         <button
           key={o.value}
@@ -51,7 +51,7 @@ function Segmented<T extends string>({
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={`h-7 whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors duration-150 ${
-            value === o.value ? "bg-ops-sel text-ops-tx shadow-[inset_0_-2px_0_#4c7dff]" : "text-ops-tx2 hover:bg-[#171f2b] hover:text-ops-tx"
+            value === o.value ? "bg-ops-sel text-ops-tx border-b-2 border-ops-blue" : "text-ops-tx2 hover:bg-ops-hover hover:text-ops-tx"
           }`}
         >
           {o.label}

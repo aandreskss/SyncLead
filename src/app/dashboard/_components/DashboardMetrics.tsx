@@ -198,7 +198,7 @@ export async function DashboardMetrics({ orgId, from, to, prevFrom, prevTo, clie
             <section aria-label="Rendimiento del periodo" className="h-full rounded-lg border border-ops-line bg-ops-s1 p-5">
               <h2 className="text-base font-semibold text-ops-tx">Rendimiento del periodo</h2>
               <div className="mt-4 flex items-start gap-4">
-                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#16213a] text-ops-blue-t">
+                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ops-blue/12 text-ops-blue-t">
                   <ChartColumn className="h-5 w-5" />
                 </span>
                 <div>

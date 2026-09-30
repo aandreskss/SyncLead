@@ -180,7 +180,7 @@ function getRowValue(row: PerformanceRow, key: SortKey): number | string | null 
   return row[key as keyof PerformanceRow] as number | string | null
 }
 
-const TH = "h-9 border-b border-ops-line bg-ops-side px-3 text-[11px] font-semibold uppercase tracking-wide text-ops-tx3 whitespace-nowrap"
+const TH = "h-9 border-b border-ops-line bg-ops-th-bg px-3 text-[11px] font-semibold uppercase tracking-wide text-ops-tx3 whitespace-nowrap"
 
 export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
   const [level, setLevel] = useState<Level>("ad")
@@ -514,7 +514,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
           {/* Totals row */}
           {sorted.length > 1 && (
             <tfoot>
-              <tr className="bg-ops-side">
+              <tr className="bg-ops-th-bg">
                 <td colSpan={nameCols} className="border-t border-ops-line px-3 py-2.5">
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-ops-tx3">
                     Total · {sorted.length} filas
