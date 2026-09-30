@@ -7,8 +7,7 @@ import type { MemberWithUser } from "@/domains/members/repository"
 import type { MemberRole } from "@/lib/db/schema"
 import { updateMemberRoleAction, removeMemberAction } from "@/domains/members/actions"
 import { Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { PageHeader, Panel, StatusChip, opsTable, opsField, opsIconBtn } from "@/components/app/ops"
+import { PageHeader, Panel, StatusChip, opsTable, opsField, opsIconBtn, opsBtnSecondary } from "@/components/app/ops"
 import InviteMemberDialog from "./InviteMemberDialog"
 import ChangePasswordDialog from "./ChangePasswordDialog"
 
@@ -88,6 +87,7 @@ export default function TeamView({ members, currentUserId, currentUserRole }: Pr
   return (
     <div className="space-y-5">
       <PageHeader
+        eyebrow="EQUIPO"
         title="Equipo"
         subtitle="Miembros de tu organización y lo que puede hacer cada rol."
         actions={canManage ? <InviteMemberDialog currentUserRole={currentUserRole} /> : undefined}
@@ -144,7 +144,13 @@ export default function TeamView({ members, currentUserId, currentUserRole }: Pr
                           ))}
                         </select>
                       ) : (
-                        <StatusChip tone={member.role === "owner" ? "blue" : "neutral"}>
+                        <StatusChip tone={
+                          member.role === "owner" ? "blue"
+                          : member.role === "admin" ? "coral"
+                          : member.role === "manager" ? "amber"
+                          : member.role === "agent" ? "green"
+                          : "neutral"
+                        }>
                           {ROLE_LABELS[member.role]}
                         </StatusChip>
                       )}
@@ -163,22 +169,22 @@ export default function TeamView({ members, currentUserId, currentUserRole }: Pr
                             {confirmRemoveId === member.id ? (
                               <>
                                 <span className="text-xs text-ops-tx2">¿Confirmar?</span>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
+                                <button
+                                  type="button"
                                   onClick={() => handleRemove(member.id)}
                                   disabled={isPending}
+                                  className="inline-flex items-center gap-1.5 rounded-full bg-ops-coral px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
                                 >
                                   Eliminar
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => setConfirmRemoveId(null)}
                                   disabled={isPending}
+                                  className={opsBtnSecondary}
                                 >
                                   Cancelar
-                                </Button>
+                                </button>
                               </>
                             ) : (
                               <button

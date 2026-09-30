@@ -111,32 +111,32 @@ export function FunnelDialog({ open, onOpenChange, funnel, onSuccess }: Props) {
         <div className="space-y-5">
           {/* Name */}
           <div>
-            <label className="text-xs text-zinc-400 font-medium block mb-1.5">Nombre del embudo</label>
+            <label className="text-xs text-ops-tx2 font-medium block mb-1.5">Nombre del embudo</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Pipeline de ventas"
-              className="w-full h-9 bg-ops-s1 border border-ops-bd rounded-md px-3 text-[13px] text-ops-tx placeholder:text-ops-tx3 outline-none focus-visible:border-ops-blue focus-visible:ring-2 focus-visible:ring-ops-blue/40"
+              className="w-full h-9 bg-ops-s1 border border-ops-bd rounded-lg px-3 text-[13px] text-ops-tx placeholder:text-ops-tx3 outline-none focus-visible:border-ops-blue focus-visible:ring-2 focus-visible:ring-ops-blue/20"
             />
           </div>
 
           {/* Stages */}
           <div>
-            <label className="text-xs text-zinc-400 font-medium block mb-2">Etapas</label>
+            <label className="text-xs text-ops-tx2 font-medium block mb-2">Etapas</label>
             <div className="space-y-2">
               {stages.map((s) => (
                 <div
                   key={s.stageKey}
-                  className={`flex items-center gap-3 p-3 rounded-md border transition-colors ${
-                    s.selected ? "border-zinc-700 bg-zinc-800" : "border-zinc-800 bg-zinc-900/50 opacity-50"
+                  className={`flex items-center gap-3 p-3 rounded-[12px] border transition-colors ${
+                    s.selected ? "border-ops-bd2 bg-ops-s2" : "border-ops-line bg-ops-s2/50 opacity-50"
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={s.selected}
                     onChange={() => toggleStage(s.stageKey)}
-                    className="h-4 w-4 rounded border-zinc-600 accent-indigo-500"
+                    className="h-4 w-4 rounded border-ops-bd accent-ops-blue"
                   />
                   <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
                   <input
@@ -144,7 +144,7 @@ export function FunnelDialog({ open, onOpenChange, funnel, onSuccess }: Props) {
                     value={s.label}
                     onChange={(e) => updateLabel(s.stageKey, e.target.value)}
                     disabled={!s.selected}
-                    className="flex-1 bg-transparent text-sm text-zinc-200 focus:outline-none disabled:text-zinc-600"
+                    className="flex-1 bg-transparent text-sm text-ops-tx focus:outline-none disabled:text-ops-tx3"
                   />
                   <div className="flex gap-1 ml-auto">
                     {PALETTE.map((c) => (
@@ -173,14 +173,14 @@ export function FunnelDialog({ open, onOpenChange, funnel, onSuccess }: Props) {
           <button
             onClick={() => onOpenChange(false)}
             disabled={isPending}
-            className="h-9 px-4 text-[13px] text-ops-tx2 hover:text-ops-tx border border-ops-bd rounded-md focus-visible:outline-2 focus-visible:outline-ops-blue transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full border border-ops-bd bg-ops-s1 px-4 py-2 text-sm font-medium text-ops-tx transition-colors hover:bg-ops-hover disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
             disabled={isPending || !name.trim()}
-            className="h-9 px-4 text-[13px] font-medium bg-ops-blue hover:bg-ops-blue/90 text-white rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-full bg-ops-coral px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
           >
             {isPending ? "Guardando…" : funnel ? "Guardar cambios" : "Crear embudo"}
           </button>

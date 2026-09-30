@@ -63,7 +63,7 @@ export default async function ReportsPage({
 
   return (
     <PageShell>
-      <PageHeader title="Reportes" subtitle="Resúmenes mensuales por cliente y campaña" />
+      <PageHeader eyebrow="REPORTES" title="Reportes" subtitle="Resúmenes mensuales por cliente y campaña" />
       <ReportsView
         clients={allClients.map((c) => ({ id: c.id, name: c.name }))}
         selectedClientId={clientId ?? null}

@@ -10,6 +10,8 @@ import {
   Funnel,
   LayoutDashboard,
   Megaphone,
+  ScanEye,
+  Sparkles,
   TrendingUp,
   Upload,
   User,
@@ -38,6 +40,8 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Análisis",
     items: [
       { href: "/dashboard/performance", label: "Rendimiento", icon: ChartColumn },
+      { href: "/dashboard/visitors", label: "Visitantes", icon: ScanEye },
+      { href: "/dashboard/insights-meta", label: "Insights Meta", icon: Sparkles },
       { href: "/dashboard/funnels", label: "Embudos", icon: Funnel },
       { href: "/dashboard/reports", label: "Reportes", icon: FileBarChart2 },
       { href: "/dashboard/ad-research", label: "Anuncios", icon: TrendingUp },

@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { Panel, StatusChip, opsTable } from "@/components/app/ops"
+import { Panel, StatusChip, opsTable, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
 import type { ImportRowResult } from "@/domains/import/types"
 
 interface Props {
@@ -40,7 +40,7 @@ export function ImportProgress({ results, onDownloadReport, isPending }: Props) 
     <div className="space-y-5">
       {/* Result banner */}
       <div role="status" className={cn(
-        "rounded-lg border bg-ops-s1 p-5 text-center",
+        "rounded-[20px] border bg-ops-s1 p-5 text-center shadow-ops-card",
         failed > 0 ? "border-ops-amber/40" : "border-ops-green/40"
       )}>
         <p className={cn("font-plex text-3xl font-semibold tabular-nums", failed > 0 ? "text-ops-amber" : "text-ops-green")}>
@@ -59,13 +59,13 @@ export function ImportProgress({ results, onDownloadReport, isPending }: Props) 
         <button
           onClick={onDownloadReport}
           disabled={isPending}
-          className="inline-flex h-9 items-center rounded-md border border-ops-bd px-4 text-[13px] font-medium text-ops-tx2 transition-colors hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
+          className={opsBtnSecondary}
         >
           {isPending ? "Generando..." : "Descargar reporte CSV"}
         </button>
         <a
           href="/dashboard"
-          className="inline-flex h-9 items-center rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue"
+          className={opsBtnPrimary}
         >
           Ir al dashboard
         </a>

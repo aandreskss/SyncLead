@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { Check, UploadCloud } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Panel, opsField } from "@/components/app/ops"
+import { Panel, opsField, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
 import {
   uploadImportFileAction,
   saveColumnMappingAction,
@@ -48,7 +48,7 @@ function StepBar({ current }: { current: Step }) {
             key={s.label}
             aria-current={active ? "step" : undefined}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg border px-3 py-2.5",
+              "flex items-center gap-2.5 rounded-[20px] border px-3 py-2.5 shadow-ops-card",
               active ? "border-ops-blue/50 bg-ops-s1" : "border-ops-line bg-ops-s1"
             )}
           >
@@ -71,11 +71,9 @@ function StepBar({ current }: { current: Step }) {
   )
 }
 
-const btnPrimary =
-  "inline-flex h-9 items-center justify-center rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:cursor-not-allowed disabled:opacity-50"
-const btnSecondary =
-  "inline-flex h-9 items-center justify-center rounded-md border border-ops-bd px-4 text-[13px] font-medium text-ops-tx2 transition-colors hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
-const footerBar = "flex items-center justify-between gap-3 border-t border-ops-line bg-ops-side px-4 py-3"
+const btnPrimary = opsBtnPrimary
+const btnSecondary = opsBtnSecondary
+const footerBar = "flex items-center justify-between gap-3 border-t border-ops-line bg-ops-s2 px-4 py-3"
 
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
@@ -240,7 +238,7 @@ export function ImportWizard({ campaigns }: Props) {
               role="button"
               tabIndex={0}
               aria-label="Arrastra un archivo aquí o haz clic para seleccionar"
-              className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-ops-bd2 px-6 py-10 text-center transition-colors hover:border-ops-blue/60 hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
+              className="flex cursor-pointer flex-col items-center gap-2 rounded-[20px] border-2 border-dashed border-ops-bd px-6 py-10 text-center transition-colors hover:border-ops-blue hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault()
@@ -324,7 +322,7 @@ export function ImportWizard({ campaigns }: Props) {
       {step === "dryrun" && dryRunResult && (
         <div className="space-y-4">
           <DryRunPreview result={dryRunResult} fieldLabels={TARGET_FIELD_LABELS} mapping={mapping} />
-          <div className={cn(footerBar, "rounded-lg border border-ops-line")}>
+          <div className={cn(footerBar, "rounded-[20px] border border-ops-line")}>
             <button onClick={() => setStep("mapping")} className={btnSecondary}>
               Cambiar mapeo
             </button>

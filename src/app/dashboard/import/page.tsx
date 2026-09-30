@@ -26,6 +26,7 @@ export default async function ImportPage() {
   return (
     <PageShell className="mx-auto max-w-5xl">
       <PageHeader
+        eyebrow="IMPORTAR"
         title="Importar leads"
         subtitle="Importa leads y ventas históricas desde un archivo CSV o XLSX. Las ventas importadas nunca se envían a Meta CAPI."
       />

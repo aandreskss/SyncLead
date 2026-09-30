@@ -10,6 +10,7 @@ import {
   cancelOrphanCapiEventsAction,
 } from "@/domains/health/actions"
 import type { ClientMetaEventRow } from "@/domains/health/repository"
+import { Panel, StatusChip, opsBtnSecondary } from "@/components/app/ops"
 
 interface Props {
   clientId?: string
@@ -183,26 +184,27 @@ export function HealthCapiLogPanel({ clientId }: Props) {
   }
 
   return (
-    <div className="rounded-lg border border-ops-line bg-ops-s1">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 border-b border-ops-line">
+    <Panel
+      title={
         <div className="flex items-center gap-2">
           <Zap className="h-4 w-4 text-ops-tx2" aria-hidden />
-          <h2 className="text-sm font-semibold text-ops-tx">Historial de eventos CAPI</h2>
+          <span>Historial de eventos CAPI</span>
           {!loading && (
-            <span className="text-xs text-ops-tx3">
+            <span className="text-xs font-normal text-ops-tx3">
               ({allEvents.length} eventos)
               {pendingCount > 0 && <span className="ml-1 text-ops-amber">· {pendingCount} pendientes</span>}
             </span>
           )}
         </div>
+      }
+      actions={
         <div className="flex flex-wrap items-center gap-2">
           {orphanPendingCount > 0 && (
             <button
               onClick={handleCancelOrphans}
               disabled={cancelPending || loading}
               title="Cancelar eventos cuyo lead fue eliminado — el payload está en la DB pero ya no hay lead al que asociarlos"
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-ops-coral transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ops-coral/30 bg-ops-coral-bg px-3 py-1.5 text-xs font-medium text-ops-coral transition-colors hover:opacity-80 disabled:opacity-50"
             >
               {cancelPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
               Cancelar huérfanos ({orphanPendingCount})
@@ -212,7 +214,7 @@ export function HealthCapiLogPanel({ clientId }: Props) {
             <button
               onClick={handleRetryFailed}
               disabled={retryPending || loading}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-ops-amber transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ops-amber/30 bg-ops-amber-bg px-3 py-1.5 text-xs font-medium text-ops-amber transition-colors hover:opacity-80 disabled:opacity-50"
             >
               {retryPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Reintentar fallidos ({failedCount})
@@ -221,29 +223,29 @@ export function HealthCapiLogPanel({ clientId }: Props) {
           <button
             onClick={() => loadEvents()}
             disabled={loading}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-ops-s2 hover:bg-ops-sel text-ops-tx2 transition-colors disabled:opacity-50"
+            className={`${opsBtnSecondary} text-xs py-1.5`}
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Actualizar
           </button>
         </div>
-      </div>
-
+      }
+    >
       {/* Status filter tabs */}
-      <div className="flex gap-1 px-4 py-2 border-b border-ops-line">
+      <div className="flex gap-1.5 px-5 py-2.5 border-t border-ops-line">
         {STATUS_FILTERS.map((f) => (
           <button
             key={f.value}
             onClick={() => setStatusFilter(f.value)}
-            className={`flex items-center gap-1 text-xs px-3 py-1 rounded-md transition-colors ${
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               statusFilter === f.value
-                ? "bg-ops-sel text-ops-tx font-medium"
-                : "text-ops-tx2 hover:bg-ops-s2"
+                ? "bg-ops-blue text-white"
+                : "border border-ops-bd bg-ops-s1 text-ops-tx2 hover:bg-ops-hover"
             }`}
           >
             {f.label}
             {counts[f.value] > 0 && (
-              <span className="font-mono text-ops-tx3">{counts[f.value]}</span>
+              <span className={statusFilter === f.value ? "opacity-80" : "text-ops-tx3"}>{counts[f.value]}</span>
             )}
           </button>
         ))}
@@ -251,32 +253,32 @@ export function HealthCapiLogPanel({ clientId }: Props) {
 
       {/* Messages */}
       {message && (
-        <div className={`mx-4 mt-3 flex items-center gap-2 text-xs rounded-lg px-3 py-2 border ${
+        <div className={`mx-5 mb-3 flex items-center gap-2 text-xs rounded-lg px-3 py-2 border ${
           message.tone === "green"
-            ? "text-ops-green bg-ops-green/10 border-ops-green/20"
+            ? "text-ops-green bg-ops-green-bg border-ops-green/20"
             : message.tone === "coral"
-            ? "text-ops-coral bg-red-500/10 border-red-500/20"
-            : "text-ops-amber bg-amber-500/10 border-amber-500/20"
+            ? "text-ops-coral bg-ops-coral-bg border-ops-coral/20"
+            : "text-ops-amber bg-ops-amber-bg border-ops-amber/20"
         }`}>
           {message.tone === "coral" && <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />}
           {message.text}
         </div>
       )}
       {error && (
-        <div className="mx-4 mt-3 flex items-center gap-2 text-xs text-ops-coral bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+        <div className="mx-5 mb-3 flex items-center gap-2 text-xs text-ops-coral bg-ops-coral-bg border border-ops-coral/20 rounded-lg px-3 py-2">
           <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
           {error}
         </div>
       )}
 
       {/* Events list */}
-      <div className="px-4 py-3">
+      <div className="px-5 pb-4">
         {loading && allEvents.length === 0 ? (
           <div className="flex items-center justify-center py-10 text-ops-tx3">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : events.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-ops-line rounded-lg">
+          <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-ops-line rounded-[20px]">
             <Zap className="h-7 w-7 text-ops-tx3 mb-2" />
             <p className="text-ops-tx3 text-sm font-medium">
               {allEvents.length === 0 ? "Sin eventos CAPI aún" : "Sin eventos en este filtro"}
@@ -292,9 +294,9 @@ export function HealthCapiLogPanel({ clientId }: Props) {
               return (
                 <div
                   key={evt.id}
-                  className={`rounded-lg border px-4 py-3 space-y-1.5 ${
+                  className={`rounded-[16px] border px-4 py-3 space-y-1.5 ${
                     orphan && canSend
-                      ? "bg-red-500/5 border-red-500/20"
+                      ? "bg-ops-coral-bg border-ops-coral/20"
                       : "bg-ops-s2 border-ops-line"
                   }`}
                 >
@@ -323,7 +325,7 @@ export function HealthCapiLogPanel({ clientId }: Props) {
                         onClick={() => handleSendEvent(evt.id)}
                         disabled={isSending || !!sendingEventId}
                         title={orphan ? "El payload está en la DB — se puede enviar aunque el lead fue eliminado" : "Enviar ahora"}
-                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium bg-ops-blue/15 text-ops-blue border border-ops-blue/30 hover:bg-ops-blue/25 transition-colors disabled:opacity-40"
+                        className="inline-flex items-center gap-1 rounded-full border border-ops-blue/30 bg-ops-blue-bg px-2.5 py-0.5 text-xs font-medium text-ops-blue transition-colors hover:opacity-80 disabled:opacity-40"
                       >
                         {isSending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                         {isSending ? "..." : "Enviar"}
@@ -356,6 +358,6 @@ export function HealthCapiLogPanel({ clientId }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </Panel>
   )
 }

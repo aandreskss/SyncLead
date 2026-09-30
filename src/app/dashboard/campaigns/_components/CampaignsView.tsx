@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import { CampaignDialog } from "./CampaignDialog"
 import { CredentialsModal } from "./CredentialsModal"
 import { MultiScriptModal } from "./MultiScriptModal"
@@ -13,7 +12,7 @@ import type { CampaignWithClient } from "@/domains/campaigns/repository"
 import Link from "next/link"
 import { Plus, Pencil, Trash2, Key, Megaphone, Users, Code2, Link2, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField, opsIconBtn } from "@/components/app/ops"
+import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField, opsIconBtn, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
 
 interface Props {
   campaigns: CampaignWithClient[]
@@ -84,14 +83,14 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
           <button
             onClick={() => handleDelete(campaign.id)}
             disabled={deletePending}
-            className="h-8 rounded-md bg-ops-coral px-3 text-xs font-medium text-ops-bg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
+            className="h-8 rounded-full bg-ops-coral px-3 text-xs font-medium text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
           >
             {deletePending ? "…" : "Confirmar"}
           </button>
           <button
             onClick={() => setConfirmDeleteId(null)}
             disabled={deletePending}
-            className="h-8 rounded-md border border-ops-bd px-3 text-xs font-medium text-ops-tx2 transition-colors hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
+            className="h-8 rounded-full border border-ops-bd px-3 text-xs font-medium text-ops-tx2 transition-colors hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
           >
             Cancelar
           </button>
@@ -145,35 +144,33 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
         title={campaign.active ? "Pausar campaña" : "Activar campaña"}
         aria-label={`${campaign.active ? "Pausar" : "Activar"} ${campaign.name}`}
       >
-        <StatusChip tone={campaign.active ? "green" : "amber"}>{campaign.active ? "Activa" : "Pausada"}</StatusChip>
+        <StatusChip tone={campaign.active ? "green" : "neutral"}>{campaign.active ? "Activa" : "Pausada"}</StatusChip>
       </button>
     )
   }
 
-  const secondaryBtn =
-    "inline-flex h-9 items-center gap-2 rounded-md border border-ops-bd px-3 text-[13px] font-medium text-ops-tx2 transition-colors hover:border-ops-bd2 hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
-
   return (
     <PageShell>
       <PageHeader
+        eyebrow="CAMPAÑAS"
         title="Campañas"
         subtitle="Crea campañas, copia su snippet de tracking y revisa sus leads."
         actions={
           <>
-            <button onClick={() => setUrlBuilderOpen(true)} className={secondaryBtn}>
+            <button onClick={() => setUrlBuilderOpen(true)} className={opsBtnSecondary}>
               <Link2 className="h-4 w-4" />
               Parámetros de URL
             </button>
             {campaigns.length > 0 && (
-              <button onClick={() => setMultiScriptOpen(true)} className={secondaryBtn}>
+              <button onClick={() => setMultiScriptOpen(true)} className={opsBtnSecondary}>
                 <Code2 className="h-4 w-4" />
                 Script multi-campaña
               </button>
             )}
-            <Button onClick={openCreate} className="gap-2">
+            <button onClick={openCreate} className={opsBtnPrimary}>
               <Plus className="h-4 w-4" />
               Nueva campaña
-            </Button>
+            </button>
           </>
         }
       />
@@ -222,10 +219,10 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
             title="Sin campañas todavía"
             text="Crea tu primera campaña para obtener una API key y empezar a recibir leads."
             action={
-              <Button onClick={openCreate} className="mt-2 gap-2">
+              <button onClick={openCreate} className={cn(opsBtnPrimary, "mt-2")}>
                 <Plus className="h-4 w-4" />
                 Crear campaña
-              </Button>
+              </button>
             }
           />
         </Panel>

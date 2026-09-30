@@ -9,8 +9,7 @@ import {
   retryFailedImportAction,
   resolveStuckCronRunsAction,
 } from "@/domains/health/actions"
-import { Button } from "@/components/ui/button"
-import { PageHeader, Panel, StatusChip, opsTable, opsField } from "@/components/app/ops"
+import { PageHeader, Panel, StatusChip, opsTable, opsField, opsBtnSecondary, opsBtnPrimary } from "@/components/app/ops"
 import { HealthCapiLogPanel } from "./HealthCapiLogPanel"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -85,10 +84,13 @@ function ActionButton({
   disabled: boolean
   variant?: "secondary" | "destructive"
 }) {
+  const cls = variant === "destructive"
+    ? opsBtnPrimary
+    : opsBtnSecondary
   return (
-    <Button size="sm" variant={variant} onClick={onClick} disabled={disabled}>
+    <button className={cls} onClick={onClick} disabled={disabled}>
       {disabled ? "..." : label}
-    </Button>
+    </button>
   )
 }
 
@@ -382,13 +384,14 @@ export default function HealthDashboard({
   return (
     <div className="space-y-5">
       <PageHeader
+        eyebrow="DIAGNÓSTICO"
         title="Salud del sistema"
         subtitle="Estado de la base de datos, la cola CAPI y las conexiones con Meta."
         actions={
-          <Button variant="secondary" onClick={() => router.refresh()}>
-            <RefreshCw aria-hidden />
+          <button className={opsBtnSecondary} onClick={() => router.refresh()}>
+            <RefreshCw className="h-4 w-4" aria-hidden />
             Actualizar
-          </Button>
+          </button>
         }
       />
       <ClientFilter clients={clients} selectedClientId={selectedClientId} />

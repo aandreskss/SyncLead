@@ -1,4 +1,4 @@
-import { Minus, TrendingDown, TrendingUp } from "lucide-react"
+import { Minus, TrendingDown, TrendingUp, Users, ShoppingCart, BarChart2, DollarSign } from "lucide-react"
 import type { DashboardKPIs, Metric } from "@/domains/analytics/types"
 import { InfoTip } from "./InfoTip"
 import { Sparkline } from "./Sparkline"
@@ -20,8 +20,8 @@ function delta(curr: Metric, prev: Metric): number | null {
 function Delta({ pct, prevText }: { pct: number | null; prevText: string }) {
   if (pct === null) {
     return (
-      <span className="flex items-center gap-1.5 text-[13px] text-ops-tx3">
-        <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-ops-s2 px-2.5 py-1 text-[11px] font-semibold text-ops-tx3">
+        <Minus className="h-3 w-3" aria-hidden="true" />
         Sin datos comparables
       </span>
     )
@@ -29,8 +29,8 @@ function Delta({ pct, prevText }: { pct: number | null; prevText: string }) {
   const abs = Math.abs(pct)
   if (abs < 0.5) {
     return (
-      <span className="flex items-center gap-1.5 text-[13px] text-ops-tx2">
-        <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-ops-s2 px-2.5 py-1 text-[11px] font-semibold text-ops-tx3">
+        <Minus className="h-3 w-3" aria-hidden="true" />
         Sin cambios · {prevText}
       </span>
     )
@@ -38,13 +38,13 @@ function Delta({ pct, prevText }: { pct: number | null; prevText: string }) {
   const up = pct > 0
   const Icon = up ? TrendingUp : TrendingDown
   return (
-    <span className={`flex items-center gap-1.5 text-[13px] ${up ? "text-ops-green" : "text-ops-coral"}`}>
-      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-      <span className="font-plex">
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${up ? "bg-ops-green-bg text-ops-green" : "bg-ops-coral-bg text-ops-coral"}`}>
+      <Icon className="h-3 w-3" aria-hidden="true" />
+      <span>
         {up ? "+" : "−"}
         {fmt(abs, 1)} %
       </span>
-      <span className="truncate text-ops-tx3">{prevText}</span>
+      <span className="truncate opacity-70">{prevText}</span>
     </span>
   )
 }
@@ -59,7 +59,10 @@ export function KPIStrip({ current, prev, series }: Props) {
       prevText: `vs ${fmt(prev.totalLeads)} anterior`,
       tip: "Total de leads registrados en el periodo seleccionado.",
       spark: series.map((d) => d.total),
-      color: "#4c7dff",
+      sparkColor: "#3E5CFA",
+      icon: <Users className="h-5 w-5" aria-hidden="true" />,
+      iconBg: "bg-ops-blue-bg",
+      iconColor: "text-ops-blue",
     },
     {
       label: "Ventas",
@@ -68,7 +71,10 @@ export function KPIStrip({ current, prev, series }: Props) {
       prevText: `vs ${fmt(prev.totalSales)} anterior`,
       tip: "Ventas confirmadas dentro del periodo, por fecha de conversión.",
       spark: series.map((d) => d.converted),
-      color: "#37c790",
+      sparkColor: "#12B48A",
+      icon: <ShoppingCart className="h-5 w-5" aria-hidden="true" />,
+      iconBg: "bg-ops-green-bg",
+      iconColor: "text-ops-green",
     },
     {
       label: "Tasa de conversión",
@@ -77,7 +83,10 @@ export function KPIStrip({ current, prev, series }: Props) {
       prevText: prev.conversionRate !== null ? `vs ${fmtPct(prev.conversionRate)} anterior` : "",
       tip: "Ventas divididas entre leads captados en el periodo.",
       spark: convSeries,
-      color: "#98a4b3",
+      sparkColor: "#E4A730",
+      icon: <BarChart2 className="h-5 w-5" aria-hidden="true" />,
+      iconBg: "bg-ops-amber-bg",
+      iconColor: "text-ops-amber",
     },
     {
       label: "Ingresos atribuidos",
@@ -86,30 +95,34 @@ export function KPIStrip({ current, prev, series }: Props) {
       prevText: prev.totalRevenue !== null ? `vs ${fmtMoney(prev.totalRevenue)} anterior` : "",
       tip: "Suma del monto de las ventas confirmadas en el periodo.",
       spark: [] as number[],
-      color: "#37c790",
+      sparkColor: "#12B48A",
+      icon: <DollarSign className="h-5 w-5" aria-hidden="true" />,
+      iconBg: "bg-ops-green-bg",
+      iconColor: "text-ops-green",
     },
   ]
 
   return (
-    <section aria-label="Métricas principales" className="grid grid-cols-2 rounded-lg border border-ops-line bg-ops-s1 lg:grid-cols-4">
+    <section aria-label="Métricas principales" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map((c, i) => (
         <div
           key={c.label}
-          className={`min-w-0 p-4 lg:p-5 ${i % 2 === 0 ? "border-r border-ops-line" : ""} ${i < 2 ? "border-b border-ops-line lg:border-b-0" : ""} ${
-            i < 3 ? "lg:border-r" : "lg:border-r-0"
-          }`}
+          className="min-w-0 rounded-[20px] border border-ops-line bg-ops-s1 p-5 shadow-ops-card"
         >
-          <div className="flex items-center gap-1 text-[13px] font-medium text-ops-tx2">
+          <div className="flex items-start justify-between gap-2">
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${c.iconBg} ${c.iconColor}`}>
+              {c.icon}
+            </span>
+            <Sparkline points={c.spark} color={c.sparkColor} label={`Tendencia diaria de ${c.label.toLowerCase()}`} />
+          </div>
+          <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-widest text-ops-tx3">
             {c.label}
             <InfoTip label={c.label} align={i % 4 === 3 ? "right" : i % 4 === 0 ? "left" : "center"}>
               {c.tip}
             </InfoTip>
           </div>
-          <div className="mt-2 flex items-end justify-between gap-2">
-            <p className="font-plex text-[26px] font-medium leading-none tracking-tight text-ops-tx lg:text-[32px]">{c.value}</p>
-            <Sparkline points={c.spark} color={c.color} label={`Tendencia diaria de ${c.label.toLowerCase()}`} />
-          </div>
-          <div className="mt-2.5">
+          <p className="font-plex mt-1 text-[32px] font-bold leading-none tabular-nums text-ops-tx">{c.value}</p>
+          <div className="mt-3">
             <Delta pct={c.delta} prevText={c.prevText} />
           </div>
         </div>

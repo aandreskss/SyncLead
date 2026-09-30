@@ -66,18 +66,18 @@ interface KpiCardProps {
   accent?: string
 }
 
-function KpiCard({ label, value, sub, icon, iconBg, iconColor, accent }: KpiCardProps) {
+function KpiCard({ label, value, sub, icon, iconBg, iconColor }: KpiCardProps) {
   return (
-    <div className={`relative overflow-hidden rounded-xl border border-ops-line bg-ops-s1 p-5 ${accent ? `border-l-2 ${accent}` : ""}`}>
+    <div className="rounded-[20px] border border-ops-line bg-ops-s1 p-5 shadow-ops-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium tracking-wide text-ops-tx3 uppercase">{label}</p>
-          <p className="mt-2 text-[28px] font-bold leading-none tabular-nums text-ops-tx tracking-tight">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-ops-tx3">{label}</p>
+          <p className="mt-2 text-[28px] font-bold leading-none tabular-nums text-ops-tx">
             {value}
           </p>
           {sub && <p className="mt-1.5 text-xs text-ops-tx3">{sub}</p>}
         </div>
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconBg} ${iconColor}`}>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg} ${iconColor}`}>
           {icon}
         </div>
       </div>
@@ -96,7 +96,7 @@ interface MetaKpiProps {
 function MetaKpi({ label, value, sub, roas, highlight }: MetaKpiProps) {
   const isRoas = roas !== undefined
   return (
-    <div className={`rounded-xl border p-4 ${isRoas ? roasBg(roas) + " " + roasBorder(roas) : "border-ops-line/60 bg-ops-s1/60"}`}>
+    <div className={`rounded-xl border border-ops-bd bg-ops-s1 p-4 ${isRoas ? roasBg(roas) + " " + roasBorder(roas) : ""}`}>
       <p className="text-[10px] font-semibold uppercase tracking-widest text-ops-tx3">{label}</p>
       <p className={`mt-1.5 text-xl font-bold tabular-nums leading-tight ${isRoas ? roasColor(roas) : highlight ? "text-ops-tx" : "text-ops-tx"}`}>
         {value}
@@ -127,42 +127,38 @@ export function SummaryCards({ rows, metaSpend }: Props) {
         <KpiCard
           label="Leads captados"
           value={fmtBig(leads)}
-          icon={<Users className="h-4.5 w-4.5" />}
-          iconBg="bg-ops-blue/12"
+          icon={<Users className="h-5 w-5" />}
+          iconBg="bg-ops-blue-bg"
           iconColor="text-ops-blue"
-          accent="border-l-ops-blue/60"
         />
         <KpiCard
           label="Ventas cerradas"
           value={fmtBig(sales)}
-          icon={<ShoppingCart className="h-4.5 w-4.5" />}
-          iconBg="bg-ops-green/12"
+          icon={<ShoppingCart className="h-5 w-5" />}
+          iconBg="bg-ops-green-bg"
           iconColor="text-ops-green"
-          accent="border-l-ops-green/60"
         />
         <KpiCard
           label="Conversión"
           value={conv !== null ? `${conv.toFixed(1)}%` : "—"}
           sub={conv !== null ? "ventas ÷ leads" : "sin ventas aún"}
-          icon={<TrendingUp className="h-4.5 w-4.5" />}
-          iconBg={conv !== null && conv >= 5 ? "bg-ops-green/12" : "bg-ops-amber/12"}
+          icon={<TrendingUp className="h-5 w-5" />}
+          iconBg={conv !== null && conv >= 5 ? "bg-ops-green-bg" : "bg-ops-amber-bg"}
           iconColor={conv !== null ? convColor(conv) : "text-ops-tx3"}
-          accent={conv !== null && conv >= 5 ? "border-l-ops-green/60" : conv !== null ? "border-l-ops-amber/60" : ""}
         />
         <KpiCard
           label="Ingresos"
           value={revenue >= 10000 ? `$${fmtBig(revenue)}` : `$${revenue.toLocaleString("es", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
           sub={sales > 0 ? `avg $${(revenue / sales).toFixed(0)} por venta` : undefined}
-          icon={<DollarSign className="h-4.5 w-4.5" />}
-          iconBg="bg-ops-green/10"
+          icon={<DollarSign className="h-5 w-5" />}
+          iconBg="bg-ops-green-bg"
           iconColor="text-ops-green"
-          accent={revenue > 0 ? "border-l-ops-green/60" : ""}
         />
       </div>
 
       {/* Meta Ads row */}
       {hasMetaData ? (
-        <div className="rounded-xl border border-ops-blue/20 bg-ops-blue/5 p-4">
+        <div className="rounded-[20px] border border-ops-blue/20 bg-ops-blue-bg p-5 shadow-ops-card">
           <div className="mb-3 flex items-center gap-2">
             <div className="flex h-5 w-5 items-center justify-center rounded bg-ops-blue/12">
               <BarChart3 className="h-3 w-3 text-ops-blue" />
@@ -201,7 +197,7 @@ export function SummaryCards({ rows, metaSpend }: Props) {
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-2.5 rounded-lg border border-ops-line/40 bg-ops-s1/40 px-4 py-2.5">
+        <div className="flex items-center gap-2.5 rounded-xl border border-ops-line bg-ops-s2 px-4 py-3">
           <Zap className="h-3.5 w-3.5 text-ops-tx3 shrink-0" />
           <p className="text-xs text-ops-tx3">
             Conecta <span className="text-ops-tx2 font-medium">Meta Ads Insights</span> en la configuración del cliente para ver CPL, CPA y ROAS.

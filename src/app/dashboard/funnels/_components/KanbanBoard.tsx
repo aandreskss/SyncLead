@@ -65,7 +65,7 @@ function KanbanCard({
           onCardClick(lead)
         }
       }}
-      className={`rounded-md border bg-ops-s2 p-3 cursor-grab active:cursor-grabbing select-none transition-opacity ${
+      className={`rounded-[20px] border bg-ops-s1 p-3 cursor-grab active:cursor-grabbing select-none transition-opacity shadow-ops-card ${
         isDragging && !isDragOverlay ? "opacity-30 border-ops-bd" : "border-ops-line hover:border-ops-bd2"
       }`}
     >
@@ -116,7 +116,7 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-shrink-0 w-[300px] flex flex-col rounded-lg border bg-ops-side p-2 transition-colors ${
+      className={`flex-shrink-0 w-[300px] flex flex-col rounded-[20px] border bg-ops-side p-2 transition-colors ${
         isOver ? "border-ops-blue" : "border-ops-line"
       }`}
     >
@@ -124,8 +124,8 @@ function KanbanColumn({
       <div className="px-2 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div aria-hidden className="h-2 w-2 rounded-[2px] flex-shrink-0" style={{ background: stage.color }} />
-          <span className="font-medium text-ops-tx text-[13px]">{stage.label}</span>
-          <span className="font-plex tabular-nums text-xs text-ops-tx2">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-ops-tx3">{stage.label}</span>
+          <span className="font-plex tabular-nums text-xs text-ops-tx3">
             {leads.length}
           </span>
         </div>

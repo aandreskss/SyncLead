@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Plus, Pencil, Trash2, GitMerge } from "lucide-react"
 import { deleteFunnelAction } from "@/domains/funnels/actions"
-import { PageShell, PageHeader, Panel, EmptyState, opsField, opsIconBtn } from "@/components/app/ops"
+import { PageShell, PageHeader, Panel, EmptyState, opsField, opsIconBtn, opsBtnPrimary } from "@/components/app/ops"
 import { FunnelDialog } from "./FunnelDialog"
 import { KanbanBoard } from "./KanbanBoard"
 import type { Funnel, SalesRep } from "@/lib/db/schema"
@@ -93,10 +93,11 @@ export function FunnelsView({
     return (
       <PageShell>
         <PageHeader
+          eyebrow="EMBUDOS"
           title="Funnels"
           subtitle="Mueve cada lead por las etapas de tu proceso comercial."
           actions={
-            <button onClick={openCreate} className="inline-flex h-9 items-center gap-2 rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue">
+            <button onClick={openCreate} className={opsBtnPrimary}>
               <Plus className="h-4 w-4" />
               Crear embudo
             </button>
@@ -108,7 +109,7 @@ export function FunnelsView({
             title="Sin embudos todavía"
             text="Crea un embudo para visualizar tus leads en un tablero kanban con las etapas que definas."
             action={
-              <button onClick={openCreate} className="mt-2 inline-flex h-9 items-center gap-2 rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue">
+              <button onClick={openCreate} className={`mt-2 ${opsBtnPrimary}`}>
                 <Plus className="h-4 w-4" />
                 Crear primer embudo
               </button>
@@ -130,10 +131,11 @@ export function FunnelsView({
   return (
     <PageShell className="space-y-4">
       <PageHeader
+        eyebrow="EMBUDOS"
         title="Funnels"
         subtitle="Mueve cada lead por las etapas de tu proceso comercial."
         actions={
-          <button onClick={openCreate} className="inline-flex h-9 items-center gap-2 rounded-md bg-ops-blue px-4 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue">
+          <button onClick={openCreate} className={opsBtnPrimary}>
             <Plus className="h-4 w-4" />
             Nuevo embudo
           </button>
@@ -146,10 +148,10 @@ export function FunnelsView({
           <div key={f.id} className="relative flex items-center group">
             <button
               onClick={() => selectFunnel(f.id)}
-              className={`h-8 rounded-md px-3 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ops-blue ${
+              className={`h-8 rounded-full px-4 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ops-blue ${
                 selectedFunnel?.id === f.id
-                  ? "bg-ops-sel text-ops-tx shadow-[inset_0_-2px_0_var(--color-ops-blue)]"
-                  : "text-ops-tx2 hover:text-ops-tx hover:bg-ops-hover"
+                  ? "bg-ops-blue text-white"
+                  : "border border-ops-bd bg-ops-s1 text-ops-tx2 hover:text-ops-tx hover:bg-ops-hover"
               }`}
             >
               {f.name}
@@ -170,13 +172,13 @@ export function FunnelsView({
                   <button
                     onClick={() => handleDelete(f.id)}
                     disabled={deletePending}
-                    className="h-7 rounded-md bg-ops-coral px-2 text-xs font-medium text-ops-bg hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ops-blue"
+                    className="h-7 rounded-full bg-ops-coral px-3 text-xs font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ops-blue"
                   >
                     {deletePending ? "…" : "Sí"}
                   </button>
                   <button
                     onClick={() => setConfirmDeleteId(null)}
-                    className="h-7 rounded-md border border-ops-bd px-2 text-xs text-ops-tx hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
+                    className="h-7 rounded-full border border-ops-bd px-3 text-xs text-ops-tx hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
                   >
                     No
                   </button>

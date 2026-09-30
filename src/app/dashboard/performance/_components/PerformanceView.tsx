@@ -245,14 +245,14 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-ops-line bg-ops-s1">
+    <div className="overflow-hidden rounded-[20px] border border-ops-line bg-ops-s1 shadow-ops-card">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-ops-line">
         {/* Level segmented control */}
         <div
           role="group"
           aria-label="Nivel de agrupación"
-          className="inline-flex gap-0.5 rounded-lg border border-ops-bd bg-ops-bg p-[3px]"
+          className="inline-flex gap-1 rounded-full border border-ops-bd bg-ops-bg p-1"
         >
           {LEVELS.map((o) => (
             <button
@@ -260,7 +260,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
               type="button"
               aria-pressed={level === o.value}
               onClick={() => setLevel(o.value)}
-              className={`h-7 whitespace-nowrap rounded-[6px] px-3 text-[13px] font-medium transition-all focus-visible:outline-2 focus-visible:outline-ops-blue ${
+              className={`h-7 whitespace-nowrap rounded-full px-3 text-[13px] font-medium transition-all focus-visible:outline-2 focus-visible:outline-ops-blue ${
                 level === o.value
                   ? "bg-ops-blue text-white shadow-sm"
                   : "text-ops-tx3 hover:bg-ops-hover hover:text-ops-tx"
@@ -279,7 +279,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
             placeholder="Buscar…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 w-full rounded-md border border-ops-bd bg-ops-s2 pl-8 pr-7 text-[13px] text-ops-tx placeholder:text-ops-tx3 outline-none focus:border-ops-blue focus:ring-1 focus:ring-ops-blue/30 transition-colors"
+            className="h-8 w-full rounded-full border border-ops-bd bg-ops-s1 pl-8 pr-7 text-sm text-ops-tx placeholder:text-ops-tx3 outline-none focus:border-ops-blue focus:ring-1 focus:ring-ops-blue/30 transition-colors"
           />
           {search && (
             <button
@@ -299,7 +299,7 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
           </span>
           <button
             onClick={() => exportCSV(sorted)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3 text-[12px] font-medium text-ops-tx2 transition-colors hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-ops-bd bg-ops-s2 px-3 text-[12px] font-medium text-ops-tx2 transition-colors hover:bg-ops-hover hover:text-ops-tx focus-visible:outline-2 focus-visible:outline-ops-blue"
           >
             <Download className="h-3.5 w-3.5" />
             CSV
@@ -309,9 +309,9 @@ export function PerformanceView({ rows: rawRows, prevRows: rawPrev }: Props) {
 
       {/* No Meta Insights notice */}
       {!hasMetaData && (
-        <div className="flex items-center gap-2.5 border-b border-ops-line/50 bg-ops-bg/30 px-4 py-2">
+        <div className="flex items-center gap-2.5 border-b border-ops-line px-4 py-3">
           <Zap className="h-3.5 w-3.5 shrink-0 text-ops-tx3" />
-          <p className="text-[12px] text-ops-tx3">
+          <p className="text-xs text-ops-tx3">
             Conecta <span className="font-medium text-ops-tx2">Meta Ads Insights</span> en la configuración del cliente para ver CPL, CPA y ROAS.
           </p>
         </div>

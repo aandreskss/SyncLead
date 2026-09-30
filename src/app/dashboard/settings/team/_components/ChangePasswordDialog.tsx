@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useId } from "react"
 import { KeyRound } from "lucide-react"
-import { opsIconBtn } from "@/components/app/ops"
+import { opsIconBtn, opsField, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
 import {
   Dialog,
   DialogContent,
@@ -12,8 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { resetMemberPasswordAction } from "@/domains/members/actions"
 
@@ -84,9 +82,9 @@ export default function ChangePasswordDialog({ memberId, memberName }: Props) {
             <p className="text-sm text-ops-green">
               Contraseña actualizada para <strong>{memberName ?? "el usuario"}</strong>.
             </p>
-            <Button onClick={() => handleOpenChange(false)}>
+            <button type="button" onClick={() => handleOpenChange(false)} className={opsBtnPrimary}>
               Cerrar
-            </Button>
+            </button>
           </div>
         ) : (
           <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
@@ -95,7 +93,7 @@ export default function ChangePasswordDialog({ memberId, memberName }: Props) {
                 Nueva contraseña
               </Label>
               <div className="relative">
-                <Input
+                <input
                   id={pwId}
                   name="password"
                   type={showPassword ? "text" : "password"}
@@ -103,8 +101,9 @@ export default function ChangePasswordDialog({ memberId, memberName }: Props) {
                   required
                   minLength={8}
                   disabled={isPending}
-                  className="pr-16"
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
+                  className={`${opsField} w-full pr-16 disabled:opacity-50`}
                 />
                 <button
                   type="button"
@@ -121,12 +120,12 @@ export default function ChangePasswordDialog({ memberId, memberName }: Props) {
             )}
 
             <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)} disabled={isPending}>
+              <button type="button" onClick={() => handleOpenChange(false)} disabled={isPending} className={opsBtnSecondary}>
                 Cancelar
-              </Button>
-              <Button type="submit" disabled={isPending}>
+              </button>
+              <button type="submit" disabled={isPending} className={opsBtnPrimary}>
                 {isPending ? "Guardando…" : "Guardar contraseña"}
-              </Button>
+              </button>
             </DialogFooter>
           </form>
         )}
