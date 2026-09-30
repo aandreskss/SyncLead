@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import {
   Users, TrendingUp, DollarSign, BarChart3,
@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import type { ReportData } from "@/domains/analytics/reports"
 import { toggleMonthlyReportAction } from "@/domains/analytics/report-actions"
-import { Panel, StatusChip, opsTable, opsBtnPrimary, opsBtnSecondary, opsField, EmptyState } from "@/components/app/ops"
+import { Panel, opsTable, opsBtnPrimary, opsBtnSecondary, opsField, EmptyState } from "@/components/app/ops"
 
 interface Props {
   clients: { id: string; name: string }[]
