@@ -25,8 +25,7 @@ import {
   Upload,
   Link as LinkIcon,
 } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Panel } from "@/components/app/ops"
+import { Panel, opsField, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -112,13 +111,13 @@ function PasswordInput({
   const [show, setShow] = useState(false)
   return (
     <div className="relative">
-      <Input
+      <input
         id={id}
         type={show ? "text" : "password"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="pr-10"
+        className={`${opsField} w-full pr-10`}
       />
       <button
         type="button"
@@ -225,14 +224,14 @@ function AvatarEditor({
         {!selectedFile ? (
           <button
             onClick={() => fileRef.current?.click()}
-            className="w-full flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-md border border-dashed border-ops-bd hover:border-ops-blue hover:bg-ops-hover text-ops-tx2 hover:text-ops-tx transition-colors"
+            className="w-full flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-[20px] border-2 border-dashed border-ops-bd hover:border-ops-blue hover:bg-ops-hover text-ops-tx2 hover:text-ops-tx transition-colors"
           >
             <Upload className="h-6 w-6" />
             <span className="text-xs">Haz clic para seleccionar una imagen</span>
             <span className="text-xs text-ops-tx3">JPG, PNG, WebP · máx. 4 MB</span>
           </button>
         ) : (
-          <div className="flex items-center gap-3 p-3 rounded-md bg-ops-s2 border border-ops-bd">
+          <div className="flex items-center gap-3 p-3 rounded-[20px] bg-ops-s2 border border-ops-bd">
             <img
               src={localPreview!}
               alt="preview"
@@ -255,12 +254,12 @@ function AvatarEditor({
           <button
             onClick={handleUploadFile}
             disabled={pending || !selectedFile}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+            className={opsBtnPrimary}
           >
             {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
             {pending ? "Subiendo…" : "Subir foto"}
           </button>
-          <button onClick={resetState} disabled={pending} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50">
+          <button onClick={resetState} disabled={pending} className={opsBtnSecondary}>
             Cancelar
           </button>
         </div>
@@ -273,12 +272,13 @@ function AvatarEditor({
       <div className="space-y-3">
         <div>
           <label htmlFor="acc-avatar-url" className="mb-1.5 block text-xs font-medium text-ops-tx2">URL de la imagen</label>
-          <Input
+          <input
             id="acc-avatar-url"
             type="url"
             value={urlValue}
             onChange={(e) => setUrlValue(e.target.value)}
             placeholder="https://ejemplo.com/mi-foto.jpg"
+            className={`${opsField} w-full`}
           />
         </div>
         {urlValue && (
@@ -294,12 +294,12 @@ function AvatarEditor({
           <button
             onClick={handleSaveUrl}
             disabled={pending || !urlValue.trim()}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+            className={opsBtnPrimary}
           >
             {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Guardar URL
           </button>
-          <button onClick={resetState} disabled={pending} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50">
+          <button onClick={resetState} disabled={pending} className={opsBtnSecondary}>
             Cancelar
           </button>
         </div>
@@ -312,14 +312,14 @@ function AvatarEditor({
     <div className="flex flex-wrap gap-2">
       <button
         onClick={() => setMode("file")}
-        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+        className={opsBtnSecondary}
       >
         <Upload className="h-3.5 w-3.5" />
         Subir imagen
       </button>
       <button
         onClick={() => setMode("url")}
-        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+        className={opsBtnSecondary}
       >
         <LinkIcon className="h-3.5 w-3.5" />
         Usar URL
@@ -335,7 +335,7 @@ function AvatarEditor({
             })
           }}
           disabled={pending}
-          className="inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-[13px] text-ops-tx2 transition-colors hover:bg-ops-hover hover:text-ops-coral focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] text-ops-tx2 transition-colors hover:bg-ops-hover hover:text-ops-coral focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
         >
           <X className="h-3.5 w-3.5" />
           Quitar foto
@@ -466,20 +466,21 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
         {nameEditing ? (
           <div className="space-y-3">
             <label htmlFor="acc-name" className="block text-xs font-medium text-ops-tx2">Nombre completo</label>
-            <Input
+            <input
               id="acc-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Tu nombre completo"
               maxLength={100}
+              className={`${opsField} w-full`}
             />
             <Feedback saved={nameSaved} error={nameError} />
             <div className="-mx-4 -mb-4 mt-4 flex flex-row-reverse justify-start gap-2 border-t border-ops-line px-4 py-3">
               <button
                 onClick={handleSaveName}
                 disabled={namePending}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+                className={opsBtnPrimary}
               >
                 {namePending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 Guardar
@@ -487,7 +488,7 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
               <button
                 onClick={() => { setNameEditing(false); setName(profile.name ?? ""); setNameError(null) }}
                 disabled={namePending}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+                className={opsBtnSecondary}
               >
                 Cancelar
               </button>
@@ -515,12 +516,13 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
           <div className="space-y-3">
             <div>
               <label htmlFor="acc-email" className="mb-1.5 block text-xs font-medium text-ops-tx2">Nuevo correo</label>
-              <Input
+              <input
                 id="acc-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nuevo@correo.com"
+                className={`${opsField} w-full`}
               />
             </div>
             <div>
@@ -537,7 +539,7 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
               <button
                 onClick={handleSaveEmail}
                 disabled={emailPending}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+                className={opsBtnPrimary}
               >
                 {emailPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 Guardar
@@ -545,7 +547,7 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
               <button
                 onClick={() => { setEmailEditing(false); setEmail(profile.email ?? ""); setEmailCurrentPassword(""); setEmailError(null) }}
                 disabled={emailPending}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+                className={opsBtnSecondary}
               >
                 Cancelar
               </button>
@@ -612,7 +614,7 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
                 <button
                   onClick={handleSavePassword}
                   disabled={passwordPending}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-md bg-ops-blue px-3.5 text-[13px] font-medium text-white transition-colors hover:bg-ops-blue/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+                  className={opsBtnPrimary}
                 >
                   {passwordPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                   Cambiar contraseña
@@ -626,7 +628,7 @@ export default function AccountView({ profile }: { profile: MyProfile }) {
                     setPasswordError(null)
                   }}
                   disabled={passwordPending}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-ops-bd bg-ops-s2 px-3.5 text-[13px] font-medium text-ops-tx transition-colors hover:border-ops-bd2 hover:bg-ops-sel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ops-blue disabled:opacity-50"
+                  className={opsBtnSecondary}
                 >
                   Cancelar
                 </button>

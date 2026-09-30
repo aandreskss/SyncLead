@@ -5,6 +5,7 @@ import { Link, X, Image as ImageIcon, Loader2 } from "lucide-react"
 import { importAdFromUrlAction } from "@/domains/ad-research/actions"
 import { fetchAdPreviewAction } from "@/domains/ad-research/fetch-preview"
 import type { AdPlatform, SavedAd, AdCollection } from "@/domains/ad-research/types"
+import { opsField, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
 
 function isVideoUrl(url: string) {
   return /\.(mp4|webm|mov|avi|m4v)(\?|$)/i.test(url)
@@ -15,10 +16,7 @@ function MediaPreview({ url, onClear }: { url: string; onClear: () => void }) {
   const isVid = isVideoUrl(url)
 
   return (
-    <div
-      className="mt-2 rounded-lg overflow-hidden aspect-video relative"
-      style={{ background: "var(--sg-s2)", border: "1px solid var(--sg-border)" }}
-    >
+    <div className="mt-2 rounded-[20px] overflow-hidden aspect-video relative bg-ops-s2 border border-ops-line">
       {isVid && !videoFailed ? (
         <video
           src={url}
@@ -30,15 +28,14 @@ function MediaPreview({ url, onClear }: { url: string; onClear: () => void }) {
         />
       ) : isVid && videoFailed ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-          <p className="text-xs" style={{ color: "var(--sg-muted)" }}>
+          <p className="text-xs text-ops-tx3">
             Video restringido (CORS) — se guardará el enlace
           </p>
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs px-3 py-1.5 rounded-lg font-medium"
-            style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+            className={opsBtnPrimary + " text-xs"}
           >
             Ver video →
           </a>
@@ -138,18 +135,15 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
   }
 
   return (
-    <div
-      className="rounded-xl border p-5 space-y-4"
-      style={{ borderColor: "var(--sg-border)", background: "var(--sg-s1)" }}
-    >
+    <div className="rounded-[20px] border border-ops-line bg-ops-s1 shadow-ops-card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link className="h-4 w-4" style={{ color: "var(--sg-accent)" }} />
-          <span className="text-sm font-medium" style={{ color: "var(--sg-ink)" }}>
+          <Link className="h-4 w-4 text-ops-blue" />
+          <span className="text-sm font-semibold text-ops-tx">
             Importar anuncio desde URL
           </span>
         </div>
-        <button onClick={onClose} style={{ color: "var(--sg-muted)" }}>
+        <button onClick={onClose} className="inline-flex h-8 w-8 items-center justify-center rounded-full text-ops-tx3 transition-colors hover:bg-ops-hover hover:text-ops-tx">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -157,7 +151,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* URL */}
         <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: "var(--sg-muted)" }}>
+          <label className="text-xs font-medium text-ops-tx3">
             URL del anuncio *
           </label>
           <div className="relative">
@@ -167,22 +161,14 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               required
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none pr-36"
-              style={{
-                background: "var(--sg-s2)",
-                border: "1px solid var(--sg-border)",
-                color: "var(--sg-ink)",
-              }}
+              className={opsField + " w-full pr-36"}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
               {fetchingPreview && (
-                <Loader2 className="h-3 w-3 animate-spin" style={{ color: "var(--sg-muted)" }} />
+                <Loader2 className="h-3 w-3 animate-spin text-ops-tx3" />
               )}
               {detectedPlatform && (
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full font-medium"
-                  style={{ background: "var(--sg-s3)", color: "var(--sg-muted)" }}
-                >
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-ops-s2 text-ops-tx3 border border-ops-bd">
                   {platformLabel(detectedPlatform)}
                 </span>
               )}
@@ -192,7 +178,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
 
         {/* Media preview + field */}
         <div className="space-y-1">
-          <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: "var(--sg-muted)" }}>
+          <label className="text-xs font-medium flex items-center gap-1.5 text-ops-tx3">
             <ImageIcon className="h-3 w-3" />
             URL de imagen / video
             <span className="font-normal opacity-70">(se detecta automáticamente o pega la URL directa)</span>
@@ -203,19 +189,13 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
               placeholder="https://scontent.fbcdn.net/... o cualquier imagen directa"
               value={mediaUrl}
               onChange={(e) => setMediaUrl(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none"
-              style={{
-                background: "var(--sg-s2)",
-                border: "1px solid var(--sg-border)",
-                color: "var(--sg-ink)",
-              }}
+              className={opsField + " flex-1"}
             />
             {mediaUrl && (
               <button
                 type="button"
                 onClick={() => setMediaUrl("")}
-                className="px-2 rounded-lg"
-                style={{ color: "var(--sg-muted)", background: "var(--sg-s2)", border: "1px solid var(--sg-border)" }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ops-bd bg-ops-s2 text-ops-tx3 transition-colors hover:text-ops-tx"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -226,7 +206,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
           )}
           {mediaUrl && isVideoUrl(mediaUrl) && (
             <div className="space-y-1 mt-2">
-              <label className="text-xs font-medium flex items-center gap-1.5" style={{ color: "var(--sg-muted)" }}>
+              <label className="text-xs font-medium flex items-center gap-1.5 text-ops-tx3">
                 Imagen de portada del video
                 <span className="font-normal opacity-70">(click derecho sobre el thumbnail en Facebook → copiar imagen)</span>
               </label>
@@ -236,20 +216,15 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
                   placeholder="https://scontent.fbcdn.net/...jpg"
                   value={thumbnailUrl}
                   onChange={(e) => setThumbnailUrl(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none"
-                  style={{
-                    background: "var(--sg-s2)",
-                    border: "1px solid var(--sg-border)",
-                    color: "var(--sg-ink)",
-                  }}
+                  className={opsField + " flex-1"}
                 />
               </div>
               {thumbnailUrl && (
                 <img
                   src={thumbnailUrl}
                   alt="Portada"
-                  className="mt-1 w-full rounded-lg object-cover"
-                  style={{ maxHeight: 120, border: "1px solid var(--sg-border)" }}
+                  className="mt-1 w-full rounded-[12px] object-cover border border-ops-line"
+                  style={{ maxHeight: 120 }}
                   onError={() => setThumbnailUrl("")}
                 />
               )}
@@ -260,7 +235,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
         {/* Advertiser + Title in 2 cols */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium" style={{ color: "var(--sg-muted)" }}>
+            <label className="text-xs font-medium text-ops-tx3">
               Advertiser / Marca *
             </label>
             <input
@@ -269,16 +244,11 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
               value={advertiserName}
               onChange={(e) => setAdvertiserName(e.target.value)}
               required
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-              style={{
-                background: "var(--sg-s2)",
-                border: "1px solid var(--sg-border)",
-                color: "var(--sg-ink)",
-              }}
+              className={opsField + " w-full"}
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium" style={{ color: "var(--sg-muted)" }}>
+            <label className="text-xs font-medium text-ops-tx3">
               Título del anuncio
             </label>
             <input
@@ -286,19 +256,14 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
               placeholder="Ej: Oferta 50% descuento"
               value={adTitle}
               onChange={(e) => setAdTitle(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-              style={{
-                background: "var(--sg-s2)",
-                border: "1px solid var(--sg-border)",
-                color: "var(--sg-ink)",
-              }}
+              className={opsField + " w-full"}
             />
           </div>
         </div>
 
         {/* Body */}
         <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: "var(--sg-muted)" }}>
+          <label className="text-xs font-medium text-ops-tx3">
             Copy del anuncio
           </label>
           <textarea
@@ -306,19 +271,14 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
             value={adBody}
             onChange={(e) => setAdBody(e.target.value)}
             rows={2}
-            className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none resize-none"
-            style={{
-              background: "var(--sg-s2)",
-              border: "1px solid var(--sg-border)",
-              color: "var(--sg-ink)",
-            }}
+            className="w-full rounded-lg border border-ops-bd bg-ops-s1 px-3 py-2 text-[13px] text-ops-tx outline-none transition-colors placeholder:text-ops-tx3 hover:border-ops-bd2 focus-visible:border-ops-blue focus-visible:ring-2 focus-visible:ring-ops-blue/20 resize-none"
           />
         </div>
 
         {/* Tags + Collection */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium" style={{ color: "var(--sg-muted)" }}>
+            <label className="text-xs font-medium text-ops-tx3">
               Tags (separados por coma)
             </label>
             <input
@@ -326,27 +286,17 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
               placeholder="moda, descuento, verano"
               value={tagsRaw}
               onChange={(e) => setTagsRaw(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-              style={{
-                background: "var(--sg-s2)",
-                border: "1px solid var(--sg-border)",
-                color: "var(--sg-ink)",
-              }}
+              className={opsField + " w-full"}
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium" style={{ color: "var(--sg-muted)" }}>
+            <label className="text-xs font-medium text-ops-tx3">
               Colección
             </label>
             <select
               value={collectionId}
               onChange={(e) => setCollectionId(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-              style={{
-                background: "var(--sg-s2)",
-                border: "1px solid var(--sg-border)",
-                color: "var(--sg-ink)",
-              }}
+              className={opsField + " w-full"}
             >
               <option value="">Sin colección</option>
               {collections.map((c) => (
@@ -358,7 +308,7 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
 
         {/* Notes */}
         <div className="space-y-1">
-          <label className="text-xs font-medium" style={{ color: "var(--sg-muted)" }}>
+          <label className="text-xs font-medium text-ops-tx3">
             Notas / Por qué lo guardas
           </label>
           <input
@@ -366,33 +316,26 @@ export function ImportFromUrlForm({ collections, onSaved, onClose }: Props) {
             placeholder="Ej: Hook muy fuerte, buena prueba social..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-            style={{
-              background: "var(--sg-s2)",
-              border: "1px solid var(--sg-border)",
-              color: "var(--sg-ink)",
-            }}
+            className={opsField + " w-full"}
           />
         </div>
 
         {error && (
-          <p className="text-xs" style={{ color: "var(--sg-danger)" }}>{error}</p>
+          <p className="text-xs text-ops-coral">{error}</p>
         )}
 
         <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm"
-            style={{ color: "var(--sg-muted)" }}
+            className={opsBtnSecondary}
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={isPending || !url.trim() || !advertiserName.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-            style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+            className={opsBtnPrimary + " disabled:opacity-50"}
           >
             {isPending ? "Guardando..." : "Guardar anuncio"}
           </button>

@@ -94,7 +94,7 @@ export default function TeamView({ members, currentUserId, currentUserRole }: Pr
       />
 
       {error && (
-        <p role="alert" className="rounded-md border border-ops-coral/30 bg-ops-coral/10 px-4 py-3 text-sm text-ops-coral">
+        <p role="alert" className="rounded-[20px] border border-ops-coral/30 bg-ops-coral-bg px-4 py-3 text-sm text-ops-coral">
           {error}
         </p>
       )}

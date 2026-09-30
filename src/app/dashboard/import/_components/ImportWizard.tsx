@@ -184,7 +184,7 @@ export function ImportWizard({ campaigns }: Props) {
       <StepBar current={step} />
 
       {error && (
-        <div role="alert" className="rounded-lg border border-ops-coral/40 bg-ops-coral/10 px-4 py-3 text-sm text-ops-coral">
+        <div role="alert" className="rounded-[20px] border border-ops-coral/40 bg-ops-coral-bg px-4 py-3 text-sm text-ops-coral">
           {error}
         </div>
       )}

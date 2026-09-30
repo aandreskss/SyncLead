@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { ExternalLink, Bookmark, Trash2, ChevronDown } from "lucide-react"
 import type { AdResult, SavedAd, AdCollection } from "@/domains/ad-research/types"
 import { saveAdAction, deleteAdAction, moveAdToCollectionAction } from "@/domains/ad-research/actions"
+import { opsBtnPrimary, opsBtnSecondary, opsField, StatusChip } from "@/components/app/ops"
 
 interface AdCardProps {
   ad: AdResult | SavedAd
@@ -113,28 +114,19 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
   }
 
   return (
-    <div
-      className="rounded-xl border flex flex-col overflow-hidden transition-shadow hover:shadow-lg"
-      style={{ borderColor: "var(--sg-border)", background: "var(--sg-s1)" }}
-    >
+    <div className="rounded-[20px] border border-ops-line bg-ops-s1 shadow-ops-card flex flex-col overflow-hidden transition-shadow hover:shadow-lg">
       <div className="p-3 flex items-center justify-between">
-        <span
-          className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"
-          style={{
-            background: platform === 'meta' ? 'rgba(110,149,255,0.15)' : 'rgba(70,207,245,0.15)',
-            color: platform === 'meta' ? 'var(--sg-accent)' : 'var(--sg-cyan)',
-          }}
-        >
+        <StatusChip tone={platform === 'meta' ? 'blue' : 'cold'}>
           {platform === 'meta' ? 'Meta' : 'TikTok'}
-        </span>
+        </StatusChip>
         {daysRunning != null && (
-          <span className="text-[11px]" style={{ color: "var(--sg-muted)" }}>
+          <span className="text-[11px] text-ops-tx3">
             {daysRunning}d activo
           </span>
         )}
       </div>
 
-      <div className="relative aspect-video overflow-hidden" style={{ background: "var(--sg-s2)" }}>
+      <div className="relative aspect-video overflow-hidden bg-ops-s2">
         {firstMedia ? (
           isDirectVideo && !videoError ? (
             <video
@@ -161,20 +153,14 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
                   rel="noopener noreferrer"
                   className="absolute inset-0 flex items-center justify-center"
                 >
-                  <div
-                    className="h-12 w-12 rounded-full flex items-center justify-center transition-transform hover:scale-110"
-                    style={{ background: "rgba(0,0,0,0.6)" }}
-                  >
+                  <div className="h-12 w-12 rounded-full flex items-center justify-center transition-transform hover:scale-110 bg-black/60">
                     <div className="w-0 h-0 border-t-[9px] border-t-transparent border-b-[9px] border-b-transparent border-l-[16px] border-l-white ml-1" />
                   </div>
                 </a>
               )}
               {isVideo && !snapshotUrl && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div
-                    className="h-12 w-12 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(0,0,0,0.5)" }}
-                  >
+                  <div className="h-12 w-12 rounded-full flex items-center justify-center bg-black/50">
                     <div className="w-0 h-0 border-t-[9px] border-t-transparent border-b-[9px] border-b-transparent border-l-[16px] border-l-white ml-1" />
                   </div>
                 </div>
@@ -191,27 +177,23 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
                 rel="noopener noreferrer"
                 className="absolute inset-0 flex items-center justify-center"
               >
-                <div
-                  className="h-14 w-14 rounded-full flex items-center justify-center transition-transform hover:scale-110"
-                  style={{ background: "rgba(0,0,0,0.6)" }}
-                >
+                <div className="h-14 w-14 rounded-full flex items-center justify-center transition-transform hover:scale-110 bg-black/60">
                   <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[18px] border-l-white ml-1.5" />
                 </div>
               </a>
             </>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-              <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "var(--sg-s3)" }}>
-                <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] ml-1" style={{ borderLeftColor: "var(--sg-muted)" }} />
+              <div className="h-10 w-10 rounded-full flex items-center justify-center bg-ops-line">
+                <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[14px] border-l-ops-tx3 ml-1" />
               </div>
-              <p className="text-xs text-center" style={{ color: "var(--sg-muted)" }}>Video restringido</p>
+              <p className="text-xs text-center text-ops-tx3">Video restringido</p>
               {(snapshotUrl ?? firstMedia) && (
                 <a
                   href={snapshotUrl ?? firstMedia!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs px-3 py-1.5 rounded-lg font-medium"
-                  style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+                  className={opsBtnPrimary + " text-xs"}
                 >
                   Ver video →
                 </a>
@@ -220,46 +202,42 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
           )
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs" style={{ color: "var(--sg-subtle)" }}>Sin preview</span>
+            <span className="text-xs text-ops-tx3">Sin preview</span>
           </div>
         )}
       </div>
 
       <div className="p-3 flex flex-col gap-1.5 flex-1">
-        <p className="text-sm font-semibold truncate" style={{ color: "var(--sg-ink)" }}>
+        <p className="text-sm font-semibold truncate text-ops-tx">
           {advertiserName}
         </p>
         {adTitle && (
-          <p className="text-xs truncate" style={{ color: "var(--sg-muted)" }}>{adTitle}</p>
+          <p className="text-xs truncate text-ops-tx2">{adTitle}</p>
         )}
         {adBody && (
-          <p className="text-xs line-clamp-2" style={{ color: "var(--sg-subtle)" }}>{adBody}</p>
+          <p className="text-xs line-clamp-2 text-ops-tx3">{adBody}</p>
         )}
 
         {platform === 'meta' && (impressionsMin != null || impressionsMax != null) && (
-          <p className="text-[11px] mt-1" style={{ color: "var(--sg-muted)" }}>
+          <p className="text-[11px] mt-1 text-ops-tx3">
             Impresiones: {formatNumber(impressionsMin)} – {formatNumber(impressionsMax)}
           </p>
         )}
         {platform === 'tiktok' && likesCount != null && (
-          <p className="text-[11px] mt-1 flex gap-3" style={{ color: "var(--sg-muted)" }}>
+          <p className="text-[11px] mt-1 flex gap-3 text-ops-tx3">
             <span>{formatNumber(likesCount)} likes</span>
             <span>{formatNumber(commentsCount)} comentarios</span>
           </p>
         )}
       </div>
 
-      <div
-        className="px-3 py-2 flex gap-2 border-t"
-        style={{ borderColor: "var(--sg-border)" }}
-      >
+      <div className="px-3 py-2 flex gap-2 border-t border-ops-line">
         {snapshotUrl && (
           <a
             href={snapshotUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors"
-            style={{ color: "var(--sg-muted)", background: "var(--sg-s2)" }}
+            className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-full border border-ops-bd bg-ops-s2 text-ops-tx3 transition-colors hover:text-ops-tx"
           >
             <ExternalLink className="h-3 w-3" />
             Ver original
@@ -270,8 +248,7 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
           <div className="relative ml-auto">
             <button
               onClick={() => setSaveOpen(!saveOpen)}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
-              style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+              className={opsBtnPrimary + " text-xs"}
             >
               <Bookmark className="h-3 w-3" />
               Guardar
@@ -279,32 +256,23 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
             </button>
 
             {saveOpen && (
-              <div
-                className="absolute right-0 bottom-10 w-52 rounded-xl border p-3 space-y-2 z-10"
-                style={{ background: "var(--sg-s2)", borderColor: "var(--sg-border)" }}
-              >
-                <p className="text-xs font-medium" style={{ color: "var(--sg-ink)" }}>Guardar en colección</p>
+              <div className="absolute right-0 bottom-10 w-52 rounded-[20px] border border-ops-line bg-ops-s1 p-3 space-y-2 z-10 shadow-ops-card">
+                <p className="text-xs font-semibold text-ops-tx">Guardar en colección</p>
                 <select
                   value={selectedCollection}
                   onChange={(e) => setSelectedCollection(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded-lg text-xs focus:outline-none"
-                  style={{
-                    background: "var(--sg-s3)",
-                    border: "1px solid var(--sg-border)",
-                    color: "var(--sg-ink)",
-                  }}
+                  className="w-full h-8 rounded-lg border border-ops-bd bg-ops-s2 px-2 text-xs text-ops-tx outline-none"
                 >
                   <option value="">Sin colección</option>
                   {collections.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-                {error && <p className="text-[11px]" style={{ color: "var(--sg-danger)" }}>{error}</p>}
+                {error && <p className="text-[11px] text-ops-coral">{error}</p>}
                 <button
                   onClick={handleSave}
                   disabled={isPending}
-                  className="w-full px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
-                  style={{ background: "var(--sg-accent)", color: "var(--sg-on-accent)" }}
+                  className={opsBtnPrimary + " w-full justify-center text-xs disabled:opacity-50"}
                 >
                   {isPending ? "Guardando..." : "Confirmar"}
                 </button>
@@ -316,12 +284,7 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
             {collections.length > 0 && (
               <select
                 onChange={(e) => handleMove(e.target.value || null)}
-                className="px-2 py-1 rounded-lg text-xs focus:outline-none"
-                style={{
-                  background: "var(--sg-s2)",
-                  border: "1px solid var(--sg-border)",
-                  color: "var(--sg-muted)",
-                }}
+                className="h-8 rounded-full border border-ops-bd bg-ops-s2 px-2 text-xs text-ops-tx2 outline-none"
                 defaultValue={(ad as SavedAd).collectionId ?? ""}
               >
                 <option value="">Sin colección</option>
@@ -333,8 +296,7 @@ export function AdCard({ ad, isSaved, collections = [], country, onSaved, onDele
             <button
               onClick={handleDelete}
               disabled={isPending}
-              className="p-1.5 rounded-lg transition-colors disabled:opacity-50"
-              style={{ color: "var(--sg-danger)", background: "var(--sg-s2)" }}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ops-bd bg-ops-s2 text-ops-coral transition-colors hover:bg-ops-coral-bg disabled:opacity-50"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
