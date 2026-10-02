@@ -79,11 +79,15 @@ export async function searchMetaAds(params: {
     const json = await res.json() as { data?: unknown[]; error?: { message?: string; code?: number } }
 
     if (!res.ok || json.error) {
-      const subcode = json.error?.code
-      if (subcode === 10) {
+      const code = json.error?.code as number | undefined
+      if (code === 10) {
         throw new Error('META_ACCESS_PENDING')
       }
-      throw new Error(json.error?.message ?? `Meta API error ${res.status}`)
+      // Token expirado o inválido (190 = token inválido/expirado, 102 = sesión inválida)
+      if (code === 190 || code === 102) {
+        throw new Error('META_TOKEN_EXPIRED')
+      }
+      throw new Error(`META_API_ERROR:${code ?? res.status}`)
     }
 
     if (!Array.isArray(json.data)) return []
@@ -121,7 +125,11 @@ export async function searchMetaAds(params: {
 
     results.sort((a, b) => b.daysRunning - a.daysRunning)
     return results
-  } catch {
+  } catch (e) {
+    // Re-throw known errors so callers can handle them properly
+    if (e instanceof Error && (e.message === 'META_ACCESS_PENDING' || e.message.startsWith('META_'))) {
+      throw e
+    }
     return []
   } finally {
     clearTimeout(timer)
