@@ -16,7 +16,11 @@ function Footer() {
     },
     {
       title: "Recursos",
-      links: [{ label: "Blog", href: "/blog" }],
+      links: [
+        { label: "Blog", href: "/blog" },
+        { label: "Privacidad", href: "/privacy" },
+        { label: "Términos de uso", href: "/terms" },
+      ],
     },
     {
       title: "Cuenta",
@@ -35,6 +39,12 @@ function Footer() {
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-sg-muted">
               CRM para anunciantes de Meta Ads: captura, seguimiento comercial y conversiones enviadas de vuelta a Meta, en un solo lugar.
             </p>
+            <div className="mt-5 space-y-0.5 text-xs text-sg-subtle">
+              <p className="font-medium text-sg-muted">Marketing Laab C.A.</p>
+              <p>Res. Los Caracaros, Edf. Castaño</p>
+              <p>Naguanagua, Carabobo 2001, Venezuela</p>
+              <p>+58 424-442-6241</p>
+            </div>
           </div>
           {cols.map((c) => (
             <nav key={c.title} aria-label={c.title}>
@@ -52,8 +62,11 @@ function Footer() {
           ))}
         </div>
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-sg-border pt-6 sm:flex-row">
-          <p className="text-xs text-sg-subtle">© {year} SyncLead. Todos los derechos reservados.</p>
-          <p className="text-xs text-sg-subtle">Diseñado para anunciantes de Meta Ads</p>
+          <p className="text-xs text-sg-subtle">© {year} SyncLead · Marketing Laab C.A. Todos los derechos reservados.</p>
+          <div className="flex gap-4">
+            <Link href="/privacy" className="text-xs text-sg-subtle hover:text-sg-ink transition-colors">Privacidad</Link>
+            <Link href="/terms" className="text-xs text-sg-subtle hover:text-sg-ink transition-colors">Términos</Link>
+          </div>
         </div>
       </div>
     </footer>
