@@ -76,12 +76,15 @@ export async function searchMetaAds(params: {
     const url = `https://graph.facebook.com/${apiVersion}/ads_archive?${qs.toString()}`
 
     const res = await fetch(url, { signal: controller.signal })
-    const json = await res.json() as { data?: unknown[]; error?: { message?: string; code?: number } }
+    const json = await res.json() as { data?: unknown[]; error?: { message?: string; code?: number; error_subcode?: number; error_user_title?: string; error_user_msg?: string } }
 
     if (!res.ok || json.error) {
       const code = json.error?.code as number | undefined
+      const subcode = json.error?.error_subcode
+      // Log para diagnóstico — remover después
+      console.error('[Meta Ad Library] error response:', JSON.stringify({ code, subcode, message: json.error?.message, title: json.error?.error_user_title }))
       if (code === 10) {
-        throw new Error('META_ACCESS_PENDING')
+        throw new Error(`META_ACCESS_PENDING:${subcode ?? 'no_subcode'}`)
       }
       // Token expirado o inválido (190 = token inválido/expirado, 102 = sesión inválida)
       if (code === 190 || code === 102) {

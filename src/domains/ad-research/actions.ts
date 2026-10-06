@@ -50,8 +50,9 @@ export async function searchAdsAction(params: {
         limit: 20,
       }).catch((e: unknown) => {
         const msg = e instanceof Error ? e.message : 'Error desconocido'
-        if (msg === 'META_ACCESS_PENDING') {
+        if (msg.startsWith('META_ACCESS_PENDING')) {
           metaAccessPending = true
+          console.error('[searchAdsAction] META_ACCESS_PENDING subcode:', msg)
         } else if (msg === 'META_TOKEN_EXPIRED') {
           errors.push('El token de Meta expiró. Genera uno nuevo en Graph API Explorer y actualiza META_USER_ACCESS_TOKEN.')
         } else if (msg.startsWith('META_API_ERROR:')) {
