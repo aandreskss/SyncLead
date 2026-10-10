@@ -122,6 +122,9 @@ export async function getLeadsByCampaign(
         : filters.landingPage
         ? ilike(leads.landingUrl, `%${filters.landingPage}%`)
         : undefined,
+      filters.metaCampaignName ? eq(leads.metaCampaignName, filters.metaCampaignName) : undefined,
+      filters.metaAdsetName ? eq(leads.metaAdsetName, filters.metaAdsetName) : undefined,
+      filters.metaAdName ? eq(leads.metaAdName, filters.metaAdName) : undefined,
       searchCond,
     ),
     orderBy: (l, { desc }) => [desc(l.createdAt)],
@@ -534,6 +537,47 @@ export async function assignLead(
       .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId))),
     logChange(leadId, orgId, "assignedTo", current.assignedTo ?? null, assignedTo, changedBy),
   ])
+}
+
+export async function getCampaignMetaAttributionValues(
+  campaignId: string,
+  orgId: string
+): Promise<MetaAttributionValues> {
+  const rows = await db
+    .selectDistinct({
+      campaignName: leads.metaCampaignName,
+      adsetName: leads.metaAdsetName,
+      adName: leads.metaAdName,
+    })
+    .from(leads)
+    .where(and(eq(leads.orgId, orgId), eq(leads.campaignId, campaignId)))
+    .orderBy(asc(leads.metaCampaignName), asc(leads.metaAdsetName), asc(leads.metaAdName))
+
+  const campaignSet = new Set<string>()
+  const adsets: MetaAttributionValues["adsets"] = []
+  const adsetSeen = new Set<string>()
+  const ads: MetaAttributionValues["ads"] = []
+  const adSeen = new Set<string>()
+
+  for (const row of rows) {
+    if (row.campaignName) campaignSet.add(row.campaignName)
+    if (row.campaignName && row.adsetName) {
+      const key = `${row.campaignName}\0${row.adsetName}`
+      if (!adsetSeen.has(key)) {
+        adsetSeen.add(key)
+        adsets.push({ name: row.adsetName, campaign: row.campaignName })
+      }
+    }
+    if (row.campaignName && row.adsetName && row.adName) {
+      const key = `${row.campaignName}\0${row.adsetName}\0${row.adName}`
+      if (!adSeen.has(key)) {
+        adSeen.add(key)
+        ads.push({ name: row.adName, campaign: row.campaignName, adset: row.adsetName })
+      }
+    }
+  }
+
+  return { campaigns: Array.from(campaignSet), adsets, ads }
 }
 
 export async function getClientMetaAttributionValues(

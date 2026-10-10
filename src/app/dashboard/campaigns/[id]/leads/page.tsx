@@ -3,7 +3,7 @@ import { requireOrganizationMembership } from "@/lib/auth/server"
 import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import { getOrganizationById } from "@/domains/organizations/repository"
 import { getCampaignWithClientById } from "@/domains/campaigns/repository"
-import { getLeadsByCampaignWithActivity, getLandingPageBreakdown } from "@/domains/leads/repository"
+import { getLeadsByCampaignWithActivity, getLandingPageBreakdown, getCampaignMetaAttributionValues } from "@/domains/leads/repository"
 import { listSalesReps } from "@/domains/team/repository"
 import { getLeadAdSourceByCampaign } from "@/domains/lead-ads/repository"
 import type { LeadFilters } from "@/domains/leads/repository"
@@ -15,7 +15,7 @@ export default async function LeadsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ search?: string; temperature?: string; stage?: string; assignment?: string; repId?: string; activity?: string; source?: string; landingPage?: string }>
+  searchParams: Promise<{ search?: string; temperature?: string; stage?: string; assignment?: string; repId?: string; activity?: string; source?: string; landingPage?: string; metaCampaignName?: string; metaAdsetName?: string; metaAdName?: string }>
 }) {
   let ctx: Awaited<ReturnType<typeof requireOrganizationMembership>>
   try {
@@ -41,15 +41,19 @@ export default async function LeadsPage({
     activity: (sp.activity as LeadFilters["activity"]) || undefined,
     source: (sp.source as LeadFilters["source"]) || undefined,
     landingPage: sp.landingPage || undefined,
+    metaCampaignName: sp.metaCampaignName || undefined,
+    metaAdsetName: sp.metaAdsetName || undefined,
+    metaAdName: sp.metaAdName || undefined,
   }
 
-  const [leads, salesReps, leadAdSource, landingBreakdown] = await Promise.all([
+  const [leads, salesReps, leadAdSource, landingBreakdown, metaAttributionValues] = await Promise.all([
     getLeadsByCampaignWithActivity(id, ctx.orgId, filters),
     campaign.clientId
       ? listSalesReps(ctx.orgId, campaign.clientId)
       : Promise.resolve([]),
     getLeadAdSourceByCampaign(id, ctx.orgId),
     getLandingPageBreakdown(ctx.orgId, id),
+    getCampaignMetaAttributionValues(id, ctx.orgId),
   ])
 
   const leadAdSourcePublic = leadAdSource
@@ -67,6 +71,10 @@ export default async function LeadsPage({
       leadAdSource={leadAdSourcePublic}
       landingBreakdown={landingBreakdown}
       currentLandingPage={sp.landingPage || ""}
+      metaAttributionValues={metaAttributionValues}
+      currentMetaCampaignName={sp.metaCampaignName || ""}
+      currentMetaAdsetName={sp.metaAdsetName || ""}
+      currentMetaAdName={sp.metaAdName || ""}
     />
   )
 }
