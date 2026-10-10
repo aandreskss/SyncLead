@@ -11,7 +11,7 @@ import { db } from "@/lib/db"
 import { metaConnections } from "@/lib/db/schema"
 import { and, eq, isNotNull } from "drizzle-orm"
 import { getCampaignsByClientWithCounts } from "@/domains/campaigns/repository"
-import { getLeadsByClientWithActivity, getClientLandingBreakdown } from "@/domains/leads/repository"
+import { getLeadsByClientWithActivity, getClientLandingBreakdown, getClientMetaAttributionValues } from "@/domains/leads/repository"
 import {
   getTrackingSitesAction,
   getTrackingOverviewAction,
@@ -59,6 +59,9 @@ interface Props {
     source?: string
     activity?: string
     landingPage?: string
+    metaCampaignName?: string
+    metaAdsetName?: string
+    metaAdName?: string
     days?: string
     level?: string
   }>
@@ -101,7 +104,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
     const campaigns = await getCampaignsByClientWithCounts(id, ctx.orgId)
     const convertedFilter =
       sp.converted === "yes" ? true : sp.converted === "no" ? false : undefined
-    const [leadsData, salesRepsData, landingBreakdown] = await Promise.all([
+    const [leadsData, salesRepsData, landingBreakdown, metaAttributionValues] = await Promise.all([
       getLeadsByClientWithActivity(id, ctx.orgId, {
         search: sp.search,
         temperature: (sp.temperature as Temperature) || undefined,
@@ -110,9 +113,13 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         source: (sp.source as "meta_ads" | "organic" | "imported" | undefined) || undefined,
         activity: (sp.activity as "has_sale" | "pending_capi" | "checkout" | "cart_abandoned" | "form_submitted" | "info_requested" | undefined) || undefined,
         landingPage: sp.landingPage || undefined,
+        metaCampaignName: sp.metaCampaignName || undefined,
+        metaAdsetName: sp.metaAdsetName || undefined,
+        metaAdName: sp.metaAdName || undefined,
       }),
       listSalesReps(ctx.orgId, id),
       getClientLandingBreakdown(ctx.orgId, id),
+      getClientMetaAttributionValues(id, ctx.orgId),
     ])
     const filteredLeads = sp.campaignId
       ? leadsData.filter((l) => l.campaignId === sp.campaignId)
@@ -126,6 +133,7 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
         salesReps={salesRepsData}
         whatsappNumbers={client.whatsappNumbers ?? []}
         landingBreakdown={landingBreakdown}
+        metaAttributionValues={metaAttributionValues}
         filters={{
           search: sp.search ?? "",
           temperature: sp.temperature ?? "",
@@ -137,6 +145,9 @@ export default async function ClientDetailPage({ params, searchParams }: Props) 
           source: sp.source ?? "",
           activity: sp.activity ?? "",
           landingPage: sp.landingPage ?? "",
+          metaCampaignName: sp.metaCampaignName ?? "",
+          metaAdsetName: sp.metaAdsetName ?? "",
+          metaAdName: sp.metaAdName ?? "",
         }}
       />
     )
