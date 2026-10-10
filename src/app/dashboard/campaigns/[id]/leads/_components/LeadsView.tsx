@@ -11,7 +11,7 @@ import { LeadAdsPanel } from "./LeadAdsPanel"
 import { cn } from "@/lib/utils"
 import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField } from "@/components/app/ops"
 import type { Campaign, Client, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
-import type { LeadWithActivity, LandingPageEntry } from "@/domains/leads/repository"
+import type { LeadWithActivity, LandingPageEntry, MetaAttributionValues } from "@/domains/leads/repository"
 import {
   deleteLeadsAction,
   deleteLeadsByCampaignAction,
@@ -29,6 +29,10 @@ interface Props {
   leadAdSource?: { pageId: string; formId?: string | null; active?: boolean } | null
   landingBreakdown?: LandingPageEntry[]
   currentLandingPage?: string
+  metaAttributionValues?: MetaAttributionValues
+  currentMetaCampaignName?: string
+  currentMetaAdsetName?: string
+  currentMetaAdName?: string
 }
 
 const TEMPERATURES: { value: Temperature | ""; label: string }[] = [
@@ -254,7 +258,7 @@ function ActivityBadges({
   )
 }
 
-export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId, leadAdSource, landingBreakdown = [], currentLandingPage = "" }: Props) {
+export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId, leadAdSource, landingBreakdown = [], currentLandingPage = "", metaAttributionValues, currentMetaCampaignName = "", currentMetaAdsetName = "", currentMetaAdName = "" }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -298,6 +302,43 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
       router.push(`?${params.toString()}`)
     })
   }
+
+  function updateMetaFilter(key: "metaCampaignName" | "metaAdsetName" | "metaAdName", value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) {
+      params.set(key, value)
+    } else {
+      params.delete(key)
+    }
+    if (key === "metaCampaignName") {
+      params.delete("metaAdsetName")
+      params.delete("metaAdName")
+    } else if (key === "metaAdsetName") {
+      params.delete("metaAdName")
+    }
+    startTransition(() => {
+      router.push(`?${params.toString()}`)
+    })
+  }
+
+  // Cascading Meta attribution options
+  const metaAdsets = metaAttributionValues
+    ? (currentMetaCampaignName
+        ? metaAttributionValues.adsets.filter((a) => a.campaign === currentMetaCampaignName)
+        : metaAttributionValues.adsets)
+    : []
+  const metaAds = metaAttributionValues
+    ? (currentMetaAdsetName
+        ? metaAttributionValues.ads.filter(
+            (a) =>
+              a.adset === currentMetaAdsetName &&
+              (!currentMetaCampaignName || a.campaign === currentMetaCampaignName)
+          )
+        : currentMetaCampaignName
+        ? metaAttributionValues.ads.filter((a) => a.campaign === currentMetaCampaignName)
+        : metaAttributionValues.ads)
+    : []
+  const hasMetaData = !!(metaAttributionValues && metaAttributionValues.campaigns.length > 0)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -385,7 +426,7 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
     router.refresh()
   }
 
-  const hasFilters = !!(currentSearch || currentTemp || currentStage || currentAssignment || currentRepId || currentActivity || currentSource)
+  const hasFilters = !!(currentSearch || currentTemp || currentStage || currentAssignment || currentRepId || currentActivity || currentSource || currentMetaCampaignName || currentMetaAdsetName || currentMetaAdName)
   const allSelected = leads.length > 0 && selectedLeads.size === leads.length
   const someSelected = selectedLeads.size > 0 && selectedLeads.size < leads.length
 
@@ -592,6 +633,64 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
           </button>
         )}
       </div>
+
+      {/* Meta attribution filters (cascading) */}
+      {hasMetaData && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-ops-tx3 flex items-center gap-1 mr-0.5">
+            <Target className="h-3 w-3" />
+            Meta:
+          </span>
+          <select
+            value={currentMetaCampaignName}
+            aria-label="Campaña Meta"
+            onChange={(e) => updateMetaFilter("metaCampaignName", e.target.value)}
+            className={opsField}
+          >
+            <option value="">Campaña Meta</option>
+            {metaAttributionValues!.campaigns.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
+          {metaAdsets.length > 0 && (
+            <select
+              value={currentMetaAdsetName}
+              aria-label="Conjunto de anuncios"
+              onChange={(e) => updateMetaFilter("metaAdsetName", e.target.value)}
+              className={opsField}
+            >
+              <option value="">Conjunto</option>
+              {metaAdsets.map((a) => (
+                <option key={`${a.campaign}\0${a.name}`} value={a.name}>{a.name}</option>
+              ))}
+            </select>
+          )}
+
+          {metaAds.length > 0 && (
+            <select
+              value={currentMetaAdName}
+              aria-label="Anuncio"
+              onChange={(e) => updateMetaFilter("metaAdName", e.target.value)}
+              className={opsField}
+            >
+              <option value="">Anuncio</option>
+              {metaAds.map((a) => (
+                <option key={`${a.campaign}\0${a.adset}\0${a.name}`} value={a.name}>{a.name}</option>
+              ))}
+            </select>
+          )}
+
+          {(currentMetaCampaignName || currentMetaAdsetName || currentMetaAdName) && (
+            <button
+              onClick={() => updateMetaFilter("metaCampaignName", "")}
+              className="px-2 py-1 text-xs text-ops-tx3 hover:text-ops-tx transition-colors"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Landing page chips */}
       {landingBreakdown.length > 0 && (
