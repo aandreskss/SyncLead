@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import { LeadDrawer } from "@/app/dashboard/campaigns/[id]/leads/_components/LeadDrawer"
 import type { Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
-import type { LeadWithActivity, LandingPageEntry } from "@/domains/leads/repository"
+import type { LeadWithActivity, LandingPageEntry, MetaAttributionValues } from "@/domains/leads/repository"
 import { deleteLeadsAction, deleteLeadsByClientAction } from "@/domains/leads/actions"
 import { CreateLeadDialog } from "./CreateLeadDialog"
 
@@ -20,6 +20,7 @@ interface Props {
   salesReps: SalesRep[]
   whatsappNumbers: string[]
   landingBreakdown?: LandingPageEntry[]
+  metaAttributionValues?: MetaAttributionValues
   filters: {
     search: string
     temperature: string
@@ -31,6 +32,9 @@ interface Props {
     source: string
     activity: string
     landingPage: string
+    metaCampaignName: string
+    metaAdsetName: string
+    metaAdName: string
   }
 }
 
@@ -202,6 +206,7 @@ export function ClientLeadsTab({
   salesReps,
   whatsappNumbers,
   landingBreakdown = [],
+  metaAttributionValues,
   filters,
 }: Props) {
   const router = useRouter()
@@ -222,6 +227,25 @@ export function ClientLeadsTab({
 
   const campaignMap = Object.fromEntries(campaigns.map((c) => [c.id, c.name]))
 
+  // Cascading Meta attribution options
+  const metaAdsets = metaAttributionValues
+    ? (filters.metaCampaignName
+        ? metaAttributionValues.adsets.filter((a) => a.campaign === filters.metaCampaignName)
+        : metaAttributionValues.adsets)
+    : []
+  const metaAds = metaAttributionValues
+    ? (filters.metaAdsetName
+        ? metaAttributionValues.ads.filter(
+            (a) =>
+              a.adset === filters.metaAdsetName &&
+              (!filters.metaCampaignName || a.campaign === filters.metaCampaignName)
+          )
+        : filters.metaCampaignName
+        ? metaAttributionValues.ads.filter((a) => a.campaign === filters.metaCampaignName)
+        : metaAttributionValues.ads)
+    : []
+  const hasMetaData = !!(metaAttributionValues && metaAttributionValues.campaigns.length > 0)
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedLeads(new Set())
@@ -236,6 +260,26 @@ export function ClientLeadsTab({
       params.set(key, value)
     } else {
       params.delete(key)
+    }
+    startTransition(() => {
+      router.push(`?${params.toString()}`)
+    })
+  }
+
+  function updateMetaFilter(key: "metaCampaignName" | "metaAdsetName" | "metaAdName", value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", "leads")
+    if (value) {
+      params.set(key, value)
+    } else {
+      params.delete(key)
+    }
+    // Reset downstream filters on cascade change
+    if (key === "metaCampaignName") {
+      params.delete("metaAdsetName")
+      params.delete("metaAdName")
+    } else if (key === "metaAdsetName") {
+      params.delete("metaAdName")
     }
     startTransition(() => {
       router.push(`?${params.toString()}`)
@@ -317,7 +361,8 @@ export function ClientLeadsTab({
 
   const hasActiveFilters =
     filters.search || filters.temperature || filters.stage || filters.campaignId ||
-    filters.converted || filters.source || filters.activity || filters.landingPage
+    filters.converted || filters.source || filters.activity || filters.landingPage ||
+    filters.metaCampaignName || filters.metaAdsetName || filters.metaAdName
 
   const allSelected = leads.length > 0 && selectedLeads.size === leads.length
   const someSelected = selectedLeads.size > 0 && selectedLeads.size < leads.length
@@ -520,6 +565,61 @@ export function ClientLeadsTab({
           </button>
         )}
       </div>
+
+      {/* Meta attribution filters (cascading) */}
+      {hasMetaData && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-ops-tx3 flex items-center gap-1 mr-0.5">
+            <Target className="h-3 w-3" />
+            Meta:
+          </span>
+          <select
+            value={filters.metaCampaignName}
+            onChange={(e) => updateMetaFilter("metaCampaignName", e.target.value)}
+            className="px-3 py-1.5 bg-ops-s2 border border-ops-bd rounded-lg text-xs text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
+          >
+            <option value="">Campaña Meta</option>
+            {metaAttributionValues!.campaigns.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
+          {metaAdsets.length > 0 && (
+            <select
+              value={filters.metaAdsetName}
+              onChange={(e) => updateMetaFilter("metaAdsetName", e.target.value)}
+              className="px-3 py-1.5 bg-ops-s2 border border-ops-bd rounded-lg text-xs text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
+            >
+              <option value="">Conjunto</option>
+              {metaAdsets.map((a) => (
+                <option key={`${a.campaign}\0${a.name}`} value={a.name}>{a.name}</option>
+              ))}
+            </select>
+          )}
+
+          {metaAds.length > 0 && (
+            <select
+              value={filters.metaAdName}
+              onChange={(e) => updateMetaFilter("metaAdName", e.target.value)}
+              className="px-3 py-1.5 bg-ops-s2 border border-ops-bd rounded-lg text-xs text-ops-tx2 focus:outline-none focus:border-ops-blue transition-colors"
+            >
+              <option value="">Anuncio</option>
+              {metaAds.map((a) => (
+                <option key={`${a.campaign}\0${a.adset}\0${a.name}`} value={a.name}>{a.name}</option>
+              ))}
+            </select>
+          )}
+
+          {(filters.metaCampaignName || filters.metaAdsetName || filters.metaAdName) && (
+            <button
+              onClick={() => updateMetaFilter("metaCampaignName", "")}
+              className="text-xs text-ops-tx3 hover:text-ops-tx2 transition-colors"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Landing page chips */}
       {landingBreakdown.length > 0 && (

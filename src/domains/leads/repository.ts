@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
 import { leads, leadStageHistory, campaigns, conversions, leadBehaviorEvents, metaEvents } from "@/lib/db/schema"
 import type { Lead, LeadStageHistory, Temperature, LeadStage } from "@/lib/db/schema"
-import { and, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, ne, or } from "drizzle-orm"
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, ne, or } from "drizzle-orm"
 
 export interface ConversionData {
   conversionAmount: string
@@ -65,6 +65,15 @@ export interface LeadFilters {
   source?: "meta_ads" | "organic" | "imported" | ""
   activity?: "has_sale" | "pending_capi" | "checkout" | "cart_abandoned" | "form_submitted" | "info_requested" | ""
   landingPage?: string
+  metaCampaignName?: string
+  metaAdsetName?: string
+  metaAdName?: string
+}
+
+export interface MetaAttributionValues {
+  campaigns: string[]
+  adsets: { name: string; campaign: string }[]
+  ads: { name: string; campaign: string; adset: string }[]
 }
 
 export interface LeadActivitySummary {
@@ -289,6 +298,9 @@ export async function getLeadsByClient(
         : filters.landingPage
         ? ilike(leads.landingUrl, `%${filters.landingPage}%`)
         : undefined,
+      filters.metaCampaignName ? eq(leads.metaCampaignName, filters.metaCampaignName) : undefined,
+      filters.metaAdsetName ? eq(leads.metaAdsetName, filters.metaAdsetName) : undefined,
+      filters.metaAdName ? eq(leads.metaAdName, filters.metaAdName) : undefined,
       convertedCond,
       searchCond,
     ),
@@ -522,6 +534,55 @@ export async function assignLead(
       .where(and(eq(leads.id, leadId), eq(leads.orgId, orgId))),
     logChange(leadId, orgId, "assignedTo", current.assignedTo ?? null, assignedTo, changedBy),
   ])
+}
+
+export async function getClientMetaAttributionValues(
+  clientId: string,
+  orgId: string
+): Promise<MetaAttributionValues> {
+  const clientCampaigns = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.clientId, clientId), eq(campaigns.orgId, orgId)))
+
+  if (clientCampaigns.length === 0) return { campaigns: [], adsets: [], ads: [] }
+  const campaignIds = clientCampaigns.map((c) => c.id)
+
+  const rows = await db
+    .selectDistinct({
+      campaignName: leads.metaCampaignName,
+      adsetName: leads.metaAdsetName,
+      adName: leads.metaAdName,
+    })
+    .from(leads)
+    .where(and(eq(leads.orgId, orgId), inArray(leads.campaignId, campaignIds)))
+    .orderBy(asc(leads.metaCampaignName), asc(leads.metaAdsetName), asc(leads.metaAdName))
+
+  const campaignSet = new Set<string>()
+  const adsets: MetaAttributionValues["adsets"] = []
+  const adsetSeen = new Set<string>()
+  const ads: MetaAttributionValues["ads"] = []
+  const adSeen = new Set<string>()
+
+  for (const row of rows) {
+    if (row.campaignName) campaignSet.add(row.campaignName)
+    if (row.campaignName && row.adsetName) {
+      const key = `${row.campaignName}\0${row.adsetName}`
+      if (!adsetSeen.has(key)) {
+        adsetSeen.add(key)
+        adsets.push({ name: row.adsetName, campaign: row.campaignName })
+      }
+    }
+    if (row.campaignName && row.adsetName && row.adName) {
+      const key = `${row.campaignName}\0${row.adsetName}\0${row.adName}`
+      if (!adSeen.has(key)) {
+        adSeen.add(key)
+        ads.push({ name: row.adName, campaign: row.campaignName, adset: row.adsetName })
+      }
+    }
+  }
+
+  return { campaigns: Array.from(campaignSet), adsets, ads }
 }
 
 export interface LandingPageEntry {
