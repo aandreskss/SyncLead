@@ -102,6 +102,8 @@ function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
       language: "es",
       tone: "friendly",
       responseLength: "standard",
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-6",
     },
     conocimiento: { faq: [], knowledgeSourceIds: [] },
     acciones: {

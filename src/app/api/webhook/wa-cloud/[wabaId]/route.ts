@@ -141,4 +141,15 @@ async function processIncomingMessage(msg: ParsedIncomingMessage): Promise<void>
     conversationId,
     incomingMessageId: messageRowId,
   })
+
+  // Trigger immediate processing so the AI replies in ~5s instead of waiting for cron.
+  // Fire-and-forget: errors don't affect webhook response. Cron-job.org serves as fallback.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  const cronSecret = process.env.CRON_SECRET
+  if (appUrl && cronSecret) {
+    fetch(`${appUrl}/api/cron/ai-message-processor`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${cronSecret}` },
+    }).catch(() => undefined)
+  }
 }

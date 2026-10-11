@@ -17,6 +17,8 @@ function defaultConfig(override: Partial<AgentConfig> = {}): AgentConfig {
       language: "es",
       tone: "friendly",
       responseLength: "standard",
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-6",
       ...override.personalidad,
     },
     conocimiento: {
@@ -68,6 +70,8 @@ const QUALIFY_LEADS: AgentTemplate = {
       language: "es",
       tone: "friendly",
       responseLength: "brief",
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-6",
     },
     conocimiento: {
       faq: [
@@ -131,6 +135,8 @@ const SALES_ADVISOR: AgentTemplate = {
       language: "es",
       tone: "friendly",
       responseLength: "standard",
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-6",
     },
     conocimiento: {
       faq: [
@@ -203,6 +209,8 @@ const APPOINTMENT_REQUEST: AgentTemplate = {
       language: "es",
       tone: "formal",
       responseLength: "standard",
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-6",
     },
     conocimiento: {
       faq: [
@@ -273,6 +281,8 @@ const SUPPORT_FAQ: AgentTemplate = {
       language: "es",
       tone: "friendly",
       responseLength: "standard",
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-6",
     },
     conocimiento: {
       faq: [

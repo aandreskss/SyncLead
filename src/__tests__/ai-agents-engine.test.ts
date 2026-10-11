@@ -62,6 +62,8 @@ function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
       language: "es",
       tone: "friendly",
       responseLength: "standard",
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-6",
       ...overrides.personalidad,
     },
     conocimiento: {
@@ -446,6 +448,8 @@ describe("AI Agents Engine — Phase 04", () => {
         language: "es",
         tone: "formal",
         responseLength: "brief",
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-6",
       },
       objetivo: {
         goal: "Vender seguros de vida",

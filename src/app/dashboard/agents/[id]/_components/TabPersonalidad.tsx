@@ -1,14 +1,20 @@
 "use client"
 
 import { Panel, opsField } from "@/components/app/ops"
-import type { AgentPersonalidadConfig, AgentLanguage, AgentTone, AgentResponseLength } from "@/domains/ai-agents/types"
-import { AGENT_LANGUAGES, AGENT_TONES, AGENT_RESPONSE_LENGTHS } from "@/domains/ai-agents/types"
+import type { AgentPersonalidadConfig, AgentLanguage, AgentTone, AgentResponseLength, AgentLlmProvider } from "@/domains/ai-agents/types"
+import { AGENT_LANGUAGES, AGENT_TONES, AGENT_RESPONSE_LENGTHS, AGENT_LLM_PROVIDERS, LLM_MODELS, DEFAULT_LLM_MODEL } from "@/domains/ai-agents/types"
 import { cn } from "@/lib/utils"
 
 interface Props {
   config: AgentPersonalidadConfig
   onChange: (v: AgentPersonalidadConfig) => void
   readOnly: boolean
+}
+
+const PROVIDER_LABELS: Record<AgentLlmProvider, string> = {
+  anthropic: "Anthropic (Claude)",
+  openai:    "OpenAI (GPT)",
+  google:    "Google (Gemini)",
 }
 
 const LANGUAGE_LABELS: Record<AgentLanguage, string> = { es: "Español", en: "English", pt: "Português" }
@@ -72,8 +78,62 @@ function RadioGroup<T extends string>({
 }
 
 export default function TabPersonalidad({ config, onChange, readOnly }: Props) {
+  const currentProvider = config.llmProvider ?? "anthropic"
+  const modelOptions = LLM_MODELS[currentProvider] ?? []
+
+  function handleProviderChange(provider: AgentLlmProvider) {
+    onChange({ ...config, llmProvider: provider, llmModel: DEFAULT_LLM_MODEL[provider] })
+  }
+
   return (
     <div className="space-y-4">
+      <Panel title="Modelo de IA" description="Proveedor y modelo que el agente usará para generar respuestas.">
+        <div className="space-y-4 px-5 pb-5">
+          <div>
+            <p className="mb-2 text-xs font-medium text-ops-tx2">Proveedor</p>
+            <RadioGroup
+              options={AGENT_LLM_PROVIDERS}
+              labels={PROVIDER_LABELS}
+              value={currentProvider}
+              onChange={handleProviderChange}
+              readOnly={readOnly}
+              legend="Proveedor de IA"
+            />
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium text-ops-tx2">Modelo</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {modelOptions.map((m) => (
+                <label
+                  key={m.id}
+                  className={cn(
+                    "flex cursor-pointer flex-col gap-0.5 rounded-xl border p-3 transition-colors",
+                    config.llmModel === m.id
+                      ? "border-ops-blue bg-ops-blue-bg"
+                      : "border-ops-bd hover:border-ops-bd2",
+                    readOnly && "cursor-default"
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="llmModel"
+                    value={m.id}
+                    checked={config.llmModel === m.id}
+                    onChange={() => !readOnly && onChange({ ...config, llmModel: m.id })}
+                    disabled={readOnly}
+                    className="sr-only"
+                  />
+                  <span className={cn("text-sm font-medium", config.llmModel === m.id ? "text-ops-blue" : "text-ops-tx")}>
+                    {m.label}
+                  </span>
+                  <span className="text-[11px] text-ops-tx3">{m.description}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Panel>
+
       <Panel title="Nombre interno" description="Identificador del agente (solo visible para tu equipo).">
         <div className="px-5 pb-5">
           <input

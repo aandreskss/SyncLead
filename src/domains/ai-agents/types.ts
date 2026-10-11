@@ -297,6 +297,39 @@ export type AgentTone = typeof AGENT_TONES[number]
 export const AGENT_RESPONSE_LENGTHS = ["brief", "standard", "detailed"] as const
 export type AgentResponseLength = typeof AGENT_RESPONSE_LENGTHS[number]
 
+export const AGENT_LLM_PROVIDERS = ["anthropic", "openai", "google"] as const
+export type AgentLlmProvider = typeof AGENT_LLM_PROVIDERS[number]
+
+export interface LlmModelOption {
+  id: string
+  label: string
+  description: string
+}
+
+export const LLM_MODELS: Record<AgentLlmProvider, LlmModelOption[]> = {
+  anthropic: [
+    { id: "claude-sonnet-4-6",          label: "Claude Sonnet 4.6",  description: "Equilibrio ideal velocidad/calidad" },
+    { id: "claude-haiku-4-5-20251001",  label: "Claude Haiku 4.5",   description: "Más rápido y económico" },
+    { id: "claude-opus-4-7",            label: "Claude Opus 4.7",    description: "Máxima capacidad, más lento" },
+  ],
+  openai: [
+    { id: "gpt-4o",      label: "GPT-4o",       description: "Flagship de OpenAI, multimodal" },
+    { id: "gpt-4o-mini", label: "GPT-4o Mini",  description: "Rápido y económico" },
+    { id: "o1-mini",     label: "O1 Mini",       description: "Razonamiento avanzado" },
+  ],
+  google: [
+    { id: "gemini-2.0-flash",   label: "Gemini 2.0 Flash",  description: "Más rápido, contexto largo" },
+    { id: "gemini-1.5-pro",     label: "Gemini 1.5 Pro",    description: "Alta calidad, contexto 1M tokens" },
+    { id: "gemini-1.5-flash",   label: "Gemini 1.5 Flash",  description: "Económico y rápido" },
+  ],
+}
+
+export const DEFAULT_LLM_MODEL: Record<AgentLlmProvider, string> = {
+  anthropic: "claude-sonnet-4-6",
+  openai:    "gpt-4o-mini",
+  google:    "gemini-2.0-flash",
+}
+
 export interface AgentFaqItem {
   id: string
   question: string
@@ -329,6 +362,8 @@ export interface AgentPersonalidadConfig {
   language: AgentLanguage
   tone: AgentTone
   responseLength: AgentResponseLength
+  llmProvider: AgentLlmProvider
+  llmModel: string
 }
 
 export interface AgentConocimientoConfig {
@@ -388,6 +423,8 @@ export const AgentPersonalidadSchema = z.object({
   language: z.enum(AGENT_LANGUAGES),
   tone: z.enum(AGENT_TONES),
   responseLength: z.enum(AGENT_RESPONSE_LENGTHS),
+  llmProvider: z.enum(AGENT_LLM_PROVIDERS).default("anthropic"),
+  llmModel: z.string().min(1).default("claude-sonnet-4-6"),
 })
 
 export const AgentFaqItemSchema = z.object({

@@ -2,7 +2,7 @@ import "server-only"
 
 import type { AgentConfig } from "../types"
 import type { LLMProvider } from "@/lib/llm/provider"
-import { defaultProvider } from "@/lib/llm"
+import { defaultProvider, createProvider } from "@/lib/llm"
 import { buildSystemPrompt, type LeadContext } from "./prompts"
 import { loadKnowledgeChunks, formatKnowledgeForPrompt } from "./knowledge"
 import { getEnabledTools, executeTool, type ToolContext } from "./tools"
@@ -48,7 +48,8 @@ export interface EngineResult {
 // ─── Main engine function ─────────────────────────────────────────────────────
 
 export async function runEngine(ctx: EngineContext): Promise<EngineResult> {
-  const provider = ctx.provider ?? defaultProvider
+  const agentLlmProvider = ctx.agentConfig.personalidad.llmProvider ?? "anthropic"
+  const provider = ctx.provider ?? createProvider(agentLlmProvider)
   const config = ctx.agentConfig
 
   // 1. Load knowledge chunks
