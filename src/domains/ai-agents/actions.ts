@@ -508,27 +508,35 @@ export async function assignAgentToPhoneAction(phoneNumberId: string, agentId: s
     .from(waPhoneNumbers)
     .where(and(eq(waPhoneNumbers.id, phoneNumberId), eq(waPhoneNumbers.orgId, ctx.orgId)))
     .limit(1)
-  if (!phone[0]) return { success: false, error: "Número no encontrado" }
+  if (!phone[0]) return { success: false as const, error: "Número no encontrado" }
 
-  // Deactivate any existing deployments for this phone (all agents)
-  await db
-    .update(aiAgentDeployments)
-    .set({ active: false, updatedAt: new Date() })
-    .where(and(eq(aiAgentDeployments.phoneNumberId, phoneNumberId), eq(aiAgentDeployments.orgId, ctx.orgId)))
-    .catch(() => undefined)
+  // Removing agent: deactivate and return
+  if (!agentId) {
+    await db
+      .update(aiAgentDeployments)
+      .set({ active: false, updatedAt: new Date() })
+      .where(and(eq(aiAgentDeployments.phoneNumberId, phoneNumberId), eq(aiAgentDeployments.orgId, ctx.orgId)))
+      .catch(() => undefined)
+    return { success: true as const }
+  }
 
-  if (!agentId) return { success: true }
-
-  // Verify agent belongs to this org and has a published version
+  // Verify agent belongs to this org
   const agent = await db
     .select({ id: aiAgents.id })
     .from(aiAgents)
     .where(and(eq(aiAgents.id, agentId), eq(aiAgents.orgId, ctx.orgId)))
     .limit(1)
-  if (!agent[0]) return { success: false, error: "Agente no encontrado" }
+  if (!agent[0]) return { success: false as const, error: "Agente no encontrado" }
 
-  await createAiAgentDeployment(ctx.orgId, { agentId, phoneNumberId })
-  return { success: true }
+  // UPSERT — unique index is (phoneNumberId, orgId) so we update on conflict
+  await db
+    .insert(aiAgentDeployments)
+    .values({ orgId: ctx.orgId, agentId, phoneNumberId, active: true })
+    .onConflictDoUpdate({
+      target: [aiAgentDeployments.phoneNumberId, aiAgentDeployments.orgId],
+      set: { agentId, active: true, paused: false, updatedAt: new Date() },
+    })
+  return { success: true as const }
 }
 
 // ─── Get deployments for org phones ───────────────────────────────────────────
