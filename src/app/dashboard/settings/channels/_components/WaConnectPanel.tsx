@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Panel, StatusChip, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
-import { AlertTriangle, CheckCircle2, Clock, Link2, Link2Off, Loader2 } from "lucide-react"
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Link2, Link2Off, Loader2 } from "lucide-react"
 import type { WaConnectionStatus } from "@/domains/meta-wa-connect/types"
 
 interface WabaRow {
@@ -45,6 +45,8 @@ export function WaConnectPanel({ wabas, appConfigured }: Props) {
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showWabaInput, setShowWabaInput] = useState(false)
+  const [wabaIdInput, setWabaIdInput] = useState("")
   const router = useRouter()
   const popupRef = useRef<Window | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -197,7 +199,13 @@ export function WaConnectPanel({ wabas, appConfigured }: Props) {
       <div className="px-5 py-4 border-t border-ops-line">
         {canConnect ? (
           <button
-            onClick={() => openOAuthPopup("/api/wa-connect/start")}
+            onClick={() => {
+              const wabaId = wabaIdInput.trim() || undefined
+              const url = wabaId
+                ? `/api/wa-connect/start?waba_id=${encodeURIComponent(wabaId)}`
+                : "/api/wa-connect/start"
+              openOAuthPopup(url)
+            }}
             disabled={connecting}
             className={opsBtnPrimary + " inline-flex items-center gap-2"}
           >
@@ -215,10 +223,37 @@ export function WaConnectPanel({ wabas, appConfigured }: Props) {
         )}
         <p className="mt-2 text-xs text-ops-tx3">
           Serás redirigido a Meta para autorizar el acceso a tu cuenta WhatsApp Business.
-          El proceso usa el flujo oficial de Embedded Signup de Meta.
         </p>
+
+        {/* Manual WABA ID fallback */}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowWabaInput(v => !v)}
+            className="flex items-center gap-1 text-xs text-ops-tx3 hover:text-ops-tx transition-colors"
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showWabaInput ? "rotate-180" : ""}`} />
+            ¿Problemas para conectar? Ingresar WABA ID manualmente
+          </button>
+          {showWabaInput && (
+            <div className="mt-2 space-y-1.5">
+              <p className="text-xs text-ops-tx3">
+                Encuentra tu WABA ID en{" "}
+                <strong>business.facebook.com → Configuración del negocio → Cuentas → Cuentas de WhatsApp Business</strong>.
+              </p>
+              <input
+                type="text"
+                value={wabaIdInput}
+                onChange={e => setWabaIdInput(e.target.value)}
+                placeholder="Ej: 123456789012345"
+                className="w-full rounded-lg border border-ops-bd bg-white px-3 py-1.5 text-sm text-ops-tx placeholder:text-ops-tx3 focus:outline-none focus:ring-2 focus:ring-ops-accent"
+              />
+            </div>
+          )}
+        </div>
+
         {wabas.some(w => w.connectionMode === "manual") && (
-          <p className="mt-1 text-xs text-amber-700">
+          <p className="mt-2 text-xs text-amber-700">
             Tienes conexiones en modo manual (piloto interno). Reconecta via OAuth para mayor seguridad.
           </p>
         )}

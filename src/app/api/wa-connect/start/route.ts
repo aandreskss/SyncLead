@@ -23,9 +23,11 @@ export async function GET(request: Request) {
     )
   }
 
-  const returnPath = new URL(request.url).searchParams.get("return") ?? "/dashboard/settings/channels"
+  const url = new URL(request.url)
+  const returnPath = url.searchParams.get("return") ?? "/dashboard/settings/channels"
+  const wabaIdHint = url.searchParams.get("waba_id") ?? undefined
 
-  const stateId = await createOauthState(ctx.orgId, returnPath)
+  const stateId = await createOauthState(ctx.orgId, returnPath, wabaIdHint)
   const oauthUrl = buildOAuthUrl(stateId)
 
   return NextResponse.redirect(oauthUrl)

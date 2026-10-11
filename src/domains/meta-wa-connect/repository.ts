@@ -11,17 +11,21 @@ import type { WaConnectionMode, WaConnectionStatus } from "./types"
 
 // ─── OAuth state ──────────────────────────────────────────────────────────────
 
-export async function createOauthState(orgId: string, returnPath = "/dashboard/settings/channels"): Promise<string> {
+export async function createOauthState(
+  orgId: string,
+  returnPath = "/dashboard/settings/channels",
+  wabaIdHint?: string
+): Promise<string> {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
   const [row] = await db
     .insert(waOauthStates)
-    .values({ orgId, returnPath, expiresAt })
+    .values({ orgId, returnPath, wabaIdHint: wabaIdHint ?? null, expiresAt })
     .returning({ id: waOauthStates.id })
   return row!.id
 }
 
 export type StateValidationResult =
-  | { ok: true; orgId: string; returnPath: string }
+  | { ok: true; orgId: string; returnPath: string; wabaIdHint: string | null }
   | { ok: false; reason: "not_found" | "expired" | "consumed" }
 
 export async function consumeOauthState(stateId: string): Promise<StateValidationResult> {
@@ -42,7 +46,7 @@ export async function consumeOauthState(stateId: string): Promise<StateValidatio
     .set({ consumedAt: new Date() })
     .where(eq(waOauthStates.id, stateId))
 
-  return { ok: true, orgId: state.orgId, returnPath: state.returnPath }
+  return { ok: true, orgId: state.orgId, returnPath: state.returnPath, wabaIdHint: state.wabaIdHint }
 }
 
 export async function cleanExpiredStates(): Promise<void> {

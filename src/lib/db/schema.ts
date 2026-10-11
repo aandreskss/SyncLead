@@ -2126,6 +2126,7 @@ export const waOauthStates = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     returnPath: text("return_path").notNull().default("/dashboard/settings/channels"),
+    wabaIdHint: text("waba_id_hint"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

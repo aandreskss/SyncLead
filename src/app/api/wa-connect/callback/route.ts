@@ -67,6 +67,7 @@ export async function GET(request: Request) {
   }
 
   const returnPath = stateResult.returnPath
+  const wabaIdHint = stateResult.wabaIdHint
 
   // Exchange code for token
   let shortToken: string
@@ -116,18 +117,20 @@ export async function GET(request: Request) {
   let wabaId: string | null = null
   let wabaName = "WhatsApp Business Account"
 
-  console.log("[wa-connect/callback] signed_request present:", Boolean(signedRequest))
-  console.log("[wa-connect/callback] grantedScopes:", grantedScopes)
-  console.log("[wa-connect/callback] connectionStatus:", connectionStatus)
-
+  // Priority 1: signed_request from Embedded Signup (META_WA_CONFIG_ID set)
   if (signedRequest) {
     const parsed = parseSignedRequest(signedRequest)
-    console.log("[wa-connect/callback] parsed signed_request:", parsed)
     if (parsed) wabaId = parsed.wabaId
   }
 
+  // Priority 2: manually provided WABA ID hint (user entered it in the UI)
+  if (!wabaId && wabaIdHint) {
+    wabaId = wabaIdHint
+    console.log("[wa-connect/callback] using wabaIdHint:", wabaId)
+  }
+
+  // Priority 3: API discovery (two strategies)
   if (!wabaId) {
-    // Standard OAuth: discover via API
     try {
       console.log("[wa-connect/callback] starting discoverWabas...")
       const wabas = await discoverWabas(longToken)
