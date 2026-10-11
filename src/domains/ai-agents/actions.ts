@@ -94,7 +94,7 @@ export async function createAgentFromTemplateAction(formData: FormData) {
   const raw = {
     templateId: formData.get("templateId"),
     name: formData.get("name"),
-    description: formData.get("description"),
+    description: formData.get("description") ?? undefined,
   }
   const parsed = CreateAgentFromTemplateSchema.safeParse(raw)
   if (!parsed.success) {
