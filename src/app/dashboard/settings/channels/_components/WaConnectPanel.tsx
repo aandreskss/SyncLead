@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Panel, StatusChip, opsBtnPrimary, opsBtnSecondary } from "@/components/app/ops"
 import { AlertTriangle, CheckCircle2, Clock, Link2, Link2Off, Loader2 } from "lucide-react"
 import type { WaConnectionStatus } from "@/domains/meta-wa-connect/types"
@@ -42,7 +43,46 @@ interface Props {
 
 export function WaConnectPanel({ wabas, appConfigured }: Props) {
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
+  const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const popupRef = useRef<Window | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Poll until the popup closes, then refresh
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [])
+
+  function openOAuthPopup(url: string) {
+    const width = 600
+    const height = 700
+    const left = Math.round(window.screenX + (window.outerWidth - width) / 2)
+    const top = Math.round(window.screenY + (window.outerHeight - height) / 2)
+    const popup = window.open(
+      url,
+      "wa_oauth",
+      `width=${width},height=${height},left=${left},top=${top},toolbar=0,menubar=0,scrollbars=1`
+    )
+    if (!popup) {
+      setError("El navegador bloqueó la ventana emergente. Permite ventanas emergentes para este sitio e intenta de nuevo.")
+      return
+    }
+    popupRef.current = popup
+    setConnecting(true)
+    setError(null)
+
+    pollRef.current = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(pollRef.current!)
+        pollRef.current = null
+        setConnecting(false)
+        router.refresh()
+      }
+    }, 500)
+  }
 
   async function handleDisconnect(wabaId: string) {
     setDisconnecting(wabaId)
@@ -126,13 +166,14 @@ export function WaConnectPanel({ wabas, appConfigured }: Props) {
 
               <div className="flex items-center gap-2 shrink-0">
                 {waba.connectionStatus !== "disconnected" && (
-                  <a
-                    href={`/api/wa-connect/start?return=${encodeURIComponent("/dashboard/settings/channels")}`}
+                  <button
+                    onClick={() => openOAuthPopup(`/api/wa-connect/start?return=${encodeURIComponent("/dashboard/settings/channels")}`)}
+                    disabled={connecting}
                     className={opsBtnSecondary + " text-xs py-1.5 px-3 flex items-center gap-1.5"}
                   >
-                    <Link2 className="h-3.5 w-3.5" />
+                    {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
                     Reconectar
-                  </a>
+                  </button>
                 )}
                 <button
                   onClick={() => handleDisconnect(waba.wabaId)}
@@ -155,13 +196,17 @@ export function WaConnectPanel({ wabas, appConfigured }: Props) {
       {/* Connect button */}
       <div className="px-5 py-4 border-t border-ops-line">
         {canConnect ? (
-          <a
-            href="/api/wa-connect/start"
+          <button
+            onClick={() => openOAuthPopup("/api/wa-connect/start")}
+            disabled={connecting}
             className={opsBtnPrimary + " inline-flex items-center gap-2"}
           >
-            <CheckCircle2 className="h-4 w-4" />
-            Conectar con Meta
-          </a>
+            {connecting
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <CheckCircle2 className="h-4 w-4" />
+            }
+            {connecting ? "Conectando…" : "Conectar con Meta"}
+          </button>
         ) : (
           <button disabled className={opsBtnPrimary + " opacity-50 cursor-not-allowed inline-flex items-center gap-2"}>
             <CheckCircle2 className="h-4 w-4" />

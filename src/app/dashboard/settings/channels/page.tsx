@@ -132,7 +132,7 @@ export default async function ChannelsPage({
                 {params.wa_error === "state_consumed" && "Esta sesión ya fue usada. Intenta de nuevo."}
                 {params.wa_error === "org_mismatch" && "La sesión no corresponde a esta organización."}
                 {params.wa_error === "token_exchange_failed" && "No se pudo obtener el token de acceso de Meta."}
-                {params.wa_error === "waba_not_found" && "No se encontró ninguna cuenta WhatsApp Business asociada."}
+                {params.wa_error === "waba_not_found" && "No se encontró ninguna cuenta WhatsApp Business asociada. Asegúrate de que tu cuenta de Facebook tenga acceso a una WABA y que hayas aprobado los permisos whatsapp_business_management y whatsapp_business_messaging."}
                 {params.wa_error === "waba_unauthorized" && "No tienes acceso a esa cuenta WhatsApp Business."}
                 {params.wa_error === "number_conflict" && "Uno de los números ya está vinculado a otra organización."}
                 {params.wa_error === "multiple_wabas_use_embedded_signup" && "Tienes múltiples cuentas WABA. Usa el flujo Embedded Signup para seleccionar una."}

@@ -146,24 +146,49 @@ export async function fetchPhoneNumbers(wabaId: string, accessToken: string): Pr
   return data.data ?? []
 }
 
-/** Discover all WABAs accessible with this token via Business Manager */
+/** Discover all WABAs accessible with this token.
+ *  Strategy 1: via Business Manager (requires business_management scope + BM setup)
+ *  Strategy 2: direct /me/whatsapp_business_accounts (works without BM)
+ */
 export async function discoverWabas(accessToken: string): Promise<MetaWabaInfo[]> {
-  const url = new URL(`${GRAPH_BASE}/${API_VERSION}/me/businesses`)
-  url.searchParams.set("fields", "whatsapp_business_accounts{id,name,account_review_status}")
-  url.searchParams.set("access_token", accessToken)
-  url.searchParams.set("appsecret_proof", appSecretProof(accessToken))
+  // Strategy 1: via Business Manager
+  try {
+    const url = new URL(`${GRAPH_BASE}/${API_VERSION}/me/businesses`)
+    url.searchParams.set("fields", "whatsapp_business_accounts{id,name,account_review_status}")
+    url.searchParams.set("access_token", accessToken)
+    url.searchParams.set("appsecret_proof", appSecretProof(accessToken))
 
-  const res = await fetch(url.toString(), { cache: "no-store" })
-  const data = await res.json() as {
-    data?: Array<{ whatsapp_business_accounts?: { data?: MetaWabaInfo[] } }>
+    const res = await fetch(url.toString(), { cache: "no-store" })
+    const data = await res.json() as {
+      data?: Array<{ whatsapp_business_accounts?: { data?: MetaWabaInfo[] } }>
+      error?: { message: string; code: number }
+    }
+
+    if (res.ok && !data.error) {
+      const wabas = data.data?.flatMap(b => b.whatsapp_business_accounts?.data ?? []) ?? []
+      if (wabas.length > 0) return wabas
+    }
+  } catch {
+    // fall through to strategy 2
+  }
+
+  // Strategy 2: direct WABA access (users without Business Manager)
+  const url2 = new URL(`${GRAPH_BASE}/${API_VERSION}/me/whatsapp_business_accounts`)
+  url2.searchParams.set("fields", "id,name,account_review_status")
+  url2.searchParams.set("access_token", accessToken)
+  url2.searchParams.set("appsecret_proof", appSecretProof(accessToken))
+
+  const res2 = await fetch(url2.toString(), { cache: "no-store" })
+  const data2 = await res2.json() as {
+    data?: MetaWabaInfo[]
     error?: { message: string; code: number }
   }
 
-  if (!res.ok || data.error) {
-    throw Object.assign(new Error(data.error?.message ?? "WABA discovery failed"), { metaCode: data.error?.code })
+  if (!res2.ok || data2.error) {
+    throw Object.assign(new Error(data2.error?.message ?? "WABA discovery failed"), { metaCode: data2.error?.code })
   }
 
-  return data.data?.flatMap(b => b.whatsapp_business_accounts?.data ?? []) ?? []
+  return data2.data ?? []
 }
 
 /**
