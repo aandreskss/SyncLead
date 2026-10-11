@@ -650,3 +650,5 @@ async function sendReplyToMeta(params: {
     // Operations team can inspect "pending" messages and retry manually.
   }
 }
+
+export { GET as POST }

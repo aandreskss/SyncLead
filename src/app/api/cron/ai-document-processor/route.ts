@@ -126,3 +126,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(run)
 }
+
+export { GET as POST }
