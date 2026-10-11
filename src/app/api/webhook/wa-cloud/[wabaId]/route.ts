@@ -10,8 +10,8 @@ import {
 import type { ParsedIncomingMessage, ParsedStatusUpdate } from "@/domains/wa-cloud/types"
 import { MetaHubVerifySchema } from "@/domains/wa-cloud/types"
 import { db } from "@/lib/db"
-import { waBusinessAccounts } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { waBusinessAccounts, aiAgentDeployments } from "@/lib/db/schema"
+import { eq, and } from "drizzle-orm"
 import { enqueueMediaMessage } from "@/domains/ai-agents/media/repository"
 
 // Message types that have media content requiring async processing
@@ -90,8 +90,11 @@ export async function POST(
     return new Response("OK", { status: 200 })
   }
 
-  // Respond immediately — Meta requires < 20s or it retries
-  processPayload(body).catch(() => undefined)
+  // Process synchronously before responding.
+  // DB operations take ~200ms total — well under Meta's 20s deadline.
+  // Fire-and-forget after the response is unreliable on Vercel serverless
+  // because the function may be terminated as soon as the response is sent.
+  await processPayload(body).catch(() => undefined)
 
   return new Response("OK", { status: 200 })
 }
@@ -124,11 +127,27 @@ async function processIncomingMessage(msg: ParsedIncomingMessage): Promise<void>
 
   if (!tenant) return
 
+  // Look up the active deployment for this phone number so new conversations
+  // are linked immediately — without this the AI processor can't find the agent.
+  const depRow = await db
+    .select({ id: aiAgentDeployments.id })
+    .from(aiAgentDeployments)
+    .where(
+      and(
+        eq(aiAgentDeployments.phoneNumberId, tenant.phoneNumberRowId),
+        eq(aiAgentDeployments.orgId, tenant.orgId),
+        eq(aiAgentDeployments.active, true),
+      )
+    )
+    .limit(1)
+    .catch(() => [])
+
   const conversationId = await findOrCreateConversation({
     orgId: tenant.orgId,
     phoneNumberRowId: tenant.phoneNumberRowId,
     customerPhone: msg.fromPhone,
     customerName: msg.customerName,
+    deploymentId: depRow[0]?.id ?? null,
   })
 
   const messageRowId = await persistIncomingMessage(tenant.orgId, conversationId, msg)

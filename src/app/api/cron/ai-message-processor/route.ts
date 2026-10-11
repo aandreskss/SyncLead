@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import {
   aiAgentVersions,
   aiAgents,
+  aiAgentDeployments,
   aiMessageQueue,
   waConversations,
   waConversationMessages,
@@ -189,6 +190,34 @@ export async function GET(req: NextRequest) {
       if (conversation.controlMode !== "ai") {
         await markQueueItemDone(claimed.id, leaseToken)
         return { itemsProcessed: 1 }
+      }
+
+      // ── Step 2.5: Backfill deploymentId if missing ─────────────────
+      // Conversations created before the webhook was updated to pass deploymentId
+      // will have deploymentId = null. Look it up by phone number and backfill.
+      if (!conversation.deploymentId && conversation.phoneNumberId) {
+        const depRows = await db
+          .select({ id: aiAgentDeployments.id })
+          .from(aiAgentDeployments)
+          .where(
+            and(
+              eq(aiAgentDeployments.phoneNumberId, conversation.phoneNumberId),
+              eq(aiAgentDeployments.orgId, claimed.orgId),
+              eq(aiAgentDeployments.active, true),
+            )
+          )
+          .limit(1)
+          .catch(() => [])
+
+        const dep = depRows[0]
+        if (dep) {
+          conversation.deploymentId = dep.id
+          await db
+            .update(waConversations)
+            .set({ deploymentId: dep.id, updatedAt: new Date() })
+            .where(eq(waConversations.id, claimed.conversationId))
+            .catch(() => undefined)
+        }
       }
 
       // ── Step 3: Resolve episode via router ──────────────────────────

@@ -110,9 +110,10 @@ export async function findOrCreateConversation(params: {
   phoneNumberRowId: string
   customerPhone: string
   customerName?: string
+  deploymentId?: string | null
 }): Promise<string> {
   const existing = await db
-    .select({ id: waConversations.id })
+    .select({ id: waConversations.id, deploymentId: waConversations.deploymentId })
     .from(waConversations)
     .where(
       and(
@@ -124,11 +125,14 @@ export async function findOrCreateConversation(params: {
     .limit(1)
 
   if (existing[0]) {
-    // Update customerName if we now have it
-    if (params.customerName) {
+    // Update customerName and/or backfill deploymentId if we now have them
+    const updates: Record<string, unknown> = { updatedAt: new Date() }
+    if (params.customerName) updates.customerName = params.customerName
+    if (params.deploymentId && !existing[0].deploymentId) updates.deploymentId = params.deploymentId
+    if (Object.keys(updates).length > 1) {
       await db
         .update(waConversations)
-        .set({ customerName: params.customerName, updatedAt: new Date() })
+        .set(updates as Parameters<ReturnType<typeof db.update>["set"]>[0])
         .where(eq(waConversations.id, existing[0].id))
         .catch(() => undefined)
     }
@@ -144,6 +148,7 @@ export async function findOrCreateConversation(params: {
       customerName: params.customerName ?? null,
       status: "active",
       controlMode: "ai",
+      deploymentId: params.deploymentId ?? null,
     })
     .onConflictDoNothing()
     .returning({ id: waConversations.id })
