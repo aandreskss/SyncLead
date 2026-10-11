@@ -117,6 +117,10 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`paused/pausedAt/pausedBy` en `ai_agent_deployments`**: un deployment pausado bloquea nuevos envíos de IA. El toggle requiere rol manager o superior (`requireRole(["owner","admin","manager"])`).
 - **`ai_deployment_schedules`**: UNIQUE constraint en `deploymentId` — usar `onConflictDoUpdate` para upsert (una sola fila de horario por deployment). Timezone en IANA (ej: `"America/Caracas"`). Ventanas JSON: `Record<string, Array<{ start: string; end: string }>>` con claves `"mon"..."sun"` y valores `"HH:MM"`.
 - **`autoQualifyLeadInternal` tiene try/finally como red de seguridad absoluta**: el bloque `finally` siempre consulta la tabla `conversions` al terminar (incluso si la función sale con `return` anticipado). Si existe una conversión con `status = "confirmed"`, fuerza `temperature = "hot"`. Esto garantiza que ningún camino de calificación pueda dejar en frío a un lead que ya compró. La guarda `ne(leads.temperature, "hot")` en el `finally` evita writes innecesarios.
+- **`cost-utils.ts` vs `cost-calculator.ts`**: funciones de puro formato (`formatMillicentsAsUsd`, `getModelDisplayName`) viven en `cost-utils.ts` SIN `import "server-only"` — seguros para importar en Client Components. Funciones con DB queries (`getActivePricingTier`, `computeCostMillicents`, etc.) permanecen en `cost-calculator.ts` con `import "server-only"`. Nunca importar `cost-calculator.ts` desde un Client Component.
+- **Crons de IA en cron-job.org, no en Vercel**: Vercel Hobby plan limita crons a 1/día. Los 4 crons de frecuencia alta (`ai-message-processor`, `ai-media-processor`, `ai-document-processor` — 1/min; `meta-outbox` — 10/min) se registran en cron-job.org como POST con `Authorization: Bearer $CRON_SECRET`. El webhook de WhatsApp dispara inmediatamente un fetch a `ai-message-processor` tras enqueue (fire-and-forget) para respuesta en ~5s; cron-job.org es el fallback de recuperación.
+- **Multi-provider LLM**: `createProvider(name, apiKey?)` en `src/lib/llm/index.ts` instancia `AnthropicProvider | OpenAIProvider | GeminiProvider`. Todos los constructores aceptan `apiKey?: string` opcional (si no se pasa, usan env var). El engine busca primero la clave en `ai_provider_keys` de la DB del org; si no existe, usa env var. Esto permite que cada organización configure sus propias claves sin tocar el servidor.
+- **`ai_provider_keys`**: tabla con UNIQUE `(org_id, provider)`. Claves cifradas con `encryptTokenVersioned()` (AES-256-GCM, mismo formato que `meta_connections`). `decryptTokenVersioned()` solo necesita la ciphertext (la versión está embebida en formato `v{n}:iv:tag:data`). Solo owner/admin puede guardar o eliminar claves.
 
 ## Arquitectura multi-tenant
 Aislamiento a nivel de aplicación (no RLS). **Todas las tablas tienen `org_id`.**
@@ -342,8 +346,10 @@ src/
     utils.ts        ← cn()
     llm/
       provider.ts   ← import "server-only"; interfaz LLMProvider + tipos LLMMessage, LLMContentBlock, LLMTool, LLMUsage, LLMStopReason, LLMResponse, LLMChatParams
-      anthropic.ts  ← import "server-only"; AnthropicProvider: lee ANTHROPIC_API_KEY, AbortController timeout, disable_parallel_tool_use:true, mapeo SDK↔interfaz
-      index.ts      ← singleton defaultProvider; re-exports de tipos LLM
+      anthropic.ts  ← import "server-only"; AnthropicProvider(apiKey?): lee ANTHROPIC_API_KEY o apiKey param, AbortController timeout, disable_parallel_tool_use:true
+      openai.ts     ← import "server-only"; OpenAIProvider(apiKey?): GPT-4o/mini/O1, tool_calls, stop reasons
+      gemini.ts     ← import "server-only"; GeminiProvider(apiKey?): Gemini 2.0 Flash/1.5 Pro/Flash, history split, functionCall/Response mapping
+      index.ts      ← createProvider(name, apiKey?) factory + singleton defaultProvider; re-exports de tipos LLM
   __tests__/
     __mocks__/server-only.ts          ← no-op mock para Vitest (alias en vitest.config.ts)
     ingest-schema.test.ts             ← 28 tests validación Zod ingest
@@ -459,6 +465,10 @@ src/proxy.ts  ← protege /dashboard/*, applySecurityHeaders() (CSP+nonce, X-Fra
 | `META_APP_SECRET` | App Secret de la Meta App para verificar `X-Hub-Signature-256` (Meta → Settings → Basic) | Lead Ads |
 | `META_AD_LIBRARY_APP_ID` | App ID de la Meta App para Ad Library API. App activa: `3653638184801040` ("Synclead app") | Ad Research |
 | `META_USER_ACCESS_TOKEN` | User Access Token con `ads_read` para Meta Ad Library API. Si no está seteado, el código usa `APP_ID\|APP_SECRET` como App Token. Tokens de Graph API Explorer duran 1h — para prod usar System User Token (no expira). Exchange `fb_exchange_token` falla para esta app (causa desconocida). | Ad Research |
+| `ANTHROPIC_API_KEY` | API key de Anthropic (Claude). Fallback global si el org no configura su propia clave en `/dashboard/settings/ai-providers`. | Agentes IA |
+| `OPENAI_API_KEY` | API key de OpenAI (GPT-4o, GPT-4o Mini, O1 Mini). Fallback global. | Agentes IA |
+| `GOOGLE_AI_API_KEY` | API key de Google AI Studio (Gemini). Fallback global. Obtener en aistudio.google.com. | Agentes IA |
+| `CRON_SECRET` | Protege todos los endpoints `/api/cron/*`. Requerido también para el trigger inmediato desde el webhook WA. cron-job.org debe enviarlo como `Authorization: Bearer $CRON_SECRET`. | ✓ |
 
 ## Seguridad crítica
 - `ENCRYPTION_KEY` nunca en el repo. Solo en Vercel env vars.
@@ -788,4 +798,13 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] UI: `/dashboard/agents/analytics/` — `AnalyticsDashboard` (filtros fecha/agente), `UsageSummaryCards` (12 KPIs en 3 rows), `EpisodesTable` (paginada, definición de métricas en footer), `BudgetStatusBar` (progress bar + alert threshold)
   - [x] `DashboardNav.tsx`: enlace "Analíticas" (`ChartColumn` icon) añadido al grupo Agentes IA; `isActive` actualizado para prefer longest match (evita conflicto /agents vs /agents/analytics)
   - [x] `ai-agents-phase09.test.ts`: 35 tests — costo Sonnet/Haiku (formula mc/1000tokens), cache barato vs caro, zero tokens, null cache rates, reserva conservadora (+20%), formatMillicentsAsUsd (null→N/D, boundary 0.00001), multi-tenant isolation, denominador cero, exit reasons sin duplicar, unique leads deduplication, tokenCount acumulativo (bug fix), isSandbox, millicents precision, concurrencia de presupuesto
+- [x] Agentes IA — Fase 13: Multi-provider + crons externos + respuesta rápida (2026-10-11)
+  - [x] **Fix error de build Vercel**: `formatMillicentsAsUsd` y `getModelDisplayName` extraídas a `cost-utils.ts` (sin `server-only`) — `EpisodesTable.tsx`, `UsageSummaryCards.tsx` y `budget-actions.ts` importan desde ahí. `cost-calculator.ts` conserva el `import "server-only"` para DB queries.
+  - [x] **Crons Vercel eliminados**: removidos 4 crons de frecuencia alta de `vercel.json` (`* * * * *` y `*/10 * * * *`) que causaban fallo en Hobby plan. Solo quedan 3 crons diarios (`cleanup`, `meta-insights-sync`, `retention-cleanup`). Los 4 crons de IA se manejan externamente via cron-job.org.
+  - [x] **Respuesta inmediata (~5s)**: `api/webhook/wa-cloud/[wabaId]/route.ts` dispara un fetch fire-and-forget a `/api/cron/ai-message-processor` tras enqueue — el agente responde en el tiempo de procesamiento de Claude (~5s) en lugar de esperar el siguiente cron (hasta 60s).
+  - [x] **Multi-provider LLM**: `OpenAIProvider` (`src/lib/llm/openai.ts`) — GPT-4o, GPT-4o Mini, O1 Mini; `GeminiProvider` (`src/lib/llm/gemini.ts`) — Gemini 2.0 Flash, 1.5 Pro, 1.5 Flash. Ambos implementan `LLMProvider`. `createProvider(name, apiKey?)` factory en `index.ts`.
+  - [x] **`AgentPersonalidadConfig`**: +`llmProvider: AgentLlmProvider` + `llmModel: string`. `LLM_MODELS` catalog en `types.ts` con opciones por proveedor. `TabPersonalidad.tsx` muestra RadioGroup de proveedor + grid de modelo.
+  - [x] **AI Provider API Keys** (`/dashboard/settings/ai-providers`): tabla `ai_provider_keys` (migración `0025`), cifradas AES-256-GCM por `(org_id, provider)`. Repository `provider-keys-repository.ts` + actions `provider-keys-actions.ts` (owner/admin). UI con tarjeta por proveedor: badge estado, show/hide key, guardar, eliminar, link a docs. Nav link "Proveedores IA" (KeyRound, adminOnly) bajo Agentes IA.
+  - [x] **Engine usa clave de DB**: `runEngine()` llama `getProviderApiKey(orgId, provider)` → si existe en DB la usa, si no usa env var. Constructores de los tres providers aceptan `apiKey?: string` opcional.
+  - [x] **`CRON_SECRET` generado**: `da52bf7c0c9cc8dff28735ca7811d91a2f97d5ad4b765bde9f9a21cde4b94802` — guardado en `.env.local`; pendiente agregar en Vercel → Settings → Environment Variables.
   - [x] Decisiones críticas: millicents = 1/100_000 USD (bigint, sin floats); rates almacenadas mc/1000tokens (tokens < 1mc cada uno); source `anthropic_published` ≠ tarifas Callbell; costos WhatsApp siempre "N/D" (sin datos verificados, nunca cero supuesto); budget exhaustion → `waiting_human` + endEpisode("budget") (nunca chat invisible)
