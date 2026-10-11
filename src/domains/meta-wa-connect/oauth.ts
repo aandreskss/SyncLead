@@ -151,51 +151,88 @@ export async function fetchPhoneNumbers(wabaId: string, accessToken: string): Pr
  *  Strategy 2: direct /me/whatsapp_business_accounts (works without BM)
  */
 export async function discoverWabas(accessToken: string): Promise<MetaWabaInfo[]> {
-  // Strategy 1: via Business Manager
+  // Strategy 1 (two-step): get businesses first, then query WABAs per business
   try {
-    const url = new URL(`${GRAPH_BASE}/${API_VERSION}/me/businesses`)
-    url.searchParams.set("fields", "whatsapp_business_accounts{id,name,account_review_status}")
-    url.searchParams.set("access_token", accessToken)
-    url.searchParams.set("appsecret_proof", appSecretProof(accessToken))
+    const bizUrl = new URL(`${GRAPH_BASE}/${API_VERSION}/me/businesses`)
+    bizUrl.searchParams.set("fields", "id,name")
+    bizUrl.searchParams.set("access_token", accessToken)
+    bizUrl.searchParams.set("appsecret_proof", appSecretProof(accessToken))
 
-    const res = await fetch(url.toString(), { cache: "no-store" })
-    const data = await res.json() as {
-      data?: Array<{ whatsapp_business_accounts?: { data?: MetaWabaInfo[] } }>
+    const bizRes = await fetch(bizUrl.toString(), { cache: "no-store" })
+    const bizData = await bizRes.json() as {
+      data?: Array<{ id: string; name: string }>
       error?: { message: string; code: number }
     }
 
-    console.log("[discoverWabas] strategy1 status:", res.status, "error:", data.error ?? null)
-    console.log("[discoverWabas] strategy1 businesses:", JSON.stringify(data.data ?? []))
+    console.log("[discoverWabas] s1 businesses status:", bizRes.status, "count:", bizData.data?.length ?? 0, "error:", bizData.error ?? null)
 
-    if (res.ok && !data.error) {
-      const wabas = data.data?.flatMap(b => b.whatsapp_business_accounts?.data ?? []) ?? []
+    if (bizRes.ok && !bizData.error && bizData.data && bizData.data.length > 0) {
+      const allWabas: MetaWabaInfo[] = []
+      for (const biz of bizData.data) {
+        const wabaUrl = new URL(`${GRAPH_BASE}/${API_VERSION}/${biz.id}/whatsapp_business_accounts`)
+        wabaUrl.searchParams.set("fields", "id,name,account_review_status")
+        wabaUrl.searchParams.set("access_token", accessToken)
+        wabaUrl.searchParams.set("appsecret_proof", appSecretProof(accessToken))
+
+        const wabaRes = await fetch(wabaUrl.toString(), { cache: "no-store" })
+        const wabaData = await wabaRes.json() as { data?: MetaWabaInfo[]; error?: { message: string; code: number } }
+
+        console.log("[discoverWabas] s1 biz", biz.id, "wabas status:", wabaRes.status, "count:", wabaData.data?.length ?? 0, "error:", wabaData.error ?? null)
+
+        if (wabaRes.ok && !wabaData.error && wabaData.data) {
+          allWabas.push(...wabaData.data)
+        }
+      }
+      if (allWabas.length > 0) return allWabas
+    }
+  } catch (err) {
+    console.error("[discoverWabas] s1 threw:", err)
+  }
+
+  // Strategy 2: via owned_whatsapp_business_accounts (business API endpoint)
+  try {
+    const url2 = new URL(`${GRAPH_BASE}/${API_VERSION}/me`)
+    url2.searchParams.set("fields", "businesses{whatsapp_business_accounts{id,name,account_review_status}}")
+    url2.searchParams.set("access_token", accessToken)
+    url2.searchParams.set("appsecret_proof", appSecretProof(accessToken))
+
+    const res2 = await fetch(url2.toString(), { cache: "no-store" })
+    const data2 = await res2.json() as {
+      businesses?: { data?: Array<{ whatsapp_business_accounts?: { data?: MetaWabaInfo[] } }> }
+      error?: { message: string; code: number }
+    }
+
+    console.log("[discoverWabas] s2 status:", res2.status, "error:", data2.error ?? null)
+
+    if (res2.ok && !data2.error && data2.businesses?.data) {
+      const wabas = data2.businesses.data.flatMap(b => b.whatsapp_business_accounts?.data ?? [])
+      console.log("[discoverWabas] s2 wabas:", wabas.length)
       if (wabas.length > 0) return wabas
     }
   } catch (err) {
-    console.error("[discoverWabas] strategy1 threw:", err)
-    // fall through to strategy 2
+    console.error("[discoverWabas] s2 threw:", err)
   }
 
-  // Strategy 2: direct WABA access (users without Business Manager)
-  const url2 = new URL(`${GRAPH_BASE}/${API_VERSION}/me/whatsapp_business_accounts`)
-  url2.searchParams.set("fields", "id,name,account_review_status")
-  url2.searchParams.set("access_token", accessToken)
-  url2.searchParams.set("appsecret_proof", appSecretProof(accessToken))
+  // Strategy 3: direct user WABA list (works if WABA is owned directly, not via BM)
+  const url3 = new URL(`${GRAPH_BASE}/${API_VERSION}/me/businesses`)
+  url3.searchParams.set("fields", "id,name,whatsapp_business_accounts{id,name,account_review_status}")
+  url3.searchParams.set("access_token", accessToken)
+  url3.searchParams.set("appsecret_proof", appSecretProof(accessToken))
 
-  const res2 = await fetch(url2.toString(), { cache: "no-store" })
-  const data2 = await res2.json() as {
-    data?: MetaWabaInfo[]
+  const res3 = await fetch(url3.toString(), { cache: "no-store" })
+  const data3 = await res3.json() as {
+    data?: Array<{ id: string; name: string; whatsapp_business_accounts?: { data?: MetaWabaInfo[] } }>
     error?: { message: string; code: number }
   }
 
-  console.log("[discoverWabas] strategy2 status:", res2.status, "error:", data2.error ?? null)
-  console.log("[discoverWabas] strategy2 wabas:", JSON.stringify(data2.data ?? []))
+  console.log("[discoverWabas] s3 status:", res3.status, "error:", data3.error ?? null, "data:", JSON.stringify(data3.data ?? []))
 
-  if (!res2.ok || data2.error) {
-    throw Object.assign(new Error(data2.error?.message ?? "WABA discovery failed"), { metaCode: data2.error?.code })
+  if (!res3.ok || data3.error) {
+    throw Object.assign(new Error(data3.error?.message ?? "WABA discovery failed"), { metaCode: data3.error?.code })
   }
 
-  return data2.data ?? []
+  const wabas3 = data3.data?.flatMap(b => b.whatsapp_business_accounts?.data ?? []) ?? []
+  return wabas3
 }
 
 /**
