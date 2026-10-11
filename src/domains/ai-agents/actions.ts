@@ -8,7 +8,7 @@ import {
   aiAgentDeployments,
   waPhoneNumbers,
 } from "@/lib/db/schema"
-import { eq, and, desc, max, count, ne } from "drizzle-orm"
+import { eq, and, desc, max, count, ne, inArray } from "drizzle-orm"
 import { z } from "zod"
 import {
   SaveAgentDraftSchema,
@@ -19,6 +19,11 @@ import {
 } from "./types"
 import { getAgentTemplate, getDefaultAgentConfig } from "./templates"
 import type { AgentConfig } from "./types"
+import {
+  createAiAgentDeployment,
+  deactivateDeployment,
+  getDeploymentForPhoneNumber,
+} from "./repository"
 
 // ─── List agents ──────────────────────────────────────────────────────────────
 
@@ -179,6 +184,50 @@ export async function saveAgentDraftAction(input: SaveAgentDraftInput) {
     .returning({ id: aiAgents.id })
 
   if (!updated) return { success: false as const, error: "Error al guardar" }
+
+  // Sync deployment record with the assigned phone number
+  const phoneNumberId = parsed.data.config.despliegue?.phoneNumberId
+
+  if (phoneNumberId) {
+    // Deactivate any existing deployment for this phone (one agent per number)
+    const existing = await getDeploymentForPhoneNumber(phoneNumberId, ctx.orgId)
+    if (existing && existing.agentId !== parsed.data.agentId) {
+      await deactivateDeployment(existing.id, ctx.orgId)
+    }
+    // Create deployment for this agent+phone if none exists
+    const myDeployment = await db
+      .select({ id: aiAgentDeployments.id })
+      .from(aiAgentDeployments)
+      .where(
+        and(
+          eq(aiAgentDeployments.agentId, parsed.data.agentId),
+          eq(aiAgentDeployments.phoneNumberId, phoneNumberId),
+          eq(aiAgentDeployments.orgId, ctx.orgId),
+          eq(aiAgentDeployments.active, true),
+        )
+      )
+      .limit(1)
+
+    if (!myDeployment[0]) {
+      await createAiAgentDeployment(ctx.orgId, {
+        agentId: parsed.data.agentId,
+        phoneNumberId,
+      })
+    }
+  } else {
+    // Phone number cleared — deactivate this agent's deployments
+    await db
+      .update(aiAgentDeployments)
+      .set({ active: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(aiAgentDeployments.agentId, parsed.data.agentId),
+          eq(aiAgentDeployments.orgId, ctx.orgId),
+          eq(aiAgentDeployments.active, true),
+        )
+      )
+  }
+
   return { success: true as const }
 }
 
