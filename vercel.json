@@ -7,6 +7,30 @@
     {
       "path": "/api/cron/audience-sync",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/ai-message-processor",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/ai-media-processor",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/ai-document-processor",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/meta-outbox",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/meta-insights-sync",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/retention-cleanup",
+      "schedule": "0 4 * * *"
     }
   ]
 }

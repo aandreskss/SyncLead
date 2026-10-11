@@ -53,6 +53,30 @@ export const JOB_REGISTRY: Record<string, JobMeta> = {
     timeBudgetMs: 50_000,
     minIntervalMin: 43_200,
   },
+  "ai-message-processor": {
+    name: "ai-message-processor",
+    description: "Claim and process one AI conversation job: run engine, send reply, settle budget",
+    schedule: "every minute",
+    maxDurationSec: 60,
+    timeBudgetMs: 55_000,
+    minIntervalMin: 1,
+  },
+  "ai-media-processor": {
+    name: "ai-media-processor",
+    description: "Download and process one pending WhatsApp media item (vision/transcription)",
+    schedule: "every minute",
+    maxDurationSec: 60,
+    timeBudgetMs: 55_000,
+    minIntervalMin: 1,
+  },
+  "ai-document-processor": {
+    name: "ai-document-processor",
+    description: "Extract, chunk, and index one uploaded knowledge source document",
+    schedule: "every minute",
+    maxDurationSec: 60,
+    timeBudgetMs: 55_000,
+    minIntervalMin: 1,
+  },
 } as const
 
 export type JobName = keyof typeof JOB_REGISTRY

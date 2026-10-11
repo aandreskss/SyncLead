@@ -41,6 +41,7 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **Resend** — emails transaccionales
 - **Upstash Redis** — rate limiting
 - **AES-256-GCM** — cifrado versionado de tokens Meta en DB (`src/lib/crypto.ts`); rotación por `ENCRYPTION_KEY_VERSION`
+- **@anthropic-ai/sdk** — motor LLM (Fase 04); adaptador Anthropic + interfaz `LLMProvider` sustituible
 - **Cloudflare Turnstile** — bot protection para formularios públicos (opcional)
 - **Vercel** — deploy automático desde rama `main`
 
@@ -108,6 +109,13 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **Botón "Enviar" en LeadsView para CAPI pendiente**: el ícono ⚡ en `ActivityBadges` es un botón clickeable. `e.stopPropagation()` evita abrir el LeadDrawer. State `sendingCapiLeadId` trackea el lead en proceso. Después del send hace `router.refresh()` para refrescar `hasPendingCapi`.
 - **`drizzle-kit push` puede bloquearse por prompts TTY**: cuando la CLI detecta cambios que podrían ser destructivos (ej. añadir UNIQUE constraint a tabla con datos), pide confirmación interactiva. En entornos no-TTY usar SQL directo via `neon()` client. Para agregar columnas simples con DEFAULT, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` siempre es seguro.
 - **`calculateTemperature()` eliminado de todos los flujos de ingest**: los tres ingest paths (Modo A `/api/ingest/form`, Modo B `/api/ingest/server`, legacy `/api/leads/ingest`) guardan `temperature: "cold"` y delegan a `autoQualifyLeadInternal()` fire-and-forget. La función `calculateTemperature` aún existe en `normalize.ts` para no romper imports que no se han migrado, pero no se debe invocar en código nuevo.
+- **`leads` tabla no tiene columna `summary`**: usar `leads.notes` en cualquier query o tipo que necesite notas del lead. `LeadPanel.tsx` usa `lead.notes`, `ConversationDetail.lead` define el campo como `notes`. Error de TypeScript garantiza que `leads.summary` no existe.
+- **`waConversationNotes` y `waConversationMessages` son tablas estructuralmente separadas**: las notas del equipo son siempre privadas por diseño — no existe campo `isPrivate`, la tabla misma es la garantía. `waConversationNotes` tiene `authorId` (texto FK → user.id), no `isAi`. Nunca mostrar el contenido de `waConversationNotes` en la vista de mensajes del cliente.
+- **Takeover atómico de conversación (sin transacciones)**: `UPDATE waConversations SET controlMode='human' WHERE controlMode NOT IN ('human')` — si retorna 0 filas, la conversación ya fue tomada por otro agente. Compatible con neon-http PgBouncer (no requiere transacción interactiva). Cancelar también los items de `aiMessageQueue` en estado `enqueued`/`processing` con una segunda UPDATE (non-fatal con `.catch(() => undefined)`).
+- **`isWithinSchedule(windows, timezone)` usa `Intl.DateTimeFormat` para DST**: convertir `now` al timezone local con `now.toLocaleString("en-US", { timeZone: timezone, hour12: false })` y luego `new Date(localStr)` para extraer hora/día locales. NUNCA hacer aritmética manual de offset — los offsets cambian con horario de verano y varían por timezone.
+- **24h Meta eligibility en `replyAction`**: calcular `(now - lastMessageAt) / 1000 / 3600`; si > 24 retornar `{ success: false, error: "...", requiresTemplate: true }`. La UI muestra guidance sobre plantillas en lugar de enviar el mensaje.
+- **`paused/pausedAt/pausedBy` en `ai_agent_deployments`**: un deployment pausado bloquea nuevos envíos de IA. El toggle requiere rol manager o superior (`requireRole(["owner","admin","manager"])`).
+- **`ai_deployment_schedules`**: UNIQUE constraint en `deploymentId` — usar `onConflictDoUpdate` para upsert (una sola fila de horario por deployment). Timezone en IANA (ej: `"America/Caracas"`). Ventanas JSON: `Record<string, Array<{ start: string; end: string }>>` con claves `"mon"..."sun"` y valores `"HH:MM"`.
 - **`autoQualifyLeadInternal` tiene try/finally como red de seguridad absoluta**: el bloque `finally` siempre consulta la tabla `conversions` al terminar (incluso si la función sale con `return` anticipado). Si existe una conversión con `status = "confirmed"`, fuerza `temperature = "hot"`. Esto garantiza que ningún camino de calificación pueda dejar en frío a un lead que ya compró. La guarda `ne(leads.temperature, "hot")` en el `finally` evita writes innecesarios.
 
 ## Arquitectura multi-tenant
@@ -199,6 +207,24 @@ src/
           AdCard.tsx                    ← renderiza AdResult|SavedAd; video/imagen/CORS fallback; save/delete/move
           AdLibrary.tsx                 ← grid guardados; toggle ImportFromUrlForm; empty state con CTA
           ImportFromUrlForm.tsx         ← import manual URL; OG autofetch 800ms debounce; MediaPreview CORS-aware
+      agents/
+        page.tsx + _components/AgentsListView.tsx ← listado + crear (desde cero o plantilla) + duplicar + archivar
+        [id]/page.tsx                   ← editor del agente: carga versiones, phones, knowledge sources, campaigns
+        [id]/_components/AgentEditor.tsx ← editor 6 tabs (objetivo/personalidad/conocimiento/acciones/reglas/despliegue); save draft + publish version; historial versiones
+        [id]/_components/Tab{Objetivo,Personalidad,Conocimiento,Acciones,Reglas,Despliegue}.tsx ← tabs del editor
+        [id]/simulator/page.tsx         ← SSR; requireRole owner/admin; hasApiKey prop
+        [id]/simulator/_components/SimulatorView.tsx ← chat UI + debug panel (tools ejecutadas, stop reason, costo estimado, badge sandbox, advertencia API key)
+      inbox/
+        page.tsx + _components/InboxView.tsx ← bandeja con filtros (mine/unassigned/ai_active/waiting_human/closed); polling con backoff exponencial (5→10→20→30s, reset en actividad del usuario)
+        [conversationId]/page.tsx            ← SSR; notFound() si conversación no existe o no pertenece a la org
+        [conversationId]/_components/
+          ConversationView.tsx  ← polling 10s; mensajes + barra de acciones + panel lead/notas lateral
+          MessageList.tsx       ← burbujas AI (azul) / humano (verde) / cliente (gris); estados de entrega
+          ReplyBox.tsx          ← deshabilitado fuera de modo human; aviso 24h para plantillas (requiresTemplate)
+          ActionBar.tsx         ← take/release/return-to-ai/resolve/reopen; role-gated; useTransition
+          LeadPanel.tsx         ← campos lead (usa lead.notes — NUNCA lead.summary, campo inexistente)
+          NotesPanel.tsx        ← notas privadas del equipo; NUNCA visibles al contacto (tabla separada)
+      settings/channels/page.tsx        ← SSR, requireRole owner/admin; estado real adaptador Meta (WA_CLOUD_APP_SECRET + URL + sendingEnabled); WABA accounts + phone numbers; NUNCA simula conexión exitosa
       health/
         page.tsx                        ← SSR; requireRole owner/admin
         _components/HealthDashboard.tsx ← status dots, CAPI queue, imports, cron history, botones retry; monta HealthCapiLogPanel al final
@@ -217,6 +243,7 @@ src/
         meta-outbox/route.ts            ← procesa cola CAPI (batchSize param, maxDuration=60)
         meta-insights-sync/route.ts     ← sync diario de ad_insights_daily
         retention-cleanup/route.ts      ← nullifica IP/UA expirados; borra PII de erasure requests
+        ai-message-processor/route.ts   ← worker IA: claim atómico dos-paso, runEngine, inserta reply AI, usage record, dead-letter tras 5 intentos
   domains/
     ad-research/    types.ts (AdResult, SavedAd, AdCollection, AdPlatform), repository.ts, actions.ts, fetch-preview.ts ("use server" Googlebot OG scrape)
     auth/           actions.ts
@@ -271,6 +298,19 @@ src/
     lead-ads/
       repository.ts ← getLeadAdSourceByCampaign, getLeadAdSourceByPage (webhook routing), upsertLeadAdSource, deleteLeadAdSource
       actions.ts    ← saveLeadAdSourceAction (cifra Page Access Token), deleteLeadAdSourceAction, getLeadAdSourceAction
+    ai-agents/
+      types.ts      ← schemas Zod + interfaces: AgentConfig (6 tabs), AgentTemplate, versiones, episodios, queue, tool executions, usage records
+      templates.ts  ← AGENT_TEMPLATE_LIST (qualify_leads, sales_advisor, appointment_request, support_faq), getDefaultAgentConfig()
+      repository.ts ← CRUD agentes, versiones, knowledge sources/revisions, episodes, queue (claimNextQueueItem), tool executions, usage records
+      actions.ts    ← createBlankAgentAction, createAgentFromTemplateAction, duplicateAgentAction, archiveAgentAction, saveAgentDraftAction, publishAgentConfigAction, revertToVersionAction
+      simulator-action.ts ← simulatorRunAction (sandbox engine, estimación de costo $3/$15 por 1M tokens Sonnet / $0.25/$1.25 Haiku)
+      inbox-repository.ts ← InboxFilter (mine/unassigned/ai_active/waiting_human/closed); listInboxConversations (paginado + lastMessage preview en JS); getConversationDetail (conversation+messages+notes+lead+assignedUser); takeConversation (atómico: WHERE controlMode != 'human' + cancel aiMessageQueue entries); releaseConversation; returnToAi (llama resolveEpisodeForConversation); resolveConversation (→ closed + paused); reopenConversation (→ active + waiting_human); addNote; listNotes; isWithinSchedule(windows, timezone) — DST-safe via Intl.DateTimeFormat toLocaleString("en-US")
+      inbox-actions.ts    ← takeConversationAction; releaseConversationAction; returnToAiAction; resolveConversationAction; reopenConversationAction; replyAction (busca phone creds via JOIN waPhoneNumbers→waBusinessAccounts + decryptTokenVersioned + CloudApiClient; 24h elegibilidad → { requiresTemplate: true } si > 24h); addNoteAction; upsertScheduleAction (regex HH:MM + onConflictDoUpdate unique deploymentId); toggleDeploymentPauseAction (requireRole manager+)
+      engine/
+        prompts.ts  ← buildSystemPrompt(config, leadContext?): 6 secciones (Identidad/Objetivo/FAQ/Reglas/Contexto lead/Herramientas)
+        knowledge.ts ← loadKnowledgeChunks (8000-char budget trim), formatKnowledgeForPrompt
+        tools.ts    ← 7 tool definitions CRM, executeTool dispatcher, sandbox=no DB writes, getEnabledTools
+        index.ts    ← runEngine(EngineContext): loop ≤5 turnos, tool execution, 2000-char trim, transfer detection; EngineContext/EngineResult
     health/
       repository.ts ← getHealthSnapshot(orgId): DB ping, meta connections, CAPI queue, imports, cron runs, stuck runs; getOrgMetaEvents(orgId, clientId?, limit): LEFT JOIN leads para obtener leadName (null si lead eliminado = huérfano); getClientMetaEvents(orgId, clientId, limit)
       actions.ts    ← retryFailedCapiEventsAction(), retryFailedImportAction(batchId), resolveStuckCronRunsAction(); sendSingleCapiEventAction(eventId): envía evento individual directo (funciona incluso si el lead fue eliminado — payload en DB); cancelOrphanCapiEventsAction(): marca como "cancelled" eventos pending/retrying cuyo lead fue borrado; getOrgMetaEventsAction(clientId?, limit); getClientMetaEventsAction(clientId, limit)
@@ -300,6 +340,10 @@ src/
     monitoring.ts   ← stub con PROVIDER_HOOK comments (Sentry/Axiom/Highlight — pendiente de integrar)
     redis.ts        ← getRedis() — null si UPSTASH_* no configurados
     utils.ts        ← cn()
+    llm/
+      provider.ts   ← import "server-only"; interfaz LLMProvider + tipos LLMMessage, LLMContentBlock, LLMTool, LLMUsage, LLMStopReason, LLMResponse, LLMChatParams
+      anthropic.ts  ← import "server-only"; AnthropicProvider: lee ANTHROPIC_API_KEY, AbortController timeout, disable_parallel_tool_use:true, mapeo SDK↔interfaz
+      index.ts      ← singleton defaultProvider; re-exports de tipos LLM
   __tests__/
     __mocks__/server-only.ts          ← no-op mock para Vitest (alias en vitest.config.ts)
     ingest-schema.test.ts             ← 28 tests validación Zod ingest
@@ -322,6 +366,9 @@ src/
     job-runner.test.ts                ← 12 tests registry invariants, withJobRun, isOverBudget, correlationId
     permissions-matrix.test.ts        ← 45 tests roles×acciones (owner/admin/manager/agent/viewer)
     sale-registration.test.ts         ← 18 tests RegisterSaleSchema, idempotency contract, currency isolation
+    ai-agents-phase03.test.ts         ← 66 tests: getDefaultAgentConfig, templates, schemas Zod (objetivo/personalidad/reglas/despliegue/conocimiento), SaveAgentDraftSchema, merge config
+    ai-agents-engine.test.ts          ← 18 tests: prompt injection (mensajes+fuentes), esquema inválido, tool desconocida, turn limit, sandbox isolation (sin writes DB), API key faltante, recorte output, transfer detection, tools deshabilitadas, budget conocimiento
+    inbox-phase08.test.ts             ← 29 tests: isWithinSchedule (DST, timezone boundaries, ventanas múltiples), takeover atómico (race condition simultánea — 0 rows = ya tomado), separación de notas (waConversationNotes nunca aparece como waConversationMessage), permisos por rol (viewer bloqueado en mutations), pausa global deployments, elegibilidad respuesta 24h (requiresTemplate: true), returnToAi, resolve/reopen, upsertSchedule (validación HH:MM + onConflictDoUpdate)
 scripts/
   seed.ts           ← seed básico (original)
   seed-launch.ts    ← seed de lanzamiento beta: 2 orgs completas (Savaya + Callbell), idempotente
@@ -437,7 +484,7 @@ npm run dev              # desarrollo
 npm run build            # build de producción
 npm run lint             # ESLint
 npx tsc --noEmit         # typecheck
-npx vitest run           # unit tests (910 tests en 24 suites)
+npx vitest run           # unit tests (1265 tests en 33 suites)
 npm run preflight        # verifica env vars obligatorias (exit 0/1)
 npm run preflight:full   # también verifica DB y migraciones aplicadas
 npm run seed:launch      # seed beta: 2 orgs completas (idempotente)
@@ -715,3 +762,30 @@ npx drizzle-kit studio   # UI visual de la DB
     - Ad Research: eyebrow "INVESTIGADOR DE ANUNCIOS", tabs pill `rounded-full`, card borders ops tokens
   - [x] **`/dashboard/visitors`** (nueva página org-level): `requireOrganizationMembership`, grid de clientes → selector, 4 `KPICard` (únicos/con intención/leads vinculados/tiempo promedio), tabla de sesiones con signal chips, días 7/30/90, link a detalle por cliente. Pure server component. Usa `getVisitorSessionsByClient` existente.
   - [x] **`/dashboard/insights-meta`** (nueva página): estado "no conectado" con `Panel` + `EmptyState`, chip "No conectado", botones "Conectar Meta" y "Ver diagnóstico". Sección de vista previa borrosa (backdrop-blur) con ribbon "VISTA PREVIA" + datos de ejemplo estáticos (tarjetas canales, tabla señales, panel navy Radar de intención). Sin API wiring, sin tablas nuevas.
+- [x] Agentes IA — Fase 08: Bandeja real y controles de despliegue (2026-10-10)
+  - [x] Schema: tabla `wa_conversation_notes` (notas privadas, `authorId → user.id`, `conversationId → wa_conversations`); tabla `ai_deployment_schedules` (IANA timezone + windows JSONB, UNIQUE deploymentId); columnas `paused/paused_at/paused_by` en `ai_agent_deployments`
+  - [x] Migración: `drizzle/0021_phase08_inbox.sql`
+  - [x] `inbox-repository.ts`: filtros bandeja, paginación, lastMessage preview batch, takeover atómico (WHERE controlMode != 'human' + cancel queue), returnToAi, resolve/reopen, notas privadas, `isWithinSchedule` DST-safe
+  - [x] `inbox-actions.ts`: todas las acciones de la bandeja; `replyAction` con lookup phone creds + 24h eligibility (requiresTemplate); `upsertScheduleAction` con validación HH:MM + onConflictDoUpdate; `toggleDeploymentPauseAction` (manager+)
+  - [x] `TabDespliegue.tsx` + `AgentEditor.tsx`: panel pausa/activar deployment + editor de horario IANA con ventanas por día de semana
+  - [x] UI: `/dashboard/inbox` (InboxView + ConversationCard + filtros + polling backoff); `/dashboard/inbox/[conversationId]` (ConversationView + MessageList + ReplyBox + ActionBar + LeadPanel + NotesPanel)
+  - [x] `DashboardNav.tsx`: enlace "Bandeja" (`Inbox` icon) añadido al grupo Agentes IA
+  - [x] `inbox-phase08.test.ts`: 29 tests pasando — race condition takeover, DST timezone, separación de notas, permisos por rol, pausa global, elegibilidad 24h, returnToAi, resolve/reopen, upsertSchedule
+- [x] Agentes IA — Fase 09: Consumo real y analíticas (2026-10-10)
+  - [x] Migración: `drizzle/0022_phase09_usage_budget.sql` — tablas `ai_pricing_tiers` (tarifas versionadas Anthropic published), ALTER `ai_usage_records` (+10 cols: cacheReadTokens, cacheWriteTokens, totalCostMillicents, isSandbox, callType, inputCostMillicents, outputCostMillicents, cacheReadCostMillicents, cacheWriteCostMillicents, pricingTierId), `ai_budget_limits` (UNIQUE orgId, alertThresholdPct), `ai_budget_reservations` (UNIQUE queueItemId, status enum, settledAt). Seed: Sonnet 4.6 (300/1500/30/375 mc/1000tok), Haiku 4.5 (80/400/8/100 mc/1000tok)
+  - [x] Schema: 3 nuevas tablas + relaciones + 6 tipos exportados (AiPricingTier, AiBudgetLimit, AiBudgetReservation + New*)
+  - [x] `LLMUsage`: +`cacheReadTokens?`, `cacheWriteTokens?` — mapeados desde SDK Anthropic `cache_read_input_tokens`/`cache_creation_input_tokens` con safe cast + `?? 0`
+  - [x] `EngineResult`: +`totalCacheReadTokens`, `totalCacheWriteTokens` — acumulados en loop del engine
+  - [x] **Bug fix crítico**: `recordUsage()` sobreescribía `tokenCountIn/Out` en `aiEpisodes` en lugar de acumular — corregido a `sql\`token_count_in + ${n}\``
+  - [x] `cost-calculator.ts`: `getActivePricingTier`, `resolveModelPricingTier` (exact + fuzzy family), `computeCostMillicents` (millicents/1000tokens — no floats), `computeConservativeReservationMillicents` (+20% buffer), `formatMillicentsAsUsd` ("N/D" si null), `getModelDisplayName`
+  - [x] `budget-repository.ts`: `getBudgetLimits`, `upsertBudgetLimits` (onConflictDoUpdate UNIQUE orgId), `getOrgSpendMillicents` (confirmed + active reservations), `getConversationSpendMillicents`, `checkBudgetAndReserve` (discriminated union, onConflictDoNothing UNIQUE queueItemId), `settleReservation` (WHERE status='reserved' — no double-settle), `releaseOrphanedReservations` (30min cutoff), `getDailyBudgetAlertStatus`
+  - [x] `analytics-repository.ts`: `getEpisodeSummary` (multi-step, cero denominadores → null, filtro agentId via versiones), `listConversationsWithEpisodes` (paginado, batch-load), `getDailyUsageSeries` (GROUP BY DATE)
+  - [x] `repository.ts`: `recordUsage()` ahora persiste los 9 campos nuevos de Phase 09; bug fix tokenCount accumulation
+  - [x] `ai-message-processor/route.ts`: Step 0.5 (orphan cleanup), Step 3.5 (pricing tier → conservative estimate → budget check → deny: waiting_human + endEpisode(budget)), Step 11 (compute real cost → recordUsage con costos → settleReservation consumed), catch (settleReservation released)
+  - [x] `simulator-action.ts`: usa `resolveModelPricingTier + computeCostMillicents + formatMillicentsAsUsd` (real pricing de DB); `SimulatorDebugInfo.estimatedCost` con cacheTokens y pricingSource
+  - [x] `budget-actions.ts`: `getBudgetLimitsAction`, `upsertBudgetLimitsAction` (owner/admin only), `getBudgetStatusAction` (daily + monthly spend + alert)
+  - [x] `analytics-actions.ts`: `getEpisodeSummaryAction`, `listConversationsAction`, `getDailyUsageSeriesAction` — Server Actions con validación Zod
+  - [x] UI: `/dashboard/agents/analytics/` — `AnalyticsDashboard` (filtros fecha/agente), `UsageSummaryCards` (12 KPIs en 3 rows), `EpisodesTable` (paginada, definición de métricas en footer), `BudgetStatusBar` (progress bar + alert threshold)
+  - [x] `DashboardNav.tsx`: enlace "Analíticas" (`ChartColumn` icon) añadido al grupo Agentes IA; `isActive` actualizado para prefer longest match (evita conflicto /agents vs /agents/analytics)
+  - [x] `ai-agents-phase09.test.ts`: 35 tests — costo Sonnet/Haiku (formula mc/1000tokens), cache barato vs caro, zero tokens, null cache rates, reserva conservadora (+20%), formatMillicentsAsUsd (null→N/D, boundary 0.00001), multi-tenant isolation, denominador cero, exit reasons sin duplicar, unique leads deduplication, tokenCount acumulativo (bug fix), isSandbox, millicents precision, concurrencia de presupuesto
+  - [x] Decisiones críticas: millicents = 1/100_000 USD (bigint, sin floats); rates almacenadas mc/1000tokens (tokens < 1mc cada uno); source `anthropic_published` ≠ tarifas Callbell; costos WhatsApp siempre "N/D" (sin datos verificados, nunca cero supuesto); budget exhaustion → `waiting_human` + endEpisode("budget") (nunca chat invisible)

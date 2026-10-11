@@ -14,8 +14,14 @@ import {
   date,
   primaryKey,
   bigint,
+  customType,
 } from "drizzle-orm/pg-core"
 import { relations, sql } from "drizzle-orm"
+
+// tsvector custom type (stored by processor via raw SQL to_tsvector)
+const tsvector = customType<{ data: string }>({
+  dataType() { return "tsvector" },
+})
 import type { AdapterAccountType } from "next-auth/adapters"
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -1578,6 +1584,9 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   conversions: many(conversions),
   metaEvents: many(metaEvents),
   ingestErrors: many(ingestErrors),
+  waBusinessAccounts: many(waBusinessAccounts),
+  waOauthStates: many(waOauthStates),
+  aiAgents: many(aiAgents),
 }))
 
 export const ingestErrorsRelations = relations(ingestErrors, ({ one }) => ({
@@ -1654,6 +1663,7 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
   metaEvents: many(metaEvents),
   importRows: many(importRows),
   waMessages: many(waMessages),
+  waConversations: many(waConversations),
 }))
 
 export const qualificationRuleSetsRelations = relations(qualificationRuleSets, ({ one, many }) => ({
@@ -2072,6 +2082,929 @@ export const adResearchItemsRelations = relations(adResearchItems, ({ one }) => 
   collection: one(adResearchCollections, { fields: [adResearchItems.collectionId], references: [adResearchCollections.id] }),
 }))
 
+// ─── AI WhatsApp Agents — Phase 01 Foundation ────────────────────────────────
+
+export const waBusinessAccounts = pgTable(
+  "wa_business_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    wabaId: text("waba_id").notNull(),
+    displayName: text("display_name").notNull(),
+    accessTokenEnc: text("access_token_enc"),
+    keyVersion: integer("key_version").notNull().default(1),
+    status: text("status").notNull().default("active"),
+    webhookVerifyToken: text("webhook_verify_token"),
+    // Phase 12: OAuth connection lifecycle
+    connectionMode: text("connection_mode").notNull().default("manual"),
+    connectionStatus: text("connection_status").notNull().default("active"),
+    oauthScopes: text("oauth_scopes").array().notNull().default([]),
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+    connectedAt: timestamp("connected_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    lastErrorCode: text("last_error_code"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("wa_business_accounts_org_id_idx").on(t.orgId),
+    uniqueIndex("wa_business_accounts_org_waba_idx").on(t.orgId, t.wabaId),
+    // Cross-tenant guard: one Meta WABA ID per system (Phase 02)
+    uniqueIndex("wa_business_accounts_waba_id_global_idx").on(t.wabaId),
+  ]
+)
+
+// ─── Phase 12: OAuth CSRF State Tokens ────────────────────────────────────────
+
+export const waOauthStates = pgTable(
+  "wa_oauth_states",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    returnPath: text("return_path").notNull().default("/dashboard/settings/channels"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("wa_oauth_states_org_id_idx").on(t.orgId),
+    index("wa_oauth_states_expires_idx").on(t.expiresAt),
+  ]
+)
+
+export const waPhoneNumbers = pgTable(
+  "wa_phone_numbers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    wabaAccountId: uuid("waba_account_id")
+      .notNull()
+      .references(() => waBusinessAccounts.id, { onDelete: "cascade" }),
+    phoneNumberId: text("phone_number_id").notNull(),
+    displayPhoneNumber: text("display_phone_number").notNull(),
+    verifiedName: text("verified_name"),
+    qualityRating: text("quality_rating"),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("wa_phone_numbers_org_id_idx").on(t.orgId),
+    index("wa_phone_numbers_waba_id_idx").on(t.wabaAccountId),
+    uniqueIndex("wa_phone_numbers_org_phone_id_idx").on(t.orgId, t.phoneNumberId),
+    // Cross-tenant guard: one Meta phone_number_id per system (Phase 02)
+    uniqueIndex("wa_phone_numbers_phone_number_id_global_idx").on(t.phoneNumberId),
+  ]
+)
+
+export const aiAgents = pgTable(
+  "ai_agents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    systemPrompt: text("system_prompt").notNull().default(""),
+    model: text("model").notNull().default("claude-sonnet-4-6"),
+    aiTemperature: numeric("ai_temperature", { precision: 3, scale: 2 }).notNull().default("0.70"),
+    maxTokens: integer("max_tokens").notNull().default(1024),
+    toolsEnabled: text("tools_enabled").array().notNull().default([]),
+    handoffTriggers: jsonb("handoff_triggers").$type<Record<string, unknown>>().notNull().default({}),
+    greetingMessage: text("greeting_message"),
+    active: boolean("active").notNull().default(true),
+    // Phase 03: structured config (6-tab editor) + lifecycle status
+    agentConfig: jsonb("agent_config").$type<Record<string, unknown>>().notNull().default({}),
+    status: text("status").notNull().default("draft"), // draft | active | paused | archived
+    createdById: text("created_by_id")
+      .references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_agents_org_id_idx").on(t.orgId),
+    index("ai_agents_org_status_idx").on(t.orgId, t.status),
+  ]
+)
+
+export const aiAgentDeployments = pgTable(
+  "ai_agent_deployments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => aiAgents.id, { onDelete: "cascade" }),
+    phoneNumberId: uuid("phone_number_id")
+      .notNull()
+      .references(() => waPhoneNumbers.id, { onDelete: "cascade" }),
+    active: boolean("active").notNull().default(true),
+    // Phase 08 — pause controls
+    paused: boolean("paused").notNull().default(false),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    pausedBy: text("paused_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_agent_deployments_org_id_idx").on(t.orgId),
+    index("ai_agent_deployments_agent_id_idx").on(t.agentId),
+    uniqueIndex("ai_agent_deployments_phone_org_idx").on(t.phoneNumberId, t.orgId),
+  ]
+)
+
+// ─── AI Deployment Schedules (Phase 08) ───────────────────────────────────────
+
+export const aiDeploymentSchedules = pgTable(
+  "ai_deployment_schedules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    deploymentId: uuid("deployment_id")
+      .notNull()
+      .references(() => aiAgentDeployments.id, { onDelete: "cascade" })
+      .unique(),
+    // IANA timezone string, e.g. "America/Caracas"
+    timezone: text("timezone").notNull().default("UTC"),
+    // { mon:[{start:"09:00",end:"17:00"}], ... }
+    windows: jsonb("windows")
+      .$type<Record<string, Array<{ start: string; end: string }>>>()
+      .notNull()
+      .default({}),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_deployment_schedules_org_id_idx").on(t.orgId),
+  ]
+)
+
+export const waConversations = pgTable(
+  "wa_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    phoneNumberId: uuid("phone_number_id")
+      .notNull()
+      .references(() => waPhoneNumbers.id, { onDelete: "cascade" }),
+    customerPhone: text("customer_phone").notNull(),
+    customerName: text("customer_name"),
+    leadId: uuid("lead_id")
+      .references(() => leads.id, { onDelete: "set null" }),
+    deploymentId: uuid("deployment_id")
+      .references(() => aiAgentDeployments.id, { onDelete: "set null" }),
+    // CRM lifecycle: active | closed
+    status: text("status").notNull().default("active"),
+    // Control mode (Phase 02): ai | waiting_human | human | paused
+    // Separate from status — governs who is responding, not whether thread is open/closed.
+    controlMode: text("control_mode").notNull().default("ai"),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    assignedTo: text("assigned_to")
+      .references(() => users.id, { onDelete: "set null" }),
+    summary: text("summary"),
+    messageCount: integer("message_count").notNull().default(0),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("wa_conversations_org_id_idx").on(t.orgId),
+    index("wa_conversations_phone_number_id_idx").on(t.phoneNumberId),
+    index("wa_conversations_lead_id_idx").on(t.leadId),
+    index("wa_conversations_last_msg_idx").on(t.lastMessageAt),
+    index("wa_conversations_control_mode_idx").on(t.orgId, t.controlMode),
+    uniqueIndex("wa_conversations_org_phone_customer_idx").on(t.orgId, t.phoneNumberId, t.customerPhone),
+  ]
+)
+
+export const waConversationMessages = pgTable(
+  "wa_conversation_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id, { onDelete: "cascade" }),
+    direction: text("direction").notNull().default("inbound"),
+    role: text("role").notNull().default("user"),
+    content: text("content").notNull().default(""),
+    contentType: text("content_type").notNull().default("text"),
+    mediaUrl: text("media_url"),
+    externalMessageId: text("external_message_id"),
+    status: text("status").notNull().default("sent"),
+    tokenCount: integer("token_count"),
+    isAi: boolean("is_ai").notNull().default(false),
+    // Phase 10B — media processing
+    mediaProcessingStatus: text("media_processing_status"),
+    mediaStorageKey: text("media_storage_key"),
+    mediaSizeBytes: bigint("media_size_bytes", { mode: "number" }),
+    transcriptionText: text("transcription_text"),
+    imageDescription: text("image_description"),
+    mediaTokensUsed: integer("media_tokens_used"),
+    mediaProcessedAt: timestamp("media_processed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("wa_conv_messages_conversation_id_idx").on(t.conversationId),
+    index("wa_conv_messages_org_id_idx").on(t.orgId),
+    index("wa_conv_messages_created_at_idx").on(t.createdAt),
+    uniqueIndex("wa_conv_messages_external_id_idx")
+      .on(t.externalMessageId)
+      .where(sql`external_message_id IS NOT NULL`),
+  ]
+)
+
+export const waAgentEvents = pgTable(
+  "wa_agent_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("wa_agent_events_org_id_idx").on(t.orgId),
+    index("wa_agent_events_conversation_id_idx").on(t.conversationId),
+    index("wa_agent_events_created_at_idx").on(t.createdAt),
+  ]
+)
+
+// ─── WA Conversation Notes (Phase 08 — private, never shown as messages) ──────
+
+export const waConversationNotes = pgTable(
+  "wa_conversation_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id, { onDelete: "cascade" }),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("wa_conversation_notes_conversation_id_idx").on(t.conversationId),
+    index("wa_conversation_notes_org_id_idx").on(t.orgId),
+  ]
+)
+
+// ─── AI Agents — Phase 02 Tables ─────────────────────────────────────────────
+
+export const aiAgentVersions = pgTable(
+  "ai_agent_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => aiAgents.id, { onDelete: "cascade" }),
+    versionNumber: integer("version_number").notNull(),
+    // Immutable snapshot of the full agent config at publish time.
+    snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull().default({}),
+    status: text("status").notNull().default("draft"), // draft | published | archived
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    publishedBy: text("published_by").references(() => users.id, { onDelete: "set null" }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    archivedBy: text("archived_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_agent_versions_agent_id_idx").on(t.agentId),
+    index("ai_agent_versions_org_id_idx").on(t.orgId),
+    uniqueIndex("ai_agent_versions_agent_version_idx").on(t.agentId, t.versionNumber),
+    // Atomic publication guard: at most one published version per agent at a time.
+    uniqueIndex("ai_agent_versions_agent_published_idx")
+      .on(t.agentId)
+      .where(sql`status = 'published'`),
+  ]
+)
+
+export const aiKnowledgeSources = pgTable(
+  "ai_knowledge_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    sourceType: text("source_type").notNull().default("text"), // text | url | file
+    content: text("content"),   // for sourceType=text; mutable — create a revision on each change
+    url: text("url"),            // for sourceType=url
+    fileKey: text("file_key"),   // storage reference for sourceType=file
+    status: text("status").notNull().default("active"), // active | revoked
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: text("revoked_by").references(() => users.id, { onDelete: "set null" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    // Phase 10A — document processing metadata (null for text/url sources)
+    processingStatus: text("processing_status").notNull().default("available"),
+    processingError: text("processing_error"),
+    contentFingerprint: text("content_fingerprint"),
+    pageCount: integer("page_count"),
+    rowCount: integer("row_count"),
+    fileSizeBytes: bigint("file_size_bytes", { mode: "number" }),
+    mimeType: text("mime_type"),
+    originalFilename: text("original_filename"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_knowledge_sources_org_id_idx").on(t.orgId),
+    index("ai_knowledge_sources_status_idx").on(t.orgId, t.status),
+  ]
+)
+
+export const aiKnowledgeRevisions = pgTable(
+  "ai_knowledge_revisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => aiKnowledgeSources.id, { onDelete: "cascade" }),
+    revisionNumber: integer("revision_number").notNull(),
+    contentHash: text("content_hash").notNull(), // SHA-256(content) for change detection
+    content: text("content").notNull(),          // immutable snapshot
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_knowledge_revisions_source_id_idx").on(t.sourceId),
+    uniqueIndex("ai_knowledge_revisions_source_revision_idx").on(t.sourceId, t.revisionNumber),
+  ]
+)
+
+export const aiAgentVersionKnowledge = pgTable(
+  "ai_agent_version_knowledge",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    agentVersionId: uuid("agent_version_id")
+      .notNull()
+      .references(() => aiAgentVersions.id, { onDelete: "cascade" }),
+    // ON DELETE RESTRICT: revoke the source instead of deleting it when linked to a version.
+    knowledgeSourceId: uuid("knowledge_source_id")
+      .notNull()
+      .references(() => aiKnowledgeSources.id, { onDelete: "restrict" }),
+    knowledgeRevisionId: uuid("knowledge_revision_id")
+      .notNull()
+      .references(() => aiKnowledgeRevisions.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_agent_version_knowledge_version_idx").on(t.agentVersionId),
+    // At most one revision per source per version.
+    uniqueIndex("ai_agent_version_knowledge_version_source_idx").on(t.agentVersionId, t.knowledgeSourceId),
+  ]
+)
+
+export const aiCampaignRules = pgTable(
+  "ai_campaign_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    deploymentId: uuid("deployment_id")
+      .notNull()
+      .references(() => aiAgentDeployments.id, { onDelete: "cascade" }),
+    // NULL = catch-all rule (applies to all campaigns for this deployment).
+    campaignId: uuid("campaign_id")
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    priority: integer("priority").notNull().default(0), // higher = evaluated first
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_campaign_rules_deployment_id_idx").on(t.deploymentId),
+    index("ai_campaign_rules_campaign_id_idx").on(t.campaignId),
+    // One specific rule per (deployment, campaign) pair.
+    uniqueIndex("ai_campaign_rules_dep_campaign_idx")
+      .on(t.deploymentId, t.campaignId)
+      .where(sql`campaign_id IS NOT NULL`),
+    // One catch-all rule per deployment.
+    uniqueIndex("ai_campaign_rules_dep_catchall_idx")
+      .on(t.deploymentId)
+      .where(sql`campaign_id IS NULL`),
+  ]
+)
+
+export const aiEpisodes = pgTable(
+  "ai_episodes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id, { onDelete: "cascade" }),
+    // Fixed at episode start — config changes to the agent don't alter active episodes.
+    agentVersionId: uuid("agent_version_id")
+      .notNull()
+      .references(() => aiAgentVersions.id),
+    // Campaign context at episode start (for tool calls and CRM operations).
+    campaignId: uuid("campaign_id")
+      .references(() => campaigns.id, { onDelete: "set null" }),
+    // [{sourceId, revisionId, revisionNumber}] — frozen at start.
+    // Revoked sources are still listed here for audit; engine skips retrieval of revoked ones.
+    knowledgeSnapshot: jsonb("knowledge_snapshot").$type<Array<{
+      sourceId: string; revisionId: string; revisionNumber: number
+    }>>().notNull().default([]),
+    triggerMessageId: uuid("trigger_message_id")
+      .references(() => waConversationMessages.id, { onDelete: "set null" }),
+    status: text("status").notNull().default("active"), // active | ended
+    // exit_reason values: objective_met | human_requested | transfer_rule | inactivity | error | budget | limit
+    exitReason: text("exit_reason"),
+    exitDetail: text("exit_detail"), // sanitized; no raw API errors or PII
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    // Aggregate LLM usage for this episode.
+    tokenCountIn: integer("token_count_in").notNull().default(0),
+    tokenCountOut: integer("token_count_out").notNull().default(0),
+    // Actual model used (copied from snapshot at start; immutable for audit).
+    modelUsed: text("model_used"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_episodes_org_id_idx").on(t.orgId),
+    index("ai_episodes_conversation_id_idx").on(t.conversationId),
+    index("ai_episodes_agent_version_id_idx").on(t.agentVersionId),
+    index("ai_episodes_status_idx").on(t.orgId, t.status),
+  ]
+)
+
+export const aiMessageQueue = pgTable(
+  "ai_message_queue",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id, { onDelete: "cascade" }),
+    incomingMessageId: uuid("incoming_message_id")
+      .notNull()
+      .references(() => waConversationMessages.id, { onDelete: "cascade" }),
+    // FSM: enqueued → processing → done
+    //              └─► failed ──(backoff)──► processing → dead_letter
+    status: text("status").notNull().default("enqueued"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    claimAt: timestamp("claim_at", { withTimezone: true }).notNull().defaultNow(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    claimedBy: text("claimed_by"), // correlation ID of worker (never PII)
+    // Phase 07: fencing token — set on claim, checked on all subsequent mutations.
+    // Prevents a stale worker (reclaimed after orphan recovery) from completing its run.
+    leaseToken: uuid("lease_token"),
+    errorLast: text("error_last"), // sanitized error from last attempt
+    deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_message_queue_org_id_idx").on(t.orgId),
+    index("ai_message_queue_status_claim_idx").on(t.status, t.claimAt),
+    index("ai_message_queue_conversation_id_idx").on(t.conversationId),
+    // Deduplication: prevents the same incoming message from being queued twice.
+    uniqueIndex("ai_message_queue_message_id_idx").on(t.incomingMessageId),
+  ]
+)
+
+export const aiToolExecutions = pgTable(
+  "ai_tool_executions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    episodeId: uuid("episode_id")
+      .notNull()
+      .references(() => aiEpisodes.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id),
+    toolName: text("tool_name").notNull(),
+    input: jsonb("input").$type<Record<string, unknown>>().notNull().default({}),
+    output: jsonb("output").$type<Record<string, unknown>>(),
+    status: text("status").notNull().default("success"), // success | error | pending
+    durationMs: integer("duration_ms"),
+    errorDetail: text("error_detail"), // sanitized (no PII, no raw API messages)
+    // Phase 05: stable per-retry key = SHA-256("tool:" + queueItemId + ":" + toolName + ":" + callIndex)
+    // Partial unique index (WHERE NOT NULL) prevents duplicate side effects on cron retries.
+    idempotencyKey: text("idempotency_key"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_tool_executions_episode_id_idx").on(t.episodeId),
+    index("ai_tool_executions_org_id_idx").on(t.orgId),
+    index("ai_tool_executions_conversation_id_idx").on(t.conversationId),
+  ]
+)
+
+export const aiUsageRecords = pgTable(
+  "ai_usage_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    episodeId: uuid("episode_id")
+      .notNull()
+      .references(() => aiEpisodes.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id),
+    provider: text("provider").notNull(), // anthropic | openai | google
+    model: text("model").notNull(),       // full model name (e.g., claude-sonnet-4-6)
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    latencyMs: integer("latency_ms"),
+    // Phase 09 — cache token tracking
+    cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
+    cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+    // Phase 09 — cost ledger in millicents (1/100,000 USD). Nullable = not yet computed.
+    inputCostMillicents: bigint("input_cost_millicents", { mode: "number" }),
+    outputCostMillicents: bigint("output_cost_millicents", { mode: "number" }),
+    cacheReadCostMillicents: bigint("cache_read_cost_millicents", { mode: "number" }),
+    cacheWriteCostMillicents: bigint("cache_write_cost_millicents", { mode: "number" }),
+    totalCostMillicents: bigint("total_cost_millicents", { mode: "number" }),
+    pricingTierId: uuid("pricing_tier_id")
+      .references(() => aiPricingTiers.id, { onDelete: "set null" }),
+    // Phase 09 — sandbox flag separates test from production spend
+    isSandbox: boolean("is_sandbox").notNull().default(false),
+    // Phase 09 — call type: inference | embedding | transcription | recovery
+    callType: text("call_type").notNull().default("inference"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_usage_records_episode_id_idx").on(t.episodeId),
+    index("ai_usage_records_org_id_idx").on(t.orgId),
+    index("ai_usage_records_created_at_idx").on(t.orgId, t.createdAt),
+    // Phase 09 — analytics composite index (org + time + sandbox filter)
+    index("ai_usage_records_analytics_idx").on(t.orgId, t.createdAt, t.isSandbox),
+  ]
+)
+
+// ─── Phase 09: Pricing tiers, budget limits and reservations ─────────────────
+
+export const aiPricingTiers = pgTable(
+  "ai_pricing_tiers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider").notNull(), // anthropic | openai | google
+    model: text("model").notNull(),
+    displayName: text("display_name").notNull(),
+    // Cost stored in millicents (1/100,000 USD) per token, as bigint to avoid float precision loss
+    inputMillicentsPerToken: bigint("input_millicents_per_token", { mode: "number" }).notNull(),
+    outputMillicentsPerToken: bigint("output_millicents_per_token", { mode: "number" }).notNull(),
+    cacheReadMillicentsPerToken: bigint("cache_read_millicents_per_token", { mode: "number" }),
+    cacheWriteMillicentsPerToken: bigint("cache_write_millicents_per_token", { mode: "number" }),
+    // anthropic_published = Anthropic's public page rates (NOT Callbell's internal rates)
+    source: text("source").notNull().default("anthropic_published"),
+    note: text("note"),
+    effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull().defaultNow(),
+    effectiveTo: timestamp("effective_to", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_pricing_tiers_provider_model_idx").on(t.provider, t.model, t.effectiveFrom),
+  ]
+)
+
+export const aiBudgetLimits = pgTable(
+  "ai_budget_limits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .unique()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    dailyLimitMillicents: bigint("daily_limit_millicents", { mode: "number" }),
+    monthlyLimitMillicents: bigint("monthly_limit_millicents", { mode: "number" }),
+    perConversationLimitMillicents: bigint("per_conversation_limit_millicents", { mode: "number" }),
+    alertThresholdPct: integer("alert_threshold_pct").notNull().default(80),
+    pauseOnExhaust: boolean("pause_on_exhaust").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  }
+)
+
+export const aiBudgetReservations = pgTable(
+  "ai_budget_reservations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    queueItemId: uuid("queue_item_id")
+      .notNull()
+      .unique()
+      .references(() => aiMessageQueue.id, { onDelete: "cascade" }),
+    episodeId: uuid("episode_id")
+      .references(() => aiEpisodes.id, { onDelete: "set null" }),
+    reservedMillicents: bigint("reserved_millicents", { mode: "number" }).notNull(),
+    // reserved | consumed | released | orphaned
+    status: text("status").notNull().default("reserved"),
+    releasedReason: text("released_reason"),
+    reservedAt: timestamp("reserved_at", { withTimezone: true }).notNull().defaultNow(),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+    usageRecordId: uuid("usage_record_id")
+      .references(() => aiUsageRecords.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    index("ai_budget_reservations_org_status_idx").on(t.orgId, t.status),
+  ]
+)
+
+// ─── Phase 10A: Document knowledge chunks ────────────────────────────────────
+
+export const aiKnowledgeChunks = pgTable(
+  "ai_knowledge_chunks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => aiKnowledgeSources.id, { onDelete: "cascade" }),
+    revisionId: uuid("revision_id")
+      .notNull()
+      .references(() => aiKnowledgeRevisions.id, { onDelete: "cascade" }),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    contentLength: integer("content_length").notNull().default(0),
+    // {page: 1} for PDF  |  {sheet: "Hoja1", row_start: 1, row_end: 50} for CSV
+    locationRef: jsonb("location_ref").$type<Record<string, unknown>>().notNull().default({}),
+    // tsvector written by processor via raw SQL; null until processing completes
+    searchVector: tsvector("search_vector"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ai_knowledge_chunks_dedup_idx").on(t.sourceId, t.revisionId, t.chunkIndex),
+    index("ai_knowledge_chunks_source_idx").on(t.sourceId),
+    index("ai_knowledge_chunks_org_idx").on(t.orgId),
+  ]
+)
+
+export const aiDocumentQueue = pgTable(
+  "ai_document_queue",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => aiKnowledgeSources.id, { onDelete: "cascade" }),
+    // pending | processing | done | dead_letter
+    status: text("status").notNull().default("pending"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    claimAt: timestamp("claim_at", { withTimezone: true }).notNull().defaultNow(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    claimedBy: text("claimed_by"),
+    errorLast: text("error_last"),
+    deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_document_queue_status_idx").on(t.status, t.claimAt),
+  ]
+)
+
+// ─── Phase 10B: Incoming media queue ─────────────────────────────────────────
+
+export const aiMediaQueue = pgTable(
+  "ai_media_queue",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => waConversations.id, { onDelete: "cascade" }),
+    // UNIQUE: one job per message — idempotent against Meta webhook retries
+    messageId: uuid("message_id")
+      .notNull()
+      .unique()
+      .references(() => waConversationMessages.id, { onDelete: "cascade" }),
+    // Meta Graph API media ID used to download via authenticated GET
+    waMediaId: text("wa_media_id").notNull(),
+    mimeType: text("mime_type").notNull(),
+    // pending | processing | done | unsupported | dead_letter
+    status: text("status").notNull().default("pending"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    claimAt: timestamp("claim_at", { withTimezone: true }).notNull().defaultNow(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    claimedBy: text("claimed_by"),
+    errorLast: text("error_last"),
+    deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_media_queue_status_idx").on(t.status, t.claimAt),
+    index("ai_media_queue_conversation_idx").on(t.conversationId, t.status),
+  ]
+)
+
+// ─── AI Agents Relations ──────────────────────────────────────────────────────
+
+export const waBusinessAccountsRelations = relations(waBusinessAccounts, ({ one, many }) => ({
+  organization: one(organizations, { fields: [waBusinessAccounts.orgId], references: [organizations.id] }),
+  phoneNumbers: many(waPhoneNumbers),
+}))
+
+export const waOauthStatesRelations = relations(waOauthStates, ({ one }) => ({
+  organization: one(organizations, { fields: [waOauthStates.orgId], references: [organizations.id] }),
+}))
+
+export const waPhoneNumbersRelations = relations(waPhoneNumbers, ({ one, many }) => ({
+  organization: one(organizations, { fields: [waPhoneNumbers.orgId], references: [organizations.id] }),
+  wabaAccount: one(waBusinessAccounts, { fields: [waPhoneNumbers.wabaAccountId], references: [waBusinessAccounts.id] }),
+  deployments: many(aiAgentDeployments),
+  conversations: many(waConversations),
+}))
+
+export const aiAgentsRelations = relations(aiAgents, ({ one, many }) => ({
+  organization: one(organizations, { fields: [aiAgents.orgId], references: [organizations.id] }),
+  createdBy: one(users, { fields: [aiAgents.createdById], references: [users.id] }),
+  deployments: many(aiAgentDeployments),
+  versions: many(aiAgentVersions),
+}))
+
+export const aiAgentDeploymentsRelations = relations(aiAgentDeployments, ({ one, many }) => ({
+  organization: one(organizations, { fields: [aiAgentDeployments.orgId], references: [organizations.id] }),
+  agent: one(aiAgents, { fields: [aiAgentDeployments.agentId], references: [aiAgents.id] }),
+  phoneNumber: one(waPhoneNumbers, { fields: [aiAgentDeployments.phoneNumberId], references: [waPhoneNumbers.id] }),
+  conversations: many(waConversations),
+  campaignRules: many(aiCampaignRules),
+}))
+
+export const waConversationsRelations = relations(waConversations, ({ one, many }) => ({
+  organization: one(organizations, { fields: [waConversations.orgId], references: [organizations.id] }),
+  phoneNumber: one(waPhoneNumbers, { fields: [waConversations.phoneNumberId], references: [waPhoneNumbers.id] }),
+  lead: one(leads, { fields: [waConversations.leadId], references: [leads.id] }),
+  deployment: one(aiAgentDeployments, { fields: [waConversations.deploymentId], references: [aiAgentDeployments.id] }),
+  assignedUser: one(users, { fields: [waConversations.assignedTo], references: [users.id] }),
+  messages: many(waConversationMessages),
+  agentEvents: many(waAgentEvents),
+  episodes: many(aiEpisodes),
+  queueItems: many(aiMessageQueue),
+}))
+
+export const waConversationMessagesRelations = relations(waConversationMessages, ({ one, many }) => ({
+  organization: one(organizations, { fields: [waConversationMessages.orgId], references: [organizations.id] }),
+  conversation: one(waConversations, { fields: [waConversationMessages.conversationId], references: [waConversations.id] }),
+  queueItem: many(aiMessageQueue),
+}))
+
+export const waAgentEventsRelations = relations(waAgentEvents, ({ one }) => ({
+  organization: one(organizations, { fields: [waAgentEvents.orgId], references: [organizations.id] }),
+  conversation: one(waConversations, { fields: [waAgentEvents.conversationId], references: [waConversations.id] }),
+}))
+
+// ─── Phase 02 Relations ───────────────────────────────────────────────────────
+
+export const aiAgentVersionsRelations = relations(aiAgentVersions, ({ one, many }) => ({
+  organization: one(organizations, { fields: [aiAgentVersions.orgId], references: [organizations.id] }),
+  agent: one(aiAgents, { fields: [aiAgentVersions.agentId], references: [aiAgents.id] }),
+  publishedByUser: one(users, { fields: [aiAgentVersions.publishedBy], references: [users.id] }),
+  archivedByUser: one(users, { fields: [aiAgentVersions.archivedBy], references: [users.id] }),
+  knowledgeAssociations: many(aiAgentVersionKnowledge),
+  episodes: many(aiEpisodes),
+}))
+
+export const aiKnowledgeSourcesRelations = relations(aiKnowledgeSources, ({ one, many }) => ({
+  organization: one(organizations, { fields: [aiKnowledgeSources.orgId], references: [organizations.id] }),
+  revokedByUser: one(users, { fields: [aiKnowledgeSources.revokedBy], references: [users.id] }),
+  createdByUser: one(users, { fields: [aiKnowledgeSources.createdBy], references: [users.id] }),
+  revisions: many(aiKnowledgeRevisions),
+  versionAssociations: many(aiAgentVersionKnowledge),
+  chunks: many(aiKnowledgeChunks),
+  documentQueue: many(aiDocumentQueue),
+}))
+
+export const aiKnowledgeRevisionsRelations = relations(aiKnowledgeRevisions, ({ one, many }) => ({
+  organization: one(organizations, { fields: [aiKnowledgeRevisions.orgId], references: [organizations.id] }),
+  source: one(aiKnowledgeSources, { fields: [aiKnowledgeRevisions.sourceId], references: [aiKnowledgeSources.id] }),
+  versionAssociations: many(aiAgentVersionKnowledge),
+  chunks: many(aiKnowledgeChunks),
+}))
+
+export const aiAgentVersionKnowledgeRelations = relations(aiAgentVersionKnowledge, ({ one }) => ({
+  organization: one(organizations, { fields: [aiAgentVersionKnowledge.orgId], references: [organizations.id] }),
+  agentVersion: one(aiAgentVersions, { fields: [aiAgentVersionKnowledge.agentVersionId], references: [aiAgentVersions.id] }),
+  knowledgeSource: one(aiKnowledgeSources, { fields: [aiAgentVersionKnowledge.knowledgeSourceId], references: [aiKnowledgeSources.id] }),
+  knowledgeRevision: one(aiKnowledgeRevisions, { fields: [aiAgentVersionKnowledge.knowledgeRevisionId], references: [aiKnowledgeRevisions.id] }),
+}))
+
+export const aiCampaignRulesRelations = relations(aiCampaignRules, ({ one }) => ({
+  organization: one(organizations, { fields: [aiCampaignRules.orgId], references: [organizations.id] }),
+  deployment: one(aiAgentDeployments, { fields: [aiCampaignRules.deploymentId], references: [aiAgentDeployments.id] }),
+  campaign: one(campaigns, { fields: [aiCampaignRules.campaignId], references: [campaigns.id] }),
+}))
+
+export const aiEpisodesRelations = relations(aiEpisodes, ({ one, many }) => ({
+  organization: one(organizations, { fields: [aiEpisodes.orgId], references: [organizations.id] }),
+  conversation: one(waConversations, { fields: [aiEpisodes.conversationId], references: [waConversations.id] }),
+  agentVersion: one(aiAgentVersions, { fields: [aiEpisodes.agentVersionId], references: [aiAgentVersions.id] }),
+  campaign: one(campaigns, { fields: [aiEpisodes.campaignId], references: [campaigns.id] }),
+  triggerMessage: one(waConversationMessages, { fields: [aiEpisodes.triggerMessageId], references: [waConversationMessages.id] }),
+  toolExecutions: many(aiToolExecutions),
+  usageRecords: many(aiUsageRecords),
+}))
+
+export const aiMessageQueueRelations = relations(aiMessageQueue, ({ one }) => ({
+  organization: one(organizations, { fields: [aiMessageQueue.orgId], references: [organizations.id] }),
+  conversation: one(waConversations, { fields: [aiMessageQueue.conversationId], references: [waConversations.id] }),
+  incomingMessage: one(waConversationMessages, { fields: [aiMessageQueue.incomingMessageId], references: [waConversationMessages.id] }),
+}))
+
+export const aiToolExecutionsRelations = relations(aiToolExecutions, ({ one }) => ({
+  organization: one(organizations, { fields: [aiToolExecutions.orgId], references: [organizations.id] }),
+  episode: one(aiEpisodes, { fields: [aiToolExecutions.episodeId], references: [aiEpisodes.id] }),
+  conversation: one(waConversations, { fields: [aiToolExecutions.conversationId], references: [waConversations.id] }),
+}))
+
+export const aiUsageRecordsRelations = relations(aiUsageRecords, ({ one }) => ({
+  organization: one(organizations, { fields: [aiUsageRecords.orgId], references: [organizations.id] }),
+  episode: one(aiEpisodes, { fields: [aiUsageRecords.episodeId], references: [aiEpisodes.id] }),
+  conversation: one(waConversations, { fields: [aiUsageRecords.conversationId], references: [waConversations.id] }),
+  pricingTier: one(aiPricingTiers, { fields: [aiUsageRecords.pricingTierId], references: [aiPricingTiers.id] }),
+}))
+
+// Phase 10 relations
+export const aiKnowledgeChunksRelations = relations(aiKnowledgeChunks, ({ one }) => ({
+  organization: one(organizations, { fields: [aiKnowledgeChunks.orgId], references: [organizations.id] }),
+  source: one(aiKnowledgeSources, { fields: [aiKnowledgeChunks.sourceId], references: [aiKnowledgeSources.id] }),
+  revision: one(aiKnowledgeRevisions, { fields: [aiKnowledgeChunks.revisionId], references: [aiKnowledgeRevisions.id] }),
+}))
+
+export const aiDocumentQueueRelations = relations(aiDocumentQueue, ({ one }) => ({
+  organization: one(organizations, { fields: [aiDocumentQueue.orgId], references: [organizations.id] }),
+  source: one(aiKnowledgeSources, { fields: [aiDocumentQueue.sourceId], references: [aiKnowledgeSources.id] }),
+}))
+
+export const aiMediaQueueRelations = relations(aiMediaQueue, ({ one }) => ({
+  organization: one(organizations, { fields: [aiMediaQueue.orgId], references: [organizations.id] }),
+  conversation: one(waConversations, { fields: [aiMediaQueue.conversationId], references: [waConversations.id] }),
+  message: one(waConversationMessages, { fields: [aiMediaQueue.messageId], references: [waConversationMessages.id] }),
+}))
+
+// Phase 09 relations
+export const aiPricingTiersRelations = relations(aiPricingTiers, ({ many }) => ({
+  usageRecords: many(aiUsageRecords),
+}))
+
+export const aiBudgetLimitsRelations = relations(aiBudgetLimits, ({ one }) => ({
+  organization: one(organizations, { fields: [aiBudgetLimits.orgId], references: [organizations.id] }),
+}))
+
+export const aiBudgetReservationsRelations = relations(aiBudgetReservations, ({ one }) => ({
+  organization: one(organizations, { fields: [aiBudgetReservations.orgId], references: [organizations.id] }),
+  queueItem: one(aiMessageQueue, { fields: [aiBudgetReservations.queueItemId], references: [aiMessageQueue.id] }),
+  episode: one(aiEpisodes, { fields: [aiBudgetReservations.episodeId], references: [aiEpisodes.id] }),
+  usageRecord: one(aiUsageRecords, { fields: [aiBudgetReservations.usageRecordId], references: [aiUsageRecords.id] }),
+}))
+
 // ─── Exported Types ───────────────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect
@@ -2183,3 +3116,64 @@ export type AdResearchCollection = typeof adResearchCollections.$inferSelect
 export type NewAdResearchCollection = typeof adResearchCollections.$inferInsert
 export type AdResearchItem = typeof adResearchItems.$inferSelect
 export type NewAdResearchItem = typeof adResearchItems.$inferInsert
+
+// AI WhatsApp Agents — Phase 01 types
+export type WaBusinessAccount = typeof waBusinessAccounts.$inferSelect
+export type NewWaBusinessAccount = typeof waBusinessAccounts.$inferInsert
+// Phase 12 — OAuth state
+export type WaOauthState = typeof waOauthStates.$inferSelect
+export type NewWaOauthState = typeof waOauthStates.$inferInsert
+export type WaPhoneNumber = typeof waPhoneNumbers.$inferSelect
+export type NewWaPhoneNumber = typeof waPhoneNumbers.$inferInsert
+export type AiAgent = typeof aiAgents.$inferSelect
+export type NewAiAgent = typeof aiAgents.$inferInsert
+export type AiAgentDeployment = typeof aiAgentDeployments.$inferSelect
+export type NewAiAgentDeployment = typeof aiAgentDeployments.$inferInsert
+export type WaConversation = typeof waConversations.$inferSelect
+export type NewWaConversation = typeof waConversations.$inferInsert
+export type WaConversationMessage = typeof waConversationMessages.$inferSelect
+export type NewWaConversationMessage = typeof waConversationMessages.$inferInsert
+export type WaAgentEvent = typeof waAgentEvents.$inferSelect
+export type NewWaAgentEvent = typeof waAgentEvents.$inferInsert
+
+// AI WhatsApp Agents — Phase 02 types
+export type AiAgentVersion = typeof aiAgentVersions.$inferSelect
+export type NewAiAgentVersion = typeof aiAgentVersions.$inferInsert
+export type AiKnowledgeSource = typeof aiKnowledgeSources.$inferSelect
+export type NewAiKnowledgeSource = typeof aiKnowledgeSources.$inferInsert
+export type AiKnowledgeRevision = typeof aiKnowledgeRevisions.$inferSelect
+export type NewAiKnowledgeRevision = typeof aiKnowledgeRevisions.$inferInsert
+export type AiAgentVersionKnowledge = typeof aiAgentVersionKnowledge.$inferSelect
+export type NewAiAgentVersionKnowledge = typeof aiAgentVersionKnowledge.$inferInsert
+export type AiCampaignRule = typeof aiCampaignRules.$inferSelect
+export type NewAiCampaignRule = typeof aiCampaignRules.$inferInsert
+export type AiEpisode = typeof aiEpisodes.$inferSelect
+export type NewAiEpisode = typeof aiEpisodes.$inferInsert
+export type AiMessageQueueItem = typeof aiMessageQueue.$inferSelect
+export type NewAiMessageQueueItem = typeof aiMessageQueue.$inferInsert
+export type AiToolExecution = typeof aiToolExecutions.$inferSelect
+export type NewAiToolExecution = typeof aiToolExecutions.$inferInsert
+export type AiUsageRecord = typeof aiUsageRecords.$inferSelect
+export type NewAiUsageRecord = typeof aiUsageRecords.$inferInsert
+
+// AI WhatsApp Agents — Phase 08 types
+export type AiDeploymentSchedule = typeof aiDeploymentSchedules.$inferSelect
+export type NewAiDeploymentSchedule = typeof aiDeploymentSchedules.$inferInsert
+export type WaConversationNote = typeof waConversationNotes.$inferSelect
+export type NewWaConversationNote = typeof waConversationNotes.$inferInsert
+
+// Phase 09 — Usage ledger, pricing tiers, budget limits
+export type AiPricingTier = typeof aiPricingTiers.$inferSelect
+export type NewAiPricingTier = typeof aiPricingTiers.$inferInsert
+export type AiBudgetLimit = typeof aiBudgetLimits.$inferSelect
+export type NewAiBudgetLimit = typeof aiBudgetLimits.$inferInsert
+export type AiBudgetReservation = typeof aiBudgetReservations.$inferSelect
+export type NewAiBudgetReservation = typeof aiBudgetReservations.$inferInsert
+
+// Phase 10 — Documents + media
+export type AiKnowledgeChunk = typeof aiKnowledgeChunks.$inferSelect
+export type NewAiKnowledgeChunk = typeof aiKnowledgeChunks.$inferInsert
+export type AiDocumentQueue = typeof aiDocumentQueue.$inferSelect
+export type NewAiDocumentQueue = typeof aiDocumentQueue.$inferInsert
+export type AiMediaQueue = typeof aiMediaQueue.$inferSelect
+export type NewAiMediaQueue = typeof aiMediaQueue.$inferInsert

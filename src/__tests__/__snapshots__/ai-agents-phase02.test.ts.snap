@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`unique constraint names — verified in schema and migration > at most one published version per agent (partial unique index) 1`] = `"ai_agent_versions_agent_published_idx"`;
+
+exports[`unique constraint names — verified in schema and migration > at most one revision per source per agent version 1`] = `"ai_agent_version_knowledge_version_source_idx"`;
+
+exports[`unique constraint names — verified in schema and migration > message queue deduplication (one entry per incoming_message_id) 1`] = `"ai_message_queue_message_id_idx"`;
+
+exports[`unique constraint names — verified in schema and migration > phone_number_id is globally unique (one physical number per system) 1`] = `"wa_phone_numbers_phone_number_id_global_idx"`;
+
+exports[`unique constraint names — verified in schema and migration > waba_id is globally unique (one WABA ID per system) 1`] = `"wa_business_accounts_waba_id_global_idx"`;

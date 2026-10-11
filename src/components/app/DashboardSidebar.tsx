@@ -96,6 +96,7 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
         {NAV_GROUPS.map((group, gi) => {
           const items = group.items.filter((i) => !i.adminOnly || isAdmin).filter((i) => i.href !== "/dashboard/settings/account")
           if (items.length === 0) return null
+          const groupHrefs = items.map(i => i.href)
           return (
             <div key={group.label}>
               {collapsed ? (
@@ -106,7 +107,7 @@ export function DashboardSidebar({ isAdmin, orgName, roleLabel }: Props) {
                 </p>
               )}
               {items.map(({ href, label, icon: Icon }) => {
-                const active = isActive(pathname, href)
+                const active = isActive(pathname, href, groupHrefs)
                 return (
                   <Link
                     key={href}

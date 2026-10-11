@@ -4,10 +4,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Activity,
+  Bot,
   Building,
   ChartColumn,
   FileBarChart2,
   Funnel,
+  Inbox,
   LayoutDashboard,
   Megaphone,
   ScanEye,
@@ -49,6 +51,15 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    label: "Agentes IA",
+    items: [
+      { href: "/dashboard/agents", label: "Mis Agentes", icon: Bot },
+      { href: "/dashboard/inbox", label: "Bandeja", icon: Inbox },
+      { href: "/dashboard/agents/analytics", label: "Analíticas", icon: ChartColumn },
+      { href: "/dashboard/settings/channels", label: "Canales", icon: Megaphone, adminOnly: true },
+    ],
+  },
+  {
     label: "Gestión",
     items: [
       { href: "/dashboard/import", label: "Importar", icon: Upload },
@@ -58,9 +69,16 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   },
 ]
 
-export function isActive(pathname: string, href: string) {
+// Returns true only if href is the most-specific (longest) nav item matching pathname.
+// Prevents /dashboard/agents from also activating when on /dashboard/agents/analytics.
+export function isActive(pathname: string, href: string, allHrefs?: string[]) {
   if (href === "/dashboard") return pathname === "/dashboard"
-  return pathname === href || pathname.startsWith(`${href}/`)
+  const directMatch = pathname === href || pathname.startsWith(`${href}/`)
+  if (!directMatch) return false
+  if (!allHrefs) return true
+  return !allHrefs.some(
+    h => h !== href && h.length > href.length && (pathname === h || pathname.startsWith(`${h}/`))
+  )
 }
 
 /**
@@ -71,6 +89,7 @@ export function isActive(pathname: string, href: string) {
 export function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname()
   const items = NAV_GROUPS.flatMap((g) => g.items).filter((i) => !i.adminOnly || isAdmin)
+  const allHrefs = items.map(i => i.href)
 
   return (
     <nav
@@ -78,7 +97,7 @@ export function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
       className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-ops-line bg-ops-side px-2 pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {items.map(({ href, label, icon: Icon }) => {
-        const active = isActive(pathname, href)
+        const active = isActive(pathname, href, allHrefs)
         return (
           <Link
             key={href}
