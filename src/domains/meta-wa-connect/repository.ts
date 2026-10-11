@@ -9,6 +9,17 @@ import { eq, and, lt } from "drizzle-orm"
 import { encryptTokenVersioned } from "@/lib/crypto"
 import type { WaConnectionMode, WaConnectionStatus } from "./types"
 
+// ─── Status normalization ─────────────────────────────────────────────────────
+
+// Meta returns uppercase status values (CONNECTED, DISCONNECTED, PENDING, etc.)
+// We normalize to our internal lowercase values.
+function normalizeMetaPhoneStatus(s?: string | null): string {
+  const up = (s ?? "").toUpperCase()
+  if (up === "CONNECTED" || up === "ACTIVE") return "active"
+  if (up === "PENDING" || up === "PENDING_DELETION") return "pending"
+  return "active" // default to active — if Meta sent us the phone, it works
+}
+
 // ─── OAuth state ──────────────────────────────────────────────────────────────
 
 export async function createOauthState(
@@ -150,7 +161,7 @@ export async function storeOrUpdateConnection(params: StoreConnectionParams): Pr
         displayPhoneNumber: phone.displayPhoneNumber,
         verifiedName: phone.verifiedName ?? null,
         qualityRating: phone.qualityRating ?? null,
-        status: phone.status ?? "active",
+        status: normalizeMetaPhoneStatus(phone.status),
       })
       .onConflictDoUpdate({
         target: waPhoneNumbers.phoneNumberId,
@@ -158,7 +169,7 @@ export async function storeOrUpdateConnection(params: StoreConnectionParams): Pr
           displayPhoneNumber: phone.displayPhoneNumber,
           verifiedName: phone.verifiedName ?? null,
           qualityRating: phone.qualityRating ?? null,
-          status: phone.status ?? "active",
+          status: normalizeMetaPhoneStatus(phone.status),
           updatedAt: new Date(),
         },
       })
