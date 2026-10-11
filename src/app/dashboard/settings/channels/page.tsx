@@ -3,12 +3,14 @@ import { requireRole } from "@/lib/auth/server"
 import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import { db } from "@/lib/db"
 import { waBusinessAccounts, waPhoneNumbers } from "@/lib/db/schema"
-import { eq, desc } from "drizzle-orm"
+import { eq, desc, and, ne } from "drizzle-orm"
 import { PageShell, PageHeader, Panel, StatusChip } from "@/components/app/ops"
 import { AlertTriangle, CheckCircle2, Phone, Wifi, WifiOff, XCircle } from "lucide-react"
 import { WebhookInfoPanel } from "./_components/WebhookInfoPanel"
+import { PhoneAgentSelector } from "./_components/PhoneAgentSelector"
 import { cn } from "@/lib/utils"
 import { WaConnectPanel } from "./_components/WaConnectPanel"
+import { aiAgentDeployments, aiAgents } from "@/lib/db/schema"
 
 export const dynamic = "force-dynamic"
 
@@ -51,7 +53,7 @@ export default async function ChannelsPage({
   const hasWebhookPath = Boolean(process.env.WA_CLOUD_WEBHOOK_PATH ?? process.env.NEXT_PUBLIC_APP_URL)
   const appConfigured = Boolean(process.env.META_WA_APP_ID)
 
-  const [wabaRows, phoneRows] = await Promise.all([
+  const [wabaRows, phoneRows, agentsList, phoneDeployments] = await Promise.all([
     db
       .select({
         id: waBusinessAccounts.id,
@@ -84,10 +86,27 @@ export default async function ChannelsPage({
       .from(waPhoneNumbers)
       .where(eq(waPhoneNumbers.orgId, ctx.orgId))
       .orderBy(waPhoneNumbers.displayPhoneNumber),
+    // Available agents (not archived)
+    db
+      .select({ id: aiAgents.id, name: aiAgents.name })
+      .from(aiAgents)
+      .where(and(eq(aiAgents.orgId, ctx.orgId), ne(aiAgents.status, "archived")))
+      .orderBy(aiAgents.name),
+    // Active deployments: phone → agent mapping
+    db
+      .select({
+        phoneNumberId: aiAgentDeployments.phoneNumberId,
+        agentId: aiAgentDeployments.agentId,
+      })
+      .from(aiAgentDeployments)
+      .where(and(eq(aiAgentDeployments.orgId, ctx.orgId), eq(aiAgentDeployments.active, true))),
   ])
 
   const activePhones = phoneRows.filter(p => p.status === "active")
   const sendingEnabled = hasAppSecret && activePhones.length > 0
+
+  // Map phoneNumberId → agentId for quick lookup
+  const phoneAgentMap = new Map(phoneDeployments.map(d => [d.phoneNumberId, d.agentId]))
 
   // Shape WABA rows for WaConnectPanel (never expose accessTokenEnc)
   const connectPanelWabas = wabaRows.map(w => ({
@@ -293,28 +312,37 @@ export default async function ChannelsPage({
         ) : (
           <div className="divide-y divide-ops-line">
             {phoneRows.map(phone => (
-              <div key={phone.id} className="flex items-center justify-between px-5 py-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 shrink-0 text-ops-tx3" aria-hidden="true" />
-                    <p className="text-sm font-semibold text-ops-tx">{phone.displayPhoneNumber}</p>
+              <div key={phone.id} className="px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 shrink-0 text-ops-tx3" aria-hidden="true" />
+                      <p className="text-sm font-semibold text-ops-tx">{phone.displayPhoneNumber}</p>
+                    </div>
+                    {phone.verifiedName && (
+                      <p className="text-xs text-ops-tx3 mt-0.5 ml-6">{phone.verifiedName}</p>
+                    )}
+                    {phone.qualityRating && (
+                      <p className="text-xs text-ops-tx3 mt-0.5 ml-6">
+                        Calidad: <span className={cn(
+                          "font-medium",
+                          phone.qualityRating === "GREEN" ? "text-ops-green" :
+                          phone.qualityRating === "YELLOW" ? "text-amber-600" : "text-ops-coral"
+                        )}>{phone.qualityRating}</span>
+                      </p>
+                    )}
                   </div>
-                  {phone.verifiedName && (
-                    <p className="text-xs text-ops-tx3 mt-0.5 ml-6">{phone.verifiedName}</p>
-                  )}
-                  {phone.qualityRating && (
-                    <p className="text-xs text-ops-tx3 mt-0.5 ml-6">
-                      Calidad: <span className={cn(
-                        "font-medium",
-                        phone.qualityRating === "GREEN" ? "text-ops-green" :
-                        phone.qualityRating === "YELLOW" ? "text-amber-600" : "text-ops-coral"
-                      )}>{phone.qualityRating}</span>
-                    </p>
-                  )}
+                  <StatusChip tone={PHONE_STATUS_TONE[phone.status] ?? "neutral"}>
+                    {PHONE_STATUS_LABEL[phone.status] ?? phone.status}
+                  </StatusChip>
                 </div>
-                <StatusChip tone={PHONE_STATUS_TONE[phone.status] ?? "neutral"}>
-                  {PHONE_STATUS_LABEL[phone.status] ?? phone.status}
-                </StatusChip>
+                {agentsList.length > 0 && (
+                  <PhoneAgentSelector
+                    phoneNumberId={phone.id}
+                    currentAgentId={phoneAgentMap.get(phone.id) ?? null}
+                    agents={agentsList}
+                  />
+                )}
               </div>
             ))}
           </div>

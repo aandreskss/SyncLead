@@ -497,6 +497,66 @@ export async function getOrgPhoneNumbersAction() {
 
 // ─── Get org WA Business Accounts (for channels page) ────────────────────────
 
+// ─── Assign agent to phone number ─────────────────────────────────────────────
+
+export async function assignAgentToPhoneAction(phoneNumberId: string, agentId: string | null) {
+  const ctx = await requireRole(["owner", "admin", "manager"])
+
+  // Verify phone belongs to this org
+  const phone = await db
+    .select({ id: waPhoneNumbers.id })
+    .from(waPhoneNumbers)
+    .where(and(eq(waPhoneNumbers.id, phoneNumberId), eq(waPhoneNumbers.orgId, ctx.orgId)))
+    .limit(1)
+  if (!phone[0]) return { success: false, error: "Número no encontrado" }
+
+  // Deactivate any existing deployments for this phone (all agents)
+  await db
+    .update(aiAgentDeployments)
+    .set({ active: false, updatedAt: new Date() })
+    .where(and(eq(aiAgentDeployments.phoneNumberId, phoneNumberId), eq(aiAgentDeployments.orgId, ctx.orgId)))
+    .catch(() => undefined)
+
+  if (!agentId) return { success: true }
+
+  // Verify agent belongs to this org and has a published version
+  const agent = await db
+    .select({ id: aiAgents.id })
+    .from(aiAgents)
+    .where(and(eq(aiAgents.id, agentId), eq(aiAgents.orgId, ctx.orgId)))
+    .limit(1)
+  if (!agent[0]) return { success: false, error: "Agente no encontrado" }
+
+  await createAiAgentDeployment(ctx.orgId, { agentId, phoneNumberId })
+  return { success: true }
+}
+
+// ─── Get deployments for org phones ───────────────────────────────────────────
+
+export async function getPhoneDeploymentsAction() {
+  const ctx = await requireOrganizationMembership()
+
+  const deployments = await db
+    .select({
+      phoneNumberId: aiAgentDeployments.phoneNumberId,
+      deploymentId: aiAgentDeployments.id,
+      agentId: aiAgentDeployments.agentId,
+      agentName: aiAgents.name,
+      paused: aiAgentDeployments.paused,
+    })
+    .from(aiAgentDeployments)
+    .innerJoin(aiAgents, eq(aiAgentDeployments.agentId, aiAgents.id))
+    .where(and(eq(aiAgentDeployments.orgId, ctx.orgId), eq(aiAgentDeployments.active, true)))
+
+  const agents = await db
+    .select({ id: aiAgents.id, name: aiAgents.name })
+    .from(aiAgents)
+    .where(and(eq(aiAgents.orgId, ctx.orgId), ne(aiAgents.status, "archived")))
+    .orderBy(aiAgents.name)
+
+  return { success: true as const, deployments, agents }
+}
+
 export async function getChannelStatusAction() {
   const ctx = await requireOrganizationMembership()
 
