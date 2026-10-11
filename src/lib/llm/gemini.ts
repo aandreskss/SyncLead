@@ -19,9 +19,9 @@ export class GeminiProvider implements LLMProvider {
   readonly name = "google"
   private readonly genAI: GoogleGenerativeAI | null
 
-  constructor() {
-    const apiKey = process.env.GOOGLE_AI_API_KEY
-    this.genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null
+  constructor(apiKey?: string) {
+    const key = apiKey ?? process.env.GOOGLE_AI_API_KEY
+    this.genAI = key ? new GoogleGenerativeAI(key) : null
   }
 
   async chat(params: LLMChatParams): Promise<LLMResponse> {

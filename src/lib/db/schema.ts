@@ -2845,7 +2845,29 @@ export const aiMediaQueue = pgTable(
   ]
 )
 
+// ─── Phase 13: AI Provider API Keys (per-org, encrypted) ─────────────────────
+
+export const aiProviderKeys = pgTable(
+  "ai_provider_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(), // "anthropic" | "openai" | "google"
+    keyEnc: text("key_enc").notNull(),    // AES-256-GCM encrypted, same format as meta tokens
+    keyVersion: integer("key_version").notNull().default(1),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ai_provider_keys_org_provider_idx").on(t.orgId, t.provider),
+  ]
+)
+
 // ─── AI Agents Relations ──────────────────────────────────────────────────────
+
+export const aiProviderKeysRelations = relations(aiProviderKeys, ({ one }) => ({
+  organization: one(organizations, { fields: [aiProviderKeys.orgId], references: [organizations.id] }),
+}))
 
 export const waBusinessAccountsRelations = relations(waBusinessAccounts, ({ one, many }) => ({
   organization: one(organizations, { fields: [waBusinessAccounts.orgId], references: [organizations.id] }),
@@ -3177,3 +3199,7 @@ export type AiDocumentQueue = typeof aiDocumentQueue.$inferSelect
 export type NewAiDocumentQueue = typeof aiDocumentQueue.$inferInsert
 export type AiMediaQueue = typeof aiMediaQueue.$inferSelect
 export type NewAiMediaQueue = typeof aiMediaQueue.$inferInsert
+
+// Phase 13 — AI Provider Keys
+export type AiProviderKey = typeof aiProviderKeys.$inferSelect
+export type NewAiProviderKey = typeof aiProviderKeys.$inferInsert

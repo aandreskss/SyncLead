@@ -14,14 +14,14 @@ export class OpenAIProvider implements LLMProvider {
   private readonly client: OpenAI
   private readonly apiKeyMissing: boolean
 
-  constructor() {
-    const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey) {
+  constructor(apiKey?: string) {
+    const key = apiKey ?? process.env.OPENAI_API_KEY
+    if (!key) {
       this.apiKeyMissing = true
       this.client = new OpenAI({ apiKey: "placeholder" })
     } else {
       this.apiKeyMissing = false
-      this.client = new OpenAI({ apiKey })
+      this.client = new OpenAI({ apiKey: key })
     }
   }
 

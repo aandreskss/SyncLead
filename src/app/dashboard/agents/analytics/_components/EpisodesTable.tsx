@@ -1,7 +1,7 @@
 "use client"
 
 import type { ConversationRow } from "@/domains/ai-agents/analytics-repository"
-import { formatMillicentsAsUsd } from "@/domains/ai-agents/cost-calculator"
+import { formatMillicentsAsUsd } from "@/domains/ai-agents/cost-utils"
 
 interface Props {
   rows: ConversationRow[]

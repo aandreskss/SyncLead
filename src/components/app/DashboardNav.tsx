@@ -10,6 +10,7 @@ import {
   FileBarChart2,
   Funnel,
   Inbox,
+  KeyRound,
   LayoutDashboard,
   Megaphone,
   ScanEye,
@@ -57,6 +58,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: "/dashboard/inbox", label: "Bandeja", icon: Inbox },
       { href: "/dashboard/agents/analytics", label: "Analíticas", icon: ChartColumn },
       { href: "/dashboard/settings/channels", label: "Canales", icon: Megaphone, adminOnly: true },
+      { href: "/dashboard/settings/ai-providers", label: "Proveedores IA", icon: KeyRound, adminOnly: true },
     ],
   },
   {

@@ -7,6 +7,7 @@ import { buildSystemPrompt, type LeadContext } from "./prompts"
 import { loadKnowledgeChunks, formatKnowledgeForPrompt } from "./knowledge"
 import { getEnabledTools, executeTool, type ToolContext } from "./tools"
 import type { LLMMessage, LLMContentBlock } from "@/lib/llm/provider"
+import { getProviderApiKey, type ProviderName } from "../provider-keys-repository"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -49,7 +50,14 @@ export interface EngineResult {
 
 export async function runEngine(ctx: EngineContext): Promise<EngineResult> {
   const agentLlmProvider = ctx.agentConfig.personalidad.llmProvider ?? "anthropic"
-  const provider = ctx.provider ?? createProvider(agentLlmProvider)
+  let provider: LLMProvider
+  if (ctx.provider) {
+    provider = ctx.provider
+  } else {
+    // Look up org API key from DB; fall back to env var if not stored
+    const orgKey = await getProviderApiKey(ctx.orgId, agentLlmProvider as ProviderName)
+    provider = createProvider(agentLlmProvider, orgKey ?? undefined)
+  }
   const config = ctx.agentConfig
 
   // 1. Load knowledge chunks

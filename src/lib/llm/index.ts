@@ -7,11 +7,11 @@ import type { LLMProvider } from "./provider"
 
 export type LlmProviderName = "anthropic" | "openai" | "google"
 
-export function createProvider(name: LlmProviderName): LLMProvider {
+export function createProvider(name: LlmProviderName, apiKey?: string): LLMProvider {
   switch (name) {
-    case "openai":   return new OpenAIProvider()
-    case "google":   return new GeminiProvider()
-    default:         return new AnthropicProvider()
+    case "openai":   return new OpenAIProvider(apiKey)
+    case "google":   return new GeminiProvider(apiKey)
+    default:         return new AnthropicProvider(apiKey)
   }
 }
 

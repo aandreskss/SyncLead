@@ -16,15 +16,14 @@ export class AnthropicProvider implements LLMProvider {
   private readonly client: Anthropic
   private readonly apiKeyMissing: boolean
 
-  constructor() {
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) {
+  constructor(apiKey?: string) {
+    const key = apiKey ?? process.env.ANTHROPIC_API_KEY
+    if (!key) {
       this.apiKeyMissing = true
-      // Create a dummy client — it will never be used (chat() throws first)
       this.client = new Anthropic({ apiKey: "placeholder" })
     } else {
       this.apiKeyMissing = false
-      this.client = new Anthropic({ apiKey })
+      this.client = new Anthropic({ apiKey: key })
     }
   }
 

@@ -8,7 +8,7 @@ import {
   getDailyBudgetAlertStatus,
   getOrgSpendMillicents,
 } from "./budget-repository"
-import { formatMillicentsAsUsd } from "./cost-calculator"
+import { formatMillicentsAsUsd } from "./cost-utils"
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
