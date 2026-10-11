@@ -88,6 +88,7 @@ export interface ParsedIncomingMessage {
   wamid: string              // external_message_id
   fromPhone: string          // customer's phone number
   toPhoneNumberId: string    // Meta's phone_number_id (our registered number)
+  displayPhoneNumber?: string // human-readable phone number (from metadata)
   wabaId: string             // WABA the message arrived on
   customerName?: string      // from contacts[] if provided
   type: string               // message content type

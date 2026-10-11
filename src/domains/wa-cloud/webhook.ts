@@ -60,6 +60,7 @@ function extractPayload(payload: MetaWebhookPayload): ParseWebhookResult {
 
       const { metadata, contacts = [], messages: msgs = [], statuses: stats = [] } = value
       const toPhoneNumberId = metadata.phone_number_id
+      const displayPhoneNumber = metadata.display_phone_number
 
       // Build contact name lookup: wa_id → name
       const nameByWaId: Record<string, string> = {}
@@ -72,6 +73,7 @@ function extractPayload(payload: MetaWebhookPayload): ParseWebhookResult {
           wamid: msg.id,
           fromPhone: msg.from,
           toPhoneNumberId,
+          displayPhoneNumber,
           wabaId,
           customerName: nameByWaId[msg.from],
           type: msg.type,

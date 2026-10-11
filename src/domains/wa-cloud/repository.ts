@@ -21,6 +21,61 @@ export interface PhoneNumberTenant {
 }
 
 /**
+ * Auto-registers a phone number from webhook metadata when it doesn't exist yet.
+ * This handles the case where fetchPhoneNumbers failed during OAuth but the
+ * phone number is now receiving messages.
+ */
+export async function autoRegisterPhoneNumberFromWebhook(params: {
+  wabaExternalId: string
+  phoneNumberId: string
+  displayPhoneNumber: string
+}): Promise<PhoneNumberTenant | null> {
+  const wabaRow = await db
+    .select({
+      id: waBusinessAccounts.id,
+      orgId: waBusinessAccounts.orgId,
+      wabaId: waBusinessAccounts.wabaId,
+      accessTokenEnc: waBusinessAccounts.accessTokenEnc,
+      keyVersion: waBusinessAccounts.keyVersion,
+    })
+    .from(waBusinessAccounts)
+    .where(eq(waBusinessAccounts.wabaId, params.wabaExternalId))
+    .limit(1)
+
+  const waba = wabaRow[0]
+  if (!waba) return null
+
+  await db
+    .insert(waPhoneNumbers)
+    .values({
+      orgId: waba.orgId,
+      wabaAccountId: waba.id,
+      phoneNumberId: params.phoneNumberId,
+      displayPhoneNumber: params.displayPhoneNumber,
+      status: "active",
+    })
+    .onConflictDoNothing()
+
+  const phoneRow = await db
+    .select({ id: waPhoneNumbers.id })
+    .from(waPhoneNumbers)
+    .where(eq(waPhoneNumbers.phoneNumberId, params.phoneNumberId))
+    .limit(1)
+
+  if (!phoneRow[0]) return null
+
+  console.log("[autoRegister] registered phone", params.phoneNumberId, "for WABA", params.wabaExternalId)
+
+  return {
+    phoneNumberRowId: phoneRow[0].id,
+    orgId: waba.orgId,
+    wabaId: waba.wabaId,
+    accessTokenEnc: waba.accessTokenEnc,
+    keyVersion: waba.keyVersion,
+  }
+}
+
+/**
  * Resolves org+WABA context from a Meta phone_number_id (external string ID).
  * Used by the webhook to determine which tenant owns the inbound message.
  * The global unique index on phone_number_id guarantees one result maximum.

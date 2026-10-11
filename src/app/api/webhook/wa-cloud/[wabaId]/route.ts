@@ -1,6 +1,7 @@
 import { verifyWebhookSignature, parseWebhookPayload } from "@/domains/wa-cloud/webhook"
 import {
   resolveTenantFromPhoneNumberId,
+  autoRegisterPhoneNumberFromWebhook,
   findOrCreateConversation,
   persistIncomingMessage,
   updateDeliveryStatusByWamid,
@@ -110,7 +111,17 @@ async function processPayload(raw: unknown): Promise<void> {
 }
 
 async function processIncomingMessage(msg: ParsedIncomingMessage): Promise<void> {
-  const tenant = await resolveTenantFromPhoneNumberId(msg.toPhoneNumberId)
+  let tenant = await resolveTenantFromPhoneNumberId(msg.toPhoneNumberId)
+
+  // Phone number not in DB yet — auto-register from webhook metadata
+  if (!tenant && msg.displayPhoneNumber) {
+    tenant = await autoRegisterPhoneNumberFromWebhook({
+      wabaExternalId: msg.wabaId,
+      phoneNumberId: msg.toPhoneNumberId,
+      displayPhoneNumber: msg.displayPhoneNumber,
+    })
+  }
+
   if (!tenant) return
 
   const conversationId = await findOrCreateConversation({
