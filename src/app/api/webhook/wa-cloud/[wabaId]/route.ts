@@ -57,13 +57,20 @@ export async function POST(
   const { wabaId } = await params
   const rawBody = await req.text()
 
+  console.log("[webhook-wa] POST received wabaId:", wabaId, "bodyLen:", rawBody.length)
+
   // HMAC verification (requires WA_CLOUD_APP_SECRET to be set)
   const appSecret = process.env.WA_CLOUD_APP_SECRET
   if (appSecret) {
     const sig = req.headers.get("x-hub-signature-256") ?? ""
-    if (!verifyWebhookSignature(rawBody, sig, appSecret)) {
+    const valid = verifyWebhookSignature(rawBody, sig, appSecret)
+    console.log("[webhook-wa] signature valid:", valid, "sig present:", !!sig)
+    if (!valid) {
+      console.log("[webhook-wa] 403 signature mismatch")
       return new Response("Signature mismatch", { status: 403 })
     }
+  } else {
+    console.log("[webhook-wa] no WA_CLOUD_APP_SECRET — skipping HMAC")
   }
 
   // Validate the WABA ID in the path belongs to a registered account
@@ -74,7 +81,7 @@ export async function POST(
     .limit(1)
 
   if (!wabaRow[0]) {
-    // Unknown WABA — return 200 so Meta stops retrying (not our endpoint)
+    console.log("[webhook-wa] unknown wabaId:", wabaId, "— returning 200 (not our endpoint)")
     return new Response("OK", { status: 200 })
   }
 
@@ -87,14 +94,16 @@ export async function POST(
 
   const rawObj = body as { object?: unknown }
   if (rawObj.object !== "whatsapp_business_account") {
+    console.log("[webhook-wa] object is not whatsapp_business_account:", rawObj.object)
     return new Response("OK", { status: 200 })
   }
 
-  // Process synchronously before responding.
-  // DB operations take ~200ms total — well under Meta's 20s deadline.
-  // Fire-and-forget after the response is unreliable on Vercel serverless
-  // because the function may be terminated as soon as the response is sent.
-  await processPayload(body).catch(() => undefined)
+  console.log("[webhook-wa] processing payload for wabaId:", wabaId)
+  const result = await processPayload(body).catch((err: unknown) => {
+    console.log("[webhook-wa] processPayload error:", err instanceof Error ? err.message : String(err))
+    return undefined
+  })
+  console.log("[webhook-wa] processPayload done", result)
 
   return new Response("OK", { status: 200 })
 }
@@ -103,9 +112,12 @@ export async function POST(
 
 async function processPayload(raw: unknown): Promise<void> {
   const { messages, statuses } = parseWebhookPayload(raw)
+  console.log("[webhook-wa] parsed payload: messages:", messages.length, "statuses:", statuses.length)
 
   for (const msg of messages) {
-    await processIncomingMessage(msg).catch(() => undefined)
+    await processIncomingMessage(msg).catch((err: unknown) => {
+      console.log("[webhook-wa] processIncomingMessage error:", err instanceof Error ? err.message : String(err))
+    })
   }
 
   for (const stat of statuses) {
@@ -114,18 +126,26 @@ async function processPayload(raw: unknown): Promise<void> {
 }
 
 async function processIncomingMessage(msg: ParsedIncomingMessage): Promise<void> {
+  console.log("[webhook-wa] processing msg from:", msg.fromPhone, "to phoneId:", msg.toPhoneNumberId, "type:", msg.type)
+
   let tenant = await resolveTenantFromPhoneNumberId(msg.toPhoneNumberId)
+  console.log("[webhook-wa] tenant resolved:", tenant ? `orgId=${tenant.orgId}` : "null")
 
   // Phone number not in DB yet — auto-register from webhook metadata
   if (!tenant && msg.displayPhoneNumber) {
+    console.log("[webhook-wa] auto-registering phone:", msg.toPhoneNumberId, "wabaId:", msg.wabaId)
     tenant = await autoRegisterPhoneNumberFromWebhook({
       wabaExternalId: msg.wabaId,
       phoneNumberId: msg.toPhoneNumberId,
       displayPhoneNumber: msg.displayPhoneNumber,
     })
+    console.log("[webhook-wa] auto-register result:", tenant ? `orgId=${tenant.orgId}` : "failed")
   }
 
-  if (!tenant) return
+  if (!tenant) {
+    console.log("[webhook-wa] no tenant — aborting message processing")
+    return
+  }
 
   // Look up the active deployment for this phone number so new conversations
   // are linked immediately — without this the AI processor can't find the agent.
