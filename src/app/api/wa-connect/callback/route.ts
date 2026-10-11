@@ -116,25 +116,33 @@ export async function GET(request: Request) {
   let wabaId: string | null = null
   let wabaName = "WhatsApp Business Account"
 
+  console.log("[wa-connect/callback] signed_request present:", Boolean(signedRequest))
+  console.log("[wa-connect/callback] grantedScopes:", grantedScopes)
+  console.log("[wa-connect/callback] connectionStatus:", connectionStatus)
+
   if (signedRequest) {
     const parsed = parseSignedRequest(signedRequest)
+    console.log("[wa-connect/callback] parsed signed_request:", parsed)
     if (parsed) wabaId = parsed.wabaId
   }
 
   if (!wabaId) {
     // Standard OAuth: discover via API
     try {
+      console.log("[wa-connect/callback] starting discoverWabas...")
       const wabas = await discoverWabas(longToken)
+      console.log("[wa-connect/callback] discoverWabas result:", JSON.stringify(wabas))
       if (wabas.length === 0) {
+        console.error("[wa-connect/callback] discoverWabas returned 0 WABAs")
         return errorRedirect(request, "waba_not_found", returnPath)
       }
       if (wabas.length > 1) {
-        // Multiple WABAs — redirect with error asking to use Embedded Signup
         return errorRedirect(request, "multiple_wabas_use_embedded_signup", returnPath)
       }
       wabaId = wabas[0]!.id
       wabaName = wabas[0]!.name
-    } catch {
+    } catch (err) {
+      console.error("[wa-connect/callback] discoverWabas threw:", err)
       return errorRedirect(request, "waba_not_found", returnPath)
     }
   }

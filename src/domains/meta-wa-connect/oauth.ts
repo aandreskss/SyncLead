@@ -164,11 +164,15 @@ export async function discoverWabas(accessToken: string): Promise<MetaWabaInfo[]
       error?: { message: string; code: number }
     }
 
+    console.log("[discoverWabas] strategy1 status:", res.status, "error:", data.error ?? null)
+    console.log("[discoverWabas] strategy1 businesses:", JSON.stringify(data.data ?? []))
+
     if (res.ok && !data.error) {
       const wabas = data.data?.flatMap(b => b.whatsapp_business_accounts?.data ?? []) ?? []
       if (wabas.length > 0) return wabas
     }
-  } catch {
+  } catch (err) {
+    console.error("[discoverWabas] strategy1 threw:", err)
     // fall through to strategy 2
   }
 
@@ -183,6 +187,9 @@ export async function discoverWabas(accessToken: string): Promise<MetaWabaInfo[]
     data?: MetaWabaInfo[]
     error?: { message: string; code: number }
   }
+
+  console.log("[discoverWabas] strategy2 status:", res2.status, "error:", data2.error ?? null)
+  console.log("[discoverWabas] strategy2 wabas:", JSON.stringify(data2.data ?? []))
 
   if (!res2.ok || data2.error) {
     throw Object.assign(new Error(data2.error?.message ?? "WABA discovery failed"), { metaCode: data2.error?.code })
