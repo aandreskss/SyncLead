@@ -6,6 +6,7 @@ import { waBusinessAccounts, waPhoneNumbers } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
 import { PageShell, PageHeader, Panel, StatusChip } from "@/components/app/ops"
 import { AlertTriangle, CheckCircle2, Phone, Wifi, WifiOff, XCircle } from "lucide-react"
+import { WebhookInfoPanel } from "./_components/WebhookInfoPanel"
 import { cn } from "@/lib/utils"
 import { WaConnectPanel } from "./_components/WaConnectPanel"
 
@@ -63,6 +64,7 @@ export default async function ChannelsPage({
         tokenExpiresAt: waBusinessAccounts.tokenExpiresAt,
         connectedAt: waBusinessAccounts.connectedAt,
         lastError: waBusinessAccounts.lastError,
+        webhookVerifyToken: waBusinessAccounts.webhookVerifyToken,
         createdAt: waBusinessAccounts.createdAt,
       })
       .from(waBusinessAccounts)
@@ -146,6 +148,11 @@ export default async function ChannelsPage({
 
       {/* OAuth Connect Panel — Phase 12 */}
       <WaConnectPanel wabas={connectPanelWabas} appConfigured={appConfigured} />
+
+      {/* Webhook config info for connected WABAs */}
+      {wabaRows.length > 0 && (
+        <WebhookInfoPanel wabas={wabaRows.map(w => ({ wabaId: w.wabaId, displayName: w.displayName, webhookVerifyToken: w.webhookVerifyToken }))} />
+      )}
 
       {/* Separation notice */}
       <Panel bodyClassName="px-5 py-4">
