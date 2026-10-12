@@ -128,7 +128,11 @@ export async function GET(req: NextRequest) {
     // excludes conversations already being processed (serialization).
     // The returned item carries a lease token for subsequent fencing checks.
     const claimed = await claimNextQueueItem(ctx.correlationId)
-    if (!claimed) return { itemsProcessed: 0 }
+    if (!claimed) {
+      console.log("[processor] no queue items to process")
+      return { itemsProcessed: 0 }
+    }
+    console.log("[processor] claimed item:", claimed.id, "conv:", claimed.conversationId, "attempt:", claimed.attemptCount)
 
     const leaseToken = claimed.leaseToken ?? undefined
     const engineStart = Date.now()
@@ -408,6 +412,8 @@ export async function GET(req: NextRequest) {
       const agentConfig = (snapshot.agentConfig ?? snapshot) as AgentConfig
 
       // ── Step 8: Run engine ──────────────────────────────────────────
+      const llmProvider = (agentConfig as AgentConfig).personalidad?.llmProvider ?? "anthropic"
+      console.log("[processor] calling engine provider:", llmProvider, "model:", agent.model, "conv:", claimed.conversationId)
       const engineResult = await runEngine({
         orgId: claimed.orgId,
         agentConfig,
@@ -424,6 +430,7 @@ export async function GET(req: NextRequest) {
       })
 
       const latencyMs = Date.now() - engineStart
+      console.log("[processor] engine done stopReason:", engineResult.stopReason, "respLen:", engineResult.response?.length ?? 0, "latencyMs:", latencyMs)
 
       // ── Step 9: Persist AI reply ────────────────────────────────────
       // Insert with status "pending" — updated to "accepted" after successful send.
@@ -573,7 +580,10 @@ export async function GET(req: NextRequest) {
       // mark done an item already reclaimed by another worker.
       await markQueueItemDone(claimed.id, leaseToken)
       processed = 1
-    } catch {
+    } catch (err) {
+      const errCode = err instanceof Error ? err.constructor.name : typeof err
+      const errMsg = err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200)
+      console.log("[processor] outer catch itemId:", claimed.id, "err:", errCode, errMsg)
       const attemptCount = claimed.attemptCount + 1
       if (attemptCount >= MAX_ATTEMPTS) {
         await markQueueItemDeadLetter(claimed.id, "max_attempts_reached", leaseToken)

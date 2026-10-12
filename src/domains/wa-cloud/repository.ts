@@ -416,8 +416,9 @@ export async function enqueueForAiProcessing(params: {
           eq(aiMessageQueue.status, "enqueued"),
         )
       )
-  } catch {
+  } catch (err) {
     // Non-fatal: webhook processing continues even if enqueue fails.
+    console.log("[wa-repo] enqueueForAiProcessing failed:", err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200))
   }
 }
 

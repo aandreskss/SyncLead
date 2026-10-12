@@ -191,6 +191,7 @@ async function processIncomingMessage(msg: ParsedIncomingMessage): Promise<void>
     conversationId,
     incomingMessageId: messageRowId,
   })
+  console.log("[webhook-wa] enqueued for AI processing conversationId:", conversationId, "msgId:", messageRowId)
 
   // Trigger immediate processing so the AI replies in ~5s instead of waiting for cron.
   // Fire-and-forget: errors don't affect webhook response. Cron-job.org serves as fallback.
