@@ -411,6 +411,24 @@ export async function GET(req: NextRequest) {
       const snapshot = agentVersion.snapshot as Record<string, unknown>
       const agentConfig = (snapshot.agentConfig ?? snapshot) as AgentConfig
 
+      // ── Step 7.5: Greeting guard ────────────────────────────────────
+      // Weak models (Gemini Flash, small Llamas) ignore system-prompt instructions
+      // and repeat the greeting every turn. Injecting the presentation as a
+      // synthetic first assistant message makes the model literally SEE that the
+      // greeting was already sent, which is reliable across all model families.
+      // Only inject when history has no prior assistant message AND the conversation
+      // is past its first turn (messageCount > 1 means at least one exchange happened).
+      {
+        const hasAssistantMsg = history.some(m => m.role === "assistant")
+        const presentation = agentConfig.personalidad?.presentation
+        const isPastFirstTurn = (conversation.messageCount ?? 0) > 1
+        if (!hasAssistantMsg && isPastFirstTurn && presentation) {
+          const resolved = presentation
+            .replace(/\{\{nombre_empresa\}\}/gi, agentConfig.personalidad?.internalName ?? "")
+          history.unshift({ role: "assistant", content: resolved })
+        }
+      }
+
       // ── Step 8: Run engine ──────────────────────────────────────────
       const llmProvider = (agentConfig as AgentConfig).personalidad?.llmProvider ?? "anthropic"
       console.log("[processor] calling engine provider:", llmProvider, "model:", agent.model, "conv:", claimed.conversationId)
