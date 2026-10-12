@@ -51,15 +51,25 @@ export function buildSystemPrompt(
 
   const identidadLines = [
     `Eres ${personalidad.internalName}.`,
+    languageInstruction,
+    toneInstruction,
+    lengthInstruction,
   ]
-  if (personalidad.presentation) {
-    identidadLines.push(personalidad.presentation)
-  }
-  identidadLines.push(languageInstruction)
-  identidadLines.push(toneInstruction)
-  identidadLines.push(lengthInstruction)
 
   sections.push(`## Identidad\n${identidadLines.join("\n")}`)
+
+  // Presentation is a separate section with an explicit one-time instruction so
+  // weaker models don't repeat the greeting on every turn.
+  if (personalidad.presentation) {
+    const resolvedPresentation = personalidad.presentation
+      .replace(/\{\{nombre_empresa\}\}/gi, personalidad.internalName || "")
+    sections.push(
+      `## Saludo inicial\n` +
+      `Usa este saludo ÚNICAMENTE en tu primer mensaje de la conversación. ` +
+      `Si ya existe al menos un mensaje tuyo en el historial, NO lo repitas — continúa la conversación de forma natural:\n\n` +
+      `"${resolvedPresentation}"`
+    )
+  }
 
   // ── Section 2: Objetivo ───────────────────────────────────────────────────
   const { objetivo } = config
