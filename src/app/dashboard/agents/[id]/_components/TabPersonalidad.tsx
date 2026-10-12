@@ -12,9 +12,12 @@ interface Props {
 }
 
 const PROVIDER_LABELS: Record<AgentLlmProvider, string> = {
-  anthropic: "Anthropic (Claude)",
-  openai:    "OpenAI (GPT)",
-  google:    "Google (Gemini)",
+  anthropic:  "Anthropic (Claude)",
+  openai:     "OpenAI (GPT)",
+  google:     "Google (Gemini)",
+  deepseek:   "DeepSeek",
+  groq:       "Groq",
+  openrouter: "OpenRouter",
 }
 
 const LANGUAGE_LABELS: Record<AgentLanguage, string> = { es: "Español", en: "English", pt: "Português" }

@@ -38,9 +38,33 @@ const PROVIDERS: ProviderDef[] = [
     id: "google",
     name: "Google Gemini",
     logo: "✨",
-    models: ["Gemini 2.0 Flash", "Gemini 1.5 Pro", "Gemini 1.5 Flash"],
+    models: ["Gemini 3.8 Flash", "Gemini 1.5 Pro", "Gemini 1.5 Flash"],
     placeholder: "AIzaSy...",
     docsUrl: "https://aistudio.google.com/app/apikey",
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    logo: "🐋",
+    models: ["DeepSeek V3", "DeepSeek R1"],
+    placeholder: "sk-...",
+    docsUrl: "https://platform.deepseek.com/api_keys",
+  },
+  {
+    id: "groq",
+    name: "Groq",
+    logo: "⚡",
+    models: ["Llama 3.3 70B", "Llama 3.1 8B", "Gemma 2 9B", "Mixtral 8x7B"],
+    placeholder: "gsk_...",
+    docsUrl: "https://console.groq.com/keys",
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    logo: "🔀",
+    models: ["Llama 3.3 70B", "DeepSeek V3", "DeepSeek R1", "Gemini 2.0 Flash", "Qwen 2.5 72B"],
+    placeholder: "sk-or-v1-...",
+    docsUrl: "https://openrouter.ai/keys",
   },
 ]
 
@@ -53,24 +77,16 @@ export function AiProvidersView({ configured }: Props) {
     new Set(configured)
   )
   const [inputs, setInputs] = useState<Record<ProviderName, string>>({
-    anthropic: "",
-    openai: "",
-    google: "",
+    anthropic: "", openai: "", google: "", deepseek: "", groq: "", openrouter: "",
   })
   const [showKey, setShowKey] = useState<Record<ProviderName, boolean>>({
-    anthropic: false,
-    openai: false,
-    google: false,
+    anthropic: false, openai: false, google: false, deepseek: false, groq: false, openrouter: false,
   })
   const [errors, setErrors] = useState<Record<ProviderName, string>>({
-    anthropic: "",
-    openai: "",
-    google: "",
+    anthropic: "", openai: "", google: "", deepseek: "", groq: "", openrouter: "",
   })
   const [success, setSuccess] = useState<Record<ProviderName, boolean>>({
-    anthropic: false,
-    openai: false,
-    google: false,
+    anthropic: false, openai: false, google: false, deepseek: false, groq: false, openrouter: false,
   })
   const [isPending, startTransition] = useTransition()
 
