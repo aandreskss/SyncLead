@@ -172,12 +172,14 @@ export async function saveAgentDraftAction(input: SaveAgentDraftInput) {
     return { success: false as const, error: "No se puede editar un agente archivado" }
   }
 
+  const llmModel = parsed.data.config.personalidad?.llmModel
   const [updated] = await db
     .update(aiAgents)
     .set({
       name: parsed.data.name,
       description: parsed.data.description ?? null,
       agentConfig: parsed.data.config as unknown as Record<string, unknown>,
+      ...(llmModel ? { model: llmModel } : {}),
       updatedAt: new Date(),
     })
     .where(and(eq(aiAgents.id, parsed.data.agentId), eq(aiAgents.orgId, ctx.orgId)))
