@@ -337,36 +337,47 @@ export async function GET(req: NextRequest) {
         reservationId = budgetResult.reservationId
       }
 
-      // ── Step 5: Load message history ────────────────────────────────
-      const historyLimit = conversation.messageCount > SUMMARY_TRIGGER
+      // ── Steps 5+6: Load history and lead context in parallel ────────
+      // Both queries only need conversationId/orgId/leadId from Step 2,
+      // so they run concurrently to cut ~300ms off the critical path.
+      const historyLimit = (conversation.messageCount ?? 0) > SUMMARY_TRIGGER
         ? Math.min(HISTORY_WINDOW, 8)
         : HISTORY_WINDOW
 
-      const recentMessages = await db
-        .select({
-          role: waConversationMessages.role,
-          content: waConversationMessages.content,
-          contentType: waConversationMessages.contentType,
-          imageDescription: waConversationMessages.imageDescription,
-          transcriptionText: waConversationMessages.transcriptionText,
-          mediaProcessingStatus: waConversationMessages.mediaProcessingStatus,
-        })
-        .from(waConversationMessages)
-        .where(
-          and(
-            eq(waConversationMessages.conversationId, claimed.conversationId),
-            eq(waConversationMessages.orgId, claimed.orgId)
+      const [recentMessages, leadRows] = await Promise.all([
+        db
+          .select({
+            role: waConversationMessages.role,
+            content: waConversationMessages.content,
+            contentType: waConversationMessages.contentType,
+            imageDescription: waConversationMessages.imageDescription,
+            transcriptionText: waConversationMessages.transcriptionText,
+            mediaProcessingStatus: waConversationMessages.mediaProcessingStatus,
+          })
+          .from(waConversationMessages)
+          .where(
+            and(
+              eq(waConversationMessages.conversationId, claimed.conversationId),
+              eq(waConversationMessages.orgId, claimed.orgId)
+            )
           )
-        )
-        .orderBy(asc(waConversationMessages.createdAt))
-        .limit(historyLimit)
+          .orderBy(asc(waConversationMessages.createdAt))
+          .limit(historyLimit),
+
+        conversation.leadId
+          ? db
+              .select({ name: leads.name, phone: leads.phone, email: leads.email })
+              .from(leads)
+              .where(eq(leads.id, conversation.leadId))
+              .limit(1)
+          : Promise.resolve([]),
+      ])
 
       const history: LLMMessage[] = recentMessages
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => {
           let content = m.content || ""
 
-          // Enrich media messages with processed descriptions (untrusted user content)
           if (m.imageDescription) {
             content = content
               ? `${content}\n[Imagen: ${m.imageDescription}]`
@@ -385,27 +396,13 @@ export async function GET(req: NextRequest) {
           return { role: m.role as "user" | "assistant", content }
         })
 
-      // ── Step 6: Lead context ────────────────────────────────────────
-      let leadContext = undefined
-      if (conversation.leadId) {
-        const leadRows = await db
-          .select({
-            name: leads.name,
-            phone: leads.phone,
-            email: leads.email,
-          })
-          .from(leads)
-          .where(eq(leads.id, conversation.leadId))
-          .limit(1)
-
-        if (leadRows[0]) {
-          leadContext = {
+      const leadContext = leadRows[0]
+        ? {
             name: leadRows[0].name ?? undefined,
             phone: leadRows[0].phone ?? undefined,
             email: leadRows[0].email ?? undefined,
           }
-        }
-      }
+        : undefined
 
       // ── Step 7: Parse agent config ──────────────────────────────────
       const snapshot = agentVersion.snapshot as Record<string, unknown>
