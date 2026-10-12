@@ -318,7 +318,8 @@ export const LLM_MODELS: Record<AgentLlmProvider, LlmModelOption[]> = {
     { id: "o1-mini",     label: "O1 Mini",       description: "Razonamiento avanzado" },
   ],
   google: [
-    { id: "gemini-2.0-flash",   label: "Gemini 2.0 Flash",  description: "Más rápido, contexto largo" },
+    { id: "gemini-3.8-flash",   label: "Gemini 3.8 Flash",  description: "El más reciente y rápido de Google" },
+    { id: "gemini-2.0-flash",   label: "Gemini 2.0 Flash",  description: "Legado — usar 3.8 Flash en su lugar" },
     { id: "gemini-1.5-pro",     label: "Gemini 1.5 Pro",    description: "Alta calidad, contexto 1M tokens" },
     { id: "gemini-1.5-flash",   label: "Gemini 1.5 Flash",  description: "Económico y rápido" },
   ],
@@ -327,7 +328,7 @@ export const LLM_MODELS: Record<AgentLlmProvider, LlmModelOption[]> = {
 export const DEFAULT_LLM_MODEL: Record<AgentLlmProvider, string> = {
   anthropic: "claude-sonnet-4-6",
   openai:    "gpt-4o-mini",
-  google:    "gemini-2.0-flash",
+  google:    "gemini-3.8-flash",
 }
 
 export interface AgentFaqItem {
