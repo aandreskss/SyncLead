@@ -334,12 +334,12 @@ export const LLM_MODELS: Record<AgentLlmProvider, LlmModelOption[]> = {
     { id: "mixtral-8x7b-32768",       label: "Mixtral 8x7B",      description: "Contexto largo 32K tokens, gratis" },
   ],
   openrouter: [
-    { id: "meta-llama/llama-3.3-70b-instruct:free",    label: "Llama 3.3 70B (gratis)",   description: "Top open-source, completamente gratis" },
-    { id: "deepseek/deepseek-chat:free",               label: "DeepSeek V3 (gratis)",     description: "Muy capaz, tier gratuito" },
-    { id: "deepseek/deepseek-r1:free",                 label: "DeepSeek R1 (gratis)",     description: "Razonamiento avanzado, gratis" },
-    { id: "google/gemini-2.0-flash-exp:free",          label: "Gemini 2.0 Flash (gratis)", description: "Google, experimental y gratis" },
-    { id: "qwen/qwen-2.5-72b-instruct:free",           label: "Qwen 2.5 72B (gratis)",    description: "Alibaba, multilingüe, gratis" },
-    { id: "mistralai/mistral-7b-instruct:free",        label: "Mistral 7B (gratis)",      description: "Ligero y rápido, gratis" },
+    { id: "deepseek/deepseek-chat:free",               label: "DeepSeek V3 (gratis)",      description: "Muy capaz, tier gratuito estable" },
+    { id: "deepseek/deepseek-r1:free",                 label: "DeepSeek R1 (gratis)",      description: "Razonamiento avanzado, gratis" },
+    { id: "qwen/qwen-2.5-72b-instruct:free",           label: "Qwen 2.5 72B (gratis)",     description: "Alibaba, multilingüe, gratis" },
+    { id: "google/gemini-2.0-flash-exp:free",          label: "Gemini 2.0 Flash (gratis)", description: "Google experimental, gratis" },
+    { id: "mistralai/mistral-7b-instruct:free",        label: "Mistral 7B (gratis)",       description: "Ligero y rápido, gratis" },
+    { id: "meta-llama/llama-3.3-70b-instruct",        label: "Llama 3.3 70B (pago)",      description: "Top open-source, versión paga" },
   ],
 }
 
@@ -349,7 +349,7 @@ export const DEFAULT_LLM_MODEL: Record<AgentLlmProvider, string> = {
   google:      "gemini-3.8-flash",
   deepseek:    "deepseek-chat",
   groq:        "llama-3.3-70b-versatile",
-  openrouter:  "meta-llama/llama-3.3-70b-instruct:free",
+  openrouter:  "deepseek/deepseek-chat:free",
 }
 
 export interface AgentFaqItem {
