@@ -127,7 +127,7 @@ export async function runEngine(ctx: EngineContext): Promise<EngineResult> {
     } catch (err) {
       // Log error type/code only — never log raw message (may contain API key)
       const errCode = err instanceof Error ? err.constructor.name : typeof err
-      const errMsg = err instanceof Error ? err.message.slice(0, 120) : String(err).slice(0, 120)
+      const errMsg = err instanceof Error ? err.message.slice(0, 400) : String(err).slice(0, 400)
       console.log("[engine] LLM call failed provider:", agentLlmProvider, "model:", ctx.model, "err:", errCode, errMsg)
       return {
         response:
