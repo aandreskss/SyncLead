@@ -151,7 +151,15 @@ export function buildSystemPrompt(
 
   // ── Section 6: Instrucciones de herramientas ──────────────────────────────
   sections.push(
-    `## Instrucciones de herramientas\nTienes acceso a herramientas del CRM. Úsalas para registrar información importante de la conversación, actualizar el estado del lead y notificar al equipo cuando sea necesario. Siempre usa las herramientas para mantener el CRM actualizado — no asumas que el equipo recordará los detalles de la conversación.`
+    `## Instrucciones de herramientas\n` +
+    `Usa las herramientas del CRM de forma PROACTIVA durante la conversación — no solo al final. Reglas estrictas:\n\n` +
+    `- **update_lead_fields**: En cuanto el lead confirme su nombre, ciudad, teléfono o email, llama esta herramienta INMEDIATAMENTE. No esperes a tener todos los datos.\n` +
+    `- **update_lead_stage**: Cambia la etapa cuando el lead muestre interés real (→ "interested"), pida cotización/precio (→ "quoted"), o se despida sin comprar (→ "lost").\n` +
+    `- **add_lead_note**: Registra información relevante: producto de interés, presupuesto, objeciones, preferencias, cualquier dato útil para el equipo.\n` +
+    `- **assign_to_rep**: Llama esta herramienta INMEDIATAMENTE si el lead pide hablar con un humano, un asesor o una persona real. No lo postergues ni lo prometas sin ejecutarlo.\n` +
+    `- **transfer_to_human**: Úsala para quejas, situaciones fuera de tu alcance, o cuando el lead lo solicite explícitamente y necesite atención urgente.\n` +
+    `- **search_knowledge_base**: Busca aquí ANTES de responder preguntas sobre productos, precios o políticas. Nunca inventes información.\n` +
+    `- **end_conversation**: Úsala cuando la conversación esté completa y no quede ninguna acción pendiente.`
   )
 
   return sections.join("\n\n---\n\n")
