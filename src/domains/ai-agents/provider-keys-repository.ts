@@ -5,7 +5,7 @@ import { aiProviderKeys } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
 import { encryptTokenVersioned, decryptTokenVersioned } from "@/lib/crypto"
 
-export type ProviderName = "anthropic" | "openai" | "google"
+export type ProviderName = "anthropic" | "openai" | "google" | "deepseek" | "groq" | "openrouter"
 
 export async function getProviderApiKey(
   orgId: string,

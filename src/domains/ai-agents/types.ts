@@ -297,7 +297,7 @@ export type AgentTone = typeof AGENT_TONES[number]
 export const AGENT_RESPONSE_LENGTHS = ["brief", "standard", "detailed"] as const
 export type AgentResponseLength = typeof AGENT_RESPONSE_LENGTHS[number]
 
-export const AGENT_LLM_PROVIDERS = ["anthropic", "openai", "google"] as const
+export const AGENT_LLM_PROVIDERS = ["anthropic", "openai", "google", "deepseek", "groq", "openrouter"] as const
 export type AgentLlmProvider = typeof AGENT_LLM_PROVIDERS[number]
 
 export interface LlmModelOption {
@@ -323,12 +323,33 @@ export const LLM_MODELS: Record<AgentLlmProvider, LlmModelOption[]> = {
     { id: "gemini-1.5-pro",     label: "Gemini 1.5 Pro",    description: "Alta calidad, contexto 1M tokens" },
     { id: "gemini-1.5-flash",   label: "Gemini 1.5 Flash",  description: "Económico y rápido" },
   ],
+  deepseek: [
+    { id: "deepseek-chat",      label: "DeepSeek V3",        description: "Tier gratuito disponible, muy capaz" },
+    { id: "deepseek-reasoner",  label: "DeepSeek R1",        description: "Razonamiento avanzado (más lento)" },
+  ],
+  groq: [
+    { id: "llama-3.3-70b-versatile",  label: "Llama 3.3 70B",    description: "Mejor calidad, gratis, muy rápido" },
+    { id: "llama-3.1-8b-instant",     label: "Llama 3.1 8B",     description: "Ultra rápido, ideal para respuestas cortas" },
+    { id: "gemma2-9b-it",             label: "Gemma 2 9B",        description: "Google open-source, gratis en Groq" },
+    { id: "mixtral-8x7b-32768",       label: "Mixtral 8x7B",      description: "Contexto largo 32K tokens, gratis" },
+  ],
+  openrouter: [
+    { id: "meta-llama/llama-3.3-70b-instruct:free",    label: "Llama 3.3 70B (gratis)",   description: "Top open-source, completamente gratis" },
+    { id: "deepseek/deepseek-chat:free",               label: "DeepSeek V3 (gratis)",     description: "Muy capaz, tier gratuito" },
+    { id: "deepseek/deepseek-r1:free",                 label: "DeepSeek R1 (gratis)",     description: "Razonamiento avanzado, gratis" },
+    { id: "google/gemini-2.0-flash-exp:free",          label: "Gemini 2.0 Flash (gratis)", description: "Google, experimental y gratis" },
+    { id: "qwen/qwen-2.5-72b-instruct:free",           label: "Qwen 2.5 72B (gratis)",    description: "Alibaba, multilingüe, gratis" },
+    { id: "mistralai/mistral-7b-instruct:free",        label: "Mistral 7B (gratis)",      description: "Ligero y rápido, gratis" },
+  ],
 }
 
 export const DEFAULT_LLM_MODEL: Record<AgentLlmProvider, string> = {
-  anthropic: "claude-sonnet-4-6",
-  openai:    "gpt-4o-mini",
-  google:    "gemini-3.8-flash",
+  anthropic:   "claude-sonnet-4-6",
+  openai:      "gpt-4o-mini",
+  google:      "gemini-3.8-flash",
+  deepseek:    "deepseek-chat",
+  groq:        "llama-3.3-70b-versatile",
+  openrouter:  "meta-llama/llama-3.3-70b-instruct:free",
 }
 
 export interface AgentFaqItem {
