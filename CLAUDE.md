@@ -41,7 +41,7 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **Resend** — emails transaccionales
 - **Upstash Redis** — rate limiting
 - **AES-256-GCM** — cifrado versionado de tokens Meta en DB (`src/lib/crypto.ts`); rotación por `ENCRYPTION_KEY_VERSION`
-- **@anthropic-ai/sdk** — motor LLM (Fase 04); adaptador Anthropic + interfaz `LLMProvider` sustituible
+- **@anthropic-ai/sdk + openai SDK** — motor LLM multi-provider: Anthropic, OpenAI, Google Gemini, DeepSeek, Groq, OpenRouter; interfaz `LLMProvider` sustituible por proveedor
 - **Cloudflare Turnstile** — bot protection para formularios públicos (opcional)
 - **Vercel** — deploy automático desde rama `main`
 
@@ -119,8 +119,13 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`autoQualifyLeadInternal` tiene try/finally como red de seguridad absoluta**: el bloque `finally` siempre consulta la tabla `conversions` al terminar (incluso si la función sale con `return` anticipado). Si existe una conversión con `status = "confirmed"`, fuerza `temperature = "hot"`. Esto garantiza que ningún camino de calificación pueda dejar en frío a un lead que ya compró. La guarda `ne(leads.temperature, "hot")` en el `finally` evita writes innecesarios.
 - **`cost-utils.ts` vs `cost-calculator.ts`**: funciones de puro formato (`formatMillicentsAsUsd`, `getModelDisplayName`) viven en `cost-utils.ts` SIN `import "server-only"` — seguros para importar en Client Components. Funciones con DB queries (`getActivePricingTier`, `computeCostMillicents`, etc.) permanecen en `cost-calculator.ts` con `import "server-only"`. Nunca importar `cost-calculator.ts` desde un Client Component.
 - **Crons de IA en cron-job.org, no en Vercel**: Vercel Hobby plan limita crons a 1/día. Los 4 crons de frecuencia alta (`ai-message-processor`, `ai-media-processor`, `ai-document-processor` — 1/min; `meta-outbox` — 10/min) se registran en cron-job.org como POST con `Authorization: Bearer $CRON_SECRET`. El webhook de WhatsApp dispara inmediatamente un fetch a `ai-message-processor` tras enqueue (fire-and-forget) para respuesta en ~5s; cron-job.org es el fallback de recuperación.
-- **Multi-provider LLM**: `createProvider(name, apiKey?)` en `src/lib/llm/index.ts` instancia `AnthropicProvider | OpenAIProvider | GeminiProvider`. Todos los constructores aceptan `apiKey?: string` opcional (si no se pasa, usan env var). El engine busca primero la clave en `ai_provider_keys` de la DB del org; si no existe, usa env var. Esto permite que cada organización configure sus propias claves sin tocar el servidor.
-- **`ai_provider_keys`**: tabla con UNIQUE `(org_id, provider)`. Claves cifradas con `encryptTokenVersioned()` (AES-256-GCM, mismo formato que `meta_connections`). `decryptTokenVersioned()` solo necesita la ciphertext (la versión está embebida en formato `v{n}:iv:tag:data`). Solo owner/admin puede guardar o eliminar claves.
+- **Multi-provider LLM**: `createProvider(name, apiKey?)` en `src/lib/llm/index.ts` instancia `AnthropicProvider | OpenAIProvider | GeminiProvider | DeepSeekProvider | GroqProvider | OpenRouterProvider`. Todos los constructores aceptan `apiKey?: string` opcional (si no se pasa, usan env var). El engine busca primero la clave en `ai_provider_keys` de la DB del org; si no existe, usa env var. Esto permite que cada organización configure sus propias claves sin tocar el servidor.
+- **DeepSeek, Groq, OpenRouter usan el SDK de OpenAI** con `baseURL` personalizado: DeepSeek → `https://api.deepseek.com/v1`, Groq → `https://api.groq.com/openai/v1`, OpenRouter → `https://openrouter.ai/api/v1` (+ headers `HTTP-Referer` y `X-Title`). No requieren SDK adicional. **Nota operativa**: DeepSeek requiere saldo pagado (no gratis); Groq es gratis pero bloqueado en Venezuela; OpenRouter tiene modelos `:free` (sufijo en model ID) pero su disponibilidad cambia sin aviso — los modelos NVIDIA Nemotron son los actuales. Gemini 1.5 Flash vía Google AI Studio es la mejor opción gratuita y accesible desde Venezuela.
+- **`ai_provider_keys`**: tabla con UNIQUE `(org_id, provider)`. `ProviderName = "anthropic" | "openai" | "google" | "deepseek" | "groq" | "openrouter"`. Claves cifradas con `encryptTokenVersioned()` (AES-256-GCM, mismo formato que `meta_connections`). `decryptTokenVersioned()` solo necesita la ciphertext (la versión está embebida en formato `v{n}:iv:tag:data`). Solo owner/admin puede guardar o eliminar claves.
+- **Instrucciones de herramientas del agente son directivas**: el prompt `## Instrucciones de herramientas` en `prompts.ts` especifica CUÁNDO llamar cada tool (ej: `assign_to_rep` INMEDIATAMENTE si el lead pide hablar con un humano). Sin instrucciones directivas, los modelos débiles describen la acción verbalmente sin llamar la herramienta.
+- **Greeting guard en el processor (Step 7.5)**: si no hay mensajes de assistant en el historial pero `messageCount > 1`, se inyecta sintéticamente la presentación resuelta como primer mensaje assistant. Esto evita que el modelo repita el saludo en conversaciones ya iniciadas. La presentación también se mueve a sección `## Saludo inicial` separada de `## Identidad` con instrucción explícita de usarla SOLO en el primer mensaje.
+- **`{{nombre_empresa}}` se resuelve en tiempo de build del prompt**: `personalidad.presentation.replace(/\{\{nombre_empresa\}\}/gi, personalidad.internalName || "")` en `prompts.ts`. Si no se resuelve, el lead ve la plantilla literal.
+- **Queries paralelas en el processor**: Steps 5+6 (historial + lead context) se ejecutan con `Promise.all` en lugar de secuencialmente. Reduce latencia ~200-500ms por conversación.
 
 ## Arquitectura multi-tenant
 Aislamiento a nivel de aplicación (no RLS). **Todas las tablas tienen `org_id`.**
@@ -311,7 +316,7 @@ src/
       inbox-repository.ts ← InboxFilter (mine/unassigned/ai_active/waiting_human/closed); listInboxConversations (paginado + lastMessage preview en JS); getConversationDetail (conversation+messages+notes+lead+assignedUser); takeConversation (atómico: WHERE controlMode != 'human' + cancel aiMessageQueue entries); releaseConversation; returnToAi (llama resolveEpisodeForConversation); resolveConversation (→ closed + paused); reopenConversation (→ active + waiting_human); addNote; listNotes; isWithinSchedule(windows, timezone) — DST-safe via Intl.DateTimeFormat toLocaleString("en-US")
       inbox-actions.ts    ← takeConversationAction; releaseConversationAction; returnToAiAction; resolveConversationAction; reopenConversationAction; replyAction (busca phone creds via JOIN waPhoneNumbers→waBusinessAccounts + decryptTokenVersioned + CloudApiClient; 24h elegibilidad → { requiresTemplate: true } si > 24h); addNoteAction; upsertScheduleAction (regex HH:MM + onConflictDoUpdate unique deploymentId); toggleDeploymentPauseAction (requireRole manager+)
       engine/
-        prompts.ts  ← buildSystemPrompt(config, leadContext?): 6 secciones (Identidad/Objetivo/FAQ/Reglas/Contexto lead/Herramientas)
+        prompts.ts  ← buildSystemPrompt(config, leadContext?, conversationSummary?): 7 secciones (Identidad/Saludo inicial/Objetivo/FAQ/Reglas/Resumen anterior/Contexto lead/Herramientas). Presentación en sección separada "Saludo inicial" con instrucción explícita de no repetir. `{{nombre_empresa}}` se resuelve con internalName. Tool instructions son directivas (CUÁNDO llamar cada tool).
         knowledge.ts ← loadKnowledgeChunks (8000-char budget trim), formatKnowledgeForPrompt
         tools.ts    ← 7 tool definitions CRM, executeTool dispatcher, sandbox=no DB writes, getEnabledTools
         index.ts    ← runEngine(EngineContext): loop ≤5 turnos, tool execution, 2000-char trim, transfer detection; EngineContext/EngineResult
@@ -349,7 +354,10 @@ src/
       anthropic.ts  ← import "server-only"; AnthropicProvider(apiKey?): lee ANTHROPIC_API_KEY o apiKey param, AbortController timeout, disable_parallel_tool_use:true
       openai.ts     ← import "server-only"; OpenAIProvider(apiKey?): GPT-4o/mini/O1, tool_calls, stop reasons
       gemini.ts     ← import "server-only"; GeminiProvider(apiKey?): Gemini 2.0 Flash/1.5 Pro/Flash, history split, functionCall/Response mapping
-      index.ts      ← createProvider(name, apiKey?) factory + singleton defaultProvider; re-exports de tipos LLM
+      deepseek.ts   ← import "server-only"; DeepSeekProvider(apiKey?): OpenAI SDK con baseURL deepseek.com/v1; modelos deepseek-chat/reasoner
+      groq.ts       ← import "server-only"; GroqProvider(apiKey?): OpenAI SDK con baseURL api.groq.com/openai/v1; modelos llama-3.3-70b-versatile/llama-3.1-8b-instant/gemma2-9b-it/mixtral-8x7b-32768
+      openrouter.ts ← import "server-only"; OpenRouterProvider(apiKey?): OpenAI SDK con baseURL openrouter.ai/api/v1 + headers HTTP-Referer/X-Title; modelos NVIDIA Nemotron (:free suffix)
+      index.ts      ← createProvider(name, apiKey?) factory para los 6 providers; LlmProviderName = "anthropic"|"openai"|"google"|"deepseek"|"groq"|"openrouter"; re-exports de tipos LLM
   __tests__/
     __mocks__/server-only.ts          ← no-op mock para Vitest (alias en vitest.config.ts)
     ingest-schema.test.ts             ← 28 tests validación Zod ingest
@@ -467,7 +475,10 @@ src/proxy.ts  ← protege /dashboard/*, applySecurityHeaders() (CSP+nonce, X-Fra
 | `META_USER_ACCESS_TOKEN` | User Access Token con `ads_read` para Meta Ad Library API. Si no está seteado, el código usa `APP_ID\|APP_SECRET` como App Token. Tokens de Graph API Explorer duran 1h — para prod usar System User Token (no expira). Exchange `fb_exchange_token` falla para esta app (causa desconocida). | Ad Research |
 | `ANTHROPIC_API_KEY` | API key de Anthropic (Claude). Fallback global si el org no configura su propia clave en `/dashboard/settings/ai-providers`. | Agentes IA |
 | `OPENAI_API_KEY` | API key de OpenAI (GPT-4o, GPT-4o Mini, O1 Mini). Fallback global. | Agentes IA |
-| `GOOGLE_AI_API_KEY` | API key de Google AI Studio (Gemini). Fallback global. Obtener en aistudio.google.com. | Agentes IA |
+| `GOOGLE_AI_API_KEY` | API key de Google AI Studio (Gemini). Fallback global. Obtener en aistudio.google.com. Accesible desde Venezuela. | Agentes IA |
+| `DEEPSEEK_API_KEY` | API key de DeepSeek. Fallback global. Requiere saldo pagado — NO es gratis. | Agentes IA |
+| `GROQ_API_KEY` | API key de Groq. Fallback global. Gratis (14,400 req/día) pero bloqueado en Venezuela. | Agentes IA |
+| `OPENROUTER_API_KEY` | API key de OpenRouter. Fallback global. Modelos `:free` disponibles pero inestables — disponibilidad cambia sin aviso. | Agentes IA |
 | `CRON_SECRET` | Protege todos los endpoints `/api/cron/*`. Requerido también para el trigger inmediato desde el webhook WA. cron-job.org debe enviarlo como `Authorization: Bearer $CRON_SECRET`. | ✓ |
 
 ## Seguridad crítica
@@ -808,3 +819,12 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] **Engine usa clave de DB**: `runEngine()` llama `getProviderApiKey(orgId, provider)` → si existe en DB la usa, si no usa env var. Constructores de los tres providers aceptan `apiKey?: string` opcional.
   - [x] **`CRON_SECRET` generado**: `da52bf7c0c9cc8dff28735ca7811d91a2f97d5ad4b765bde9f9a21cde4b94802` — guardado en `.env.local`; pendiente agregar en Vercel → Settings → Environment Variables.
   - [x] Decisiones críticas: millicents = 1/100_000 USD (bigint, sin floats); rates almacenadas mc/1000tokens (tokens < 1mc cada uno); source `anthropic_published` ≠ tarifas Callbell; costos WhatsApp siempre "N/D" (sin datos verificados, nunca cero supuesto); budget exhaustion → `waiting_human` + endEpisode("budget") (nunca chat invisible)
+- [x] Agentes IA — Fase 13 (cont.): DeepSeek + Groq + OpenRouter + fixes de prompt (2026-10-11)
+  - [x] **DeepSeek provider** (`src/lib/llm/deepseek.ts`): OpenAI SDK con `baseURL: "https://api.deepseek.com/v1"`; modelos `deepseek-chat` y `deepseek-reasoner`. `ProviderName` actualizado en `provider-keys-repository.ts` para incluir `"deepseek"`.
+  - [x] **Groq provider** (`src/lib/llm/groq.ts`): OpenAI SDK con `baseURL: "https://api.groq.com/openai/v1"`; modelos `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `gemma2-9b-it`, `mixtral-8x7b-32768`. Gratis pero inaccesible desde Venezuela.
+  - [x] **OpenRouter provider** (`src/lib/llm/openrouter.ts`): OpenAI SDK con `baseURL: "https://openrouter.ai/api/v1"` + headers `HTTP-Referer: $NEXT_PUBLIC_APP_URL` y `X-Title: SyncLead`. Modelos actuales gratuitos: NVIDIA Nemotron series (`nvidia/nemotron-3-ultra-550b-a55b:free`, `nvidia/nemotron-3-super-120b-a12b:free`, `nvidia/nemotron-3.5-lightning:free`, `thinkingmachines/inkling:free`). Los modelos Llama 3.3 70B, DeepSeek y Qwen YA NO son gratis en OpenRouter.
+  - [x] **`LLM_MODELS` catalog en `types.ts`** actualizado para los 6 providers; `AGENT_LLM_PROVIDERS` incluye todos; `DEFAULT_LLM_MODEL` por provider; `TabPersonalidad.tsx` con `PROVIDER_LABELS` completo; `AiProvidersView.tsx` con estados para los 6 providers.
+  - [x] **Fix `{{nombre_empresa}}`**: `prompts.ts` resuelve el placeholder con `internalName` vía `.replace(/\{\{nombre_empresa\}\}/gi, ...)` antes de incluir la presentación en el prompt.
+  - [x] **Fix repetición de saludo**: sección `## Saludo inicial` separada de `## Identidad` con instrucción explícita; + Step 7.5 en el processor inyecta el saludo resuelto como mensaje sintético de assistant cuando ya existe historial real pero no hay mensajes AI previos cargados.
+  - [x] **Instrucciones de tools directivas**: `## Instrucciones de herramientas` reescrito con regla CUÁNDO por tool — especialmente `assign_to_rep: INMEDIATAMENTE si el lead pide hablar con un humano`. Commit `9f28ed3`.
+  - [x] **Queries paralelas en processor**: Steps 5+6 (historial + lead context) con `Promise.all` — reduce latencia ~200-500ms.
