@@ -334,12 +334,11 @@ export const LLM_MODELS: Record<AgentLlmProvider, LlmModelOption[]> = {
     { id: "mixtral-8x7b-32768",       label: "Mixtral 8x7B",      description: "Contexto largo 32K tokens, gratis" },
   ],
   openrouter: [
-    { id: "deepseek/deepseek-chat:free",               label: "DeepSeek V3 (gratis)",      description: "Muy capaz, tier gratuito estable" },
-    { id: "deepseek/deepseek-r1:free",                 label: "DeepSeek R1 (gratis)",      description: "Razonamiento avanzado, gratis" },
-    { id: "qwen/qwen-2.5-72b-instruct:free",           label: "Qwen 2.5 72B (gratis)",     description: "Alibaba, multilingüe, gratis" },
-    { id: "google/gemini-2.0-flash-exp:free",          label: "Gemini 2.0 Flash (gratis)", description: "Google experimental, gratis" },
-    { id: "mistralai/mistral-7b-instruct:free",        label: "Mistral 7B (gratis)",       description: "Ligero y rápido, gratis" },
-    { id: "meta-llama/llama-3.3-70b-instruct",        label: "Llama 3.3 70B (pago)",      description: "Top open-source, versión paga" },
+    { id: "nvidia/nemotron-3-ultra-550b-a55b:free",       label: "Nemotron Ultra 550B",    description: "NVIDIA, 550B paráms, el más capaz gratis" },
+    { id: "nvidia/nemotron-3-super-120b-a12b:free",       label: "Nemotron Super 120B",    description: "NVIDIA, 120B paráms, alta calidad gratis" },
+    { id: "nvidia/nemotron-3.5-lightning:free",           label: "Nemotron Lightning",     description: "NVIDIA, rápido y ligero, gratis" },
+    { id: "thinkingmachines/inkling:free",                label: "Inkling (gratis)",       description: "Multimodal, razonamiento general, gratis" },
+    { id: "thinkingmachines/inkling-small:free",          label: "Inkling Small (gratis)", description: "Versión compacta, respuestas rápidas, gratis" },
   ],
 }
 
@@ -349,7 +348,7 @@ export const DEFAULT_LLM_MODEL: Record<AgentLlmProvider, string> = {
   google:      "gemini-3.8-flash",
   deepseek:    "deepseek-chat",
   groq:        "llama-3.3-70b-versatile",
-  openrouter:  "deepseek/deepseek-chat:free",
+  openrouter:  "nvidia/nemotron-3-ultra-550b-a55b:free",
 }
 
 export interface AgentFaqItem {
