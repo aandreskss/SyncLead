@@ -2,12 +2,31 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField, opsIconBtn, opsBtnPrimary } from "@/components/app/ops"
+import {
+  PageHeader,
+  opsBtnPrimary,
+  opsIconBtn,
+} from "@/components/app/ops"
 import { ClientDialog } from "./ClientDialog"
 import { deleteClientAction, toggleClientActiveAction } from "@/domains/clients/actions"
 import type { Client } from "@/lib/db/schema"
-import { Plus, Pencil, Trash2, Building2, ExternalLink, Search } from "lucide-react"
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Building2,
+  ChevronRight,
+  Wifi,
+  MessageCircle,
+  Radio,
+  Play,
+  Pause,
+  Layers,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 interface Props {
   clients: Client[]
@@ -15,28 +34,248 @@ interface Props {
 }
 
 function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", year: "numeric" }).format(
-    new Date(date)
+  return new Intl.DateTimeFormat("es", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(date))
+}
+
+function StatPill({
+  value,
+  label,
+  color = "default",
+}: {
+  value: number
+  label: string
+  color?: "default" | "green" | "neutral" | "coral" | "blue"
+}) {
+  const colors = {
+    default: "text-ops-tx",
+    green: "text-ops-green",
+    neutral: "text-ops-tx2",
+    coral: "text-ops-coral",
+    blue: "text-ops-blue",
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={cn("font-plex text-xl font-bold tabular-nums", colors[color])}>
+        {value}
+      </span>
+      <span className="text-xs text-ops-tx2">{label}</span>
+    </div>
   )
 }
+
+function Indicator({
+  active,
+  label,
+  icon,
+}: {
+  active: boolean
+  label: string
+  icon: React.ReactNode
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
+        active ? "bg-ops-green-bg text-ops-green" : "bg-ops-line text-ops-tx3"
+      )}
+    >
+      {icon}
+      {label}
+      {active ? (
+        <CheckCircle2 className="h-3 w-3" />
+      ) : (
+        <XCircle className="h-3 w-3 opacity-50" />
+      )}
+    </div>
+  )
+}
+
+interface CardProps {
+  client: Client
+  confirmDeleteId: string | null
+  deletePending: boolean
+  togglePending: boolean
+  onEdit: (c: Client) => void
+  onConfirmDelete: (id: string) => void
+  onCancelDelete: () => void
+  onDelete: (id: string) => void
+  onToggleActive: (c: Client) => void
+}
+
+function ClientCard({
+  client,
+  confirmDeleteId,
+  deletePending,
+  togglePending,
+  onEdit,
+  onConfirmDelete,
+  onCancelDelete,
+  onDelete,
+  onToggleActive,
+}: CardProps) {
+  const isConfirming = confirmDeleteId === client.id
+  const hasCapi = !!client.metaAccessTokenEnc
+  const hasPixel = !!client.metaPixelId
+  const hasWa = client.whatsappNumbers.length > 0
+
+  return (
+    <div
+      className={cn(
+        "group flex flex-col overflow-hidden rounded-[20px] border bg-white shadow-ops-card transition-shadow hover:shadow-lg",
+        isConfirming ? "border-ops-coral/40" : "border-ops-line"
+      )}
+    >
+      {/* Card header */}
+      <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1.5 flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex h-[22px] items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold",
+                client.active
+                  ? "bg-ops-green-bg text-ops-green"
+                  : "bg-ops-line text-ops-tx3"
+              )}
+            >
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  client.active ? "bg-ops-green" : "bg-ops-tx3"
+                )}
+              />
+              {client.active ? "Activo" : "Inactivo"}
+            </span>
+          </div>
+
+          <h3 className="truncate text-[15px] font-semibold leading-snug text-ops-tx">
+            {client.name}
+          </h3>
+          <p className="mt-0.5 text-[11px] text-ops-tx3">
+            Creado {formatDate(client.createdAt)}
+          </p>
+        </div>
+
+        {/* Toggle activo/inactivo */}
+        <button
+          onClick={() => onToggleActive(client)}
+          disabled={togglePending}
+          title={client.active ? "Desactivar cliente" : "Activar cliente"}
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors disabled:opacity-50",
+            client.active
+              ? "border-ops-green/30 bg-ops-green-bg text-ops-green hover:bg-ops-green/20"
+              : "border-ops-line bg-ops-s2 text-ops-tx3 hover:bg-ops-line"
+          )}
+        >
+          {client.active ? (
+            <Pause className="h-3.5 w-3.5" />
+          ) : (
+            <Play className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </div>
+
+      {/* Indicadores de configuración */}
+      <div className="flex flex-wrap gap-1.5 px-5 pb-4">
+        <Indicator
+          active={hasCapi}
+          label="CAPI"
+          icon={<Wifi className="h-3 w-3" />}
+        />
+        <Indicator
+          active={hasPixel}
+          label="Pixel"
+          icon={<Radio className="h-3 w-3" />}
+        />
+        <Indicator
+          active={hasWa}
+          label={hasWa ? `WA ${client.whatsappNumbers.length}` : "WhatsApp"}
+          icon={<MessageCircle className="h-3 w-3" />}
+        />
+      </div>
+
+      {/* Pixel ID si existe */}
+      {client.metaPixelId && (
+        <div className="px-5 pb-4">
+          <span className="font-plex text-[11px] tabular-nums text-ops-tx3">
+            Pixel: {client.metaPixelId}
+          </span>
+        </div>
+      )}
+
+      {/* Separador */}
+      <div className="mx-5 mt-auto border-t border-ops-line" />
+
+      {/* Footer de acciones */}
+      {isConfirming ? (
+        <div className="flex items-center justify-between gap-2 px-5 py-3">
+          <span className="text-xs font-medium text-ops-coral">¿Eliminar cliente?</span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onDelete(client.id)}
+              disabled={deletePending}
+              className="h-7 rounded-full bg-ops-coral px-3 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {deletePending ? "…" : "Confirmar"}
+            </button>
+            <button
+              onClick={onCancelDelete}
+              disabled={deletePending}
+              className="h-7 rounded-full border border-ops-bd px-3 text-xs font-medium text-ops-tx2 transition-colors hover:bg-ops-s2"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <Link
+            href={`/dashboard/clients/${client.id}`}
+            className="flex h-8 items-center gap-1.5 rounded-full bg-ops-blue px-4 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            Ver cliente
+            <ChevronRight className="h-3 w-3" />
+          </Link>
+
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => onEdit(client)}
+              className={opsIconBtn}
+              title="Editar cliente"
+              aria-label={`Editar ${client.name}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => onConfirmDelete(client.id)}
+              className={cn(opsIconBtn, "hover:text-ops-coral")}
+              title="Eliminar cliente"
+              aria-label={`Eliminar ${client.name}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+type StatusFilter = "all" | "active" | "inactive"
 
 export function ClientsView({ clients: allClients }: Props) {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [query, setQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [deletePending, startDeleteTransition] = useTransition()
   const [togglePending, startToggleTransition] = useTransition()
-
-  const q = query.trim().toLowerCase()
-  const clients = allClients.filter((c) => {
-    if (statusFilter === "active" && !c.active) return false
-    if (statusFilter === "inactive" && c.active) return false
-    if (!q) return true
-    return c.name.toLowerCase().includes(q) || (c.metaPixelId ?? "").toLowerCase().includes(q)
-  })
 
   function openCreate() {
     setEditClient(null)
@@ -63,195 +302,160 @@ export function ClientsView({ clients: allClients }: Props) {
     })
   }
 
-  const rowActions = (client: Client) =>
-    confirmDeleteId === client.id ? (
-      <>
-        <button
-          onClick={() => handleDelete(client.id)}
-          disabled={deletePending}
-          className="h-8 rounded-full bg-ops-coral px-3 text-xs font-medium text-white transition-colors hover:opacity-90 focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
-        >
-          {deletePending ? "…" : "Confirmar"}
-        </button>
-        <button
-          onClick={() => setConfirmDeleteId(null)}
-          disabled={deletePending}
-          className="h-8 rounded-full border border-ops-bd px-3 text-xs text-ops-tx transition-colors hover:bg-ops-hover focus-visible:outline-2 focus-visible:outline-ops-blue"
-        >
-          Cancelar
-        </button>
-      </>
-    ) : (
-      <>
-        <Link href={`/dashboard/clients/${client.id}`} className={opsIconBtn} title="Ver detalle" aria-label="Ver detalle">
-          <ExternalLink className="h-4 w-4" />
-        </Link>
-        <button onClick={() => openEdit(client)} className={opsIconBtn} title="Editar" aria-label="Editar">
-          <Pencil className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => setConfirmDeleteId(client.id)}
-          className={`${opsIconBtn} hover:text-ops-coral`}
-          title="Eliminar"
-          aria-label="Eliminar"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </>
-    )
+  const filtered = allClients.filter((c) => {
+    if (statusFilter === "active") return c.active
+    if (statusFilter === "inactive") return !c.active
+    return true
+  })
 
-  const statusButton = (client: Client) => (
-    <button
-      onClick={() => handleToggleActive(client)}
-      disabled={togglePending}
-      title={client.active ? "Desactivar" : "Activar"}
-      className="rounded transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ops-blue disabled:opacity-50"
-    >
-      <StatusChip tone={client.active ? "green" : "amber"}>{client.active ? "Activo" : "Inactivo"}</StatusChip>
-    </button>
-  )
+  const totalActive = allClients.filter((c) => c.active).length
+  const totalInactive = allClients.filter((c) => !c.active).length
+  const totalCapi = allClients.filter((c) => !!c.metaAccessTokenEnc).length
 
-  const capi = (client: Client) =>
-    client.metaAccessTokenEnc ? (
-      <span className="ml-2 align-middle">
-        <StatusChip tone="green">CAPI</StatusChip>
-      </span>
-    ) : null
-
-  const wa = (client: Client) =>
-    client.whatsappNumbers.length > 0 ? (
-      <span className="font-plex tabular-nums text-ops-tx">
-        {client.whatsappNumbers.length} número{client.whatsappNumbers.length !== 1 ? "s" : ""}
-      </span>
-    ) : (
-      <span className="text-ops-tx3">—</span>
-    )
+  const FILTERS: { value: StatusFilter; label: string }[] = [
+    { value: "all", label: "Todos" },
+    { value: "active", label: "Activos" },
+    { value: "inactive", label: "Inactivos" },
+  ]
 
   return (
-    <PageShell>
-      <PageHeader
-        eyebrow="CLIENTES"
-        title="Clientes"
-        subtitle="Cada cliente tiene su pixel, sus números de WhatsApp y su tracking."
-        actions={
-          <button onClick={openCreate} className={opsBtnPrimary}>
-            <Plus className="h-4 w-4" />
-            Nuevo cliente
-          </button>
-        }
-      />
-
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <div className="relative sm:w-72">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ops-tx3" aria-hidden />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar cliente o pixel"
-            aria-label="Buscar cliente"
-            className={`${opsField} w-full pl-9`}
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
-          aria-label="Filtrar por estado"
-          className={opsField}
-        >
-          <option value="all">Todos los estados</option>
-          <option value="active">Activos</option>
-          <option value="inactive">Inactivos</option>
-        </select>
+    <div className="flex min-h-full flex-col">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="border-b border-ops-line px-4 py-5 md:px-7 md:py-6">
+        <PageHeader
+          eyebrow="CLIENTES"
+          title="Clientes"
+          subtitle="Gestiona tus clientes, configura sus credenciales Meta y monitorea su actividad."
+          actions={
+            <button onClick={openCreate} className={opsBtnPrimary}>
+              <Plus className="h-4 w-4" />
+              Nuevo cliente
+            </button>
+          }
+        />
       </div>
 
-      {allClients.length === 0 ? (
-        <Panel>
-          <EmptyState
-            icon={<Building2 className="h-5 w-5" />}
-            title="Sin clientes todavía"
-            text="Agrega tu primer cliente para comenzar a gestionar sus campañas y leads."
-            action={
-              <button onClick={openCreate} className={`${opsBtnPrimary} mt-2`}>
+      {/* ── Chips de filtro de estado ───────────────────────────────────── */}
+      {allClients.length > 0 && (
+        <div className="border-b border-ops-line bg-ops-s1">
+          <div className="flex items-center gap-1.5 overflow-x-auto px-4 py-3 md:px-7">
+            {FILTERS.map(({ value, label }) => {
+              const count =
+                value === "all"
+                  ? allClients.length
+                  : value === "active"
+                  ? totalActive
+                  : totalInactive
+              const isSelected = statusFilter === value
+              return (
+                <button
+                  key={value}
+                  onClick={() => setStatusFilter(value)}
+                  className={cn(
+                    "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
+                    isSelected
+                      ? "bg-ops-blue text-white"
+                      : "border border-ops-line bg-white text-ops-tx2 hover:border-ops-blue/40 hover:text-ops-tx"
+                  )}
+                >
+                  {value === "all" && <Layers className="h-3.5 w-3.5" />}
+                  {label}
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                      isSelected ? "bg-white/20 text-white" : "bg-ops-line text-ops-tx2"
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── KPIs strip ──────────────────────────────────────────────────── */}
+      {allClients.length > 0 && (
+        <div className="border-b border-ops-line bg-white px-4 py-3 md:px-7">
+          <div className="flex items-center gap-5">
+            <StatPill value={allClients.length} label="clientes" />
+            <div className="h-4 w-px bg-ops-line" />
+            <StatPill value={totalActive} label="activos" color="green" />
+            <div className="h-4 w-px bg-ops-line" />
+            <StatPill value={totalInactive} label="inactivos" color="neutral" />
+            <div className="h-4 w-px bg-ops-line" />
+            <StatPill value={totalCapi} label="con CAPI" color="blue" />
+          </div>
+        </div>
+      )}
+
+      {/* ── Contenido principal ─────────────────────────────────────────── */}
+      <div className="flex-1 overflow-auto px-4 py-6 md:px-7">
+        {allClients.length === 0 ? (
+          <div className="flex h-full min-h-64 items-center justify-center">
+            <div className="mx-auto max-w-sm rounded-[20px] border border-ops-line bg-ops-s1 px-8 py-10 text-center shadow-ops-card">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-ops-blue-bg">
+                <Building2 className="h-5 w-5 text-ops-blue" />
+              </div>
+              <p className="mb-1 text-[15px] font-semibold text-ops-tx">
+                Sin clientes todavía
+              </p>
+              <p className="mb-5 text-sm text-ops-tx2">
+                Agrega tu primer cliente para comenzar a gestionar sus campañas y leads.
+              </p>
+              <button onClick={openCreate} className={opsBtnPrimary}>
                 <Plus className="h-4 w-4" />
                 Agregar cliente
               </button>
-            }
-          />
-        </Panel>
-      ) : (
-        <Panel>
-          {clients.length === 0 ? (
-            <EmptyState icon={<Search className="h-5 w-5" />} title="Sin resultados" text="Ningún cliente coincide con el filtro." />
-          ) : (
-            <>
-              <div className={`${opsTable.wrap} hidden md:block`}>
-                <table className={opsTable.table}>
-                  <thead>
-                    <tr>
-                      <th className={opsTable.th}>Cliente</th>
-                      <th className={opsTable.th}>Pixel ID</th>
-                      <th className={opsTable.th}>WhatsApp</th>
-                      <th className={opsTable.th}>Estado</th>
-                      <th className={opsTable.th}>Creado</th>
-                      <th className={opsTable.thRight}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clients.map((client) => (
-                      <tr key={client.id} className={opsTable.row}>
-                        <td className={opsTable.td}>
-                          <Link
-                            href={`/dashboard/clients/${client.id}`}
-                            className="font-medium text-ops-tx hover:text-ops-blue-t focus-visible:outline-2 focus-visible:outline-ops-blue"
-                          >
-                            {client.name}
-                          </Link>
-                          {capi(client)}
-                        </td>
-                        <td className={`${opsTable.td} ${opsTable.mono} text-xs text-ops-tx2`}>
-                          {client.metaPixelId ? client.metaPixelId : <span className="text-ops-tx3">—</span>}
-                        </td>
-                        <td className={opsTable.td}>{wa(client)}</td>
-                        <td className={opsTable.td}>{statusButton(client)}</td>
-                        <td className={`${opsTable.td} text-xs text-ops-tx2`}>{formatDate(client.createdAt)}</td>
-                        <td className={opsTable.td}>
-                          <div className="flex items-center justify-end gap-1">{rowActions(client)}</div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            </div>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex h-48 items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm font-medium text-ops-tx">Sin clientes en este filtro</p>
+              <p className="mt-1 text-xs text-ops-tx2">
+                Cambia el filtro de estado para ver otros clientes.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {filtered.map((client) => (
+              <ClientCard
+                key={client.id}
+                client={client}
+                confirmDeleteId={confirmDeleteId}
+                deletePending={deletePending}
+                togglePending={togglePending}
+                onEdit={openEdit}
+                onConfirmDelete={setConfirmDeleteId}
+                onCancelDelete={() => setConfirmDeleteId(null)}
+                onDelete={handleDelete}
+                onToggleActive={handleToggleActive}
+              />
+            ))}
 
-              <ul className="divide-y divide-ops-line md:hidden">
-                {clients.map((client) => (
-                  <li key={client.id} className="space-y-2 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <Link href={`/dashboard/clients/${client.id}`} className="font-medium text-ops-tx">
-                        {client.name}
-                        {capi(client)}
-                      </Link>
-                      {statusButton(client)}
-                    </div>
-                    <p className="font-plex tabular-nums text-xs text-ops-tx2">{client.metaPixelId ?? "—"}</p>
-                    <div className="flex items-center justify-between text-xs text-ops-tx2">
-                      <span>{wa(client)} · {formatDate(client.createdAt)}</span>
-                      <div className="flex items-center gap-1">{rowActions(client)}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="border-t border-ops-line px-4 py-2.5 text-xs text-ops-tx3">
-                Mostrando <span className="font-plex tabular-nums">{clients.length}</span> de{" "}
-                <span className="font-plex tabular-nums">{allClients.length}</span> clientes
+            {/* Card "Nuevo cliente" */}
+            <button
+              onClick={openCreate}
+              className="group flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-[20px] border-2 border-dashed border-ops-line bg-transparent text-ops-tx3 transition-all hover:border-ops-blue/40 hover:bg-ops-blue-bg/40 hover:text-ops-blue"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-current transition-colors">
+                <Plus className="h-5 w-5" />
               </div>
-            </>
-          )}
-        </Panel>
-      )}
+              <span className="text-xs font-medium">Nuevo cliente</span>
+            </button>
+          </div>
+        )}
+      </div>
 
-      <ClientDialog open={dialogOpen} onOpenChange={setDialogOpen} client={editClient} />
-    </PageShell>
+      {/* ── Modal ───────────────────────────────────────────────────────── */}
+      <ClientDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        client={editClient}
+      />
+    </div>
   )
 }
