@@ -195,14 +195,14 @@ src/
       layout.tsx                        ← requireOrganizationMembership + getOrganizationById + enlace Health para admin+
       page.tsx                          ← KPIs (leads/ventas/ingresos por converted_at)
       clients/
-        page.tsx + _components/         ← CRUD clientes
+        page.tsx + _components/         ← CRUD clientes; layout full-screen con chips de estado (Todos/Activos/Inactivos), grid de ClientCards (indicadores CAPI/Pixel/WA, toggle activo, ver cliente/editar/eliminar), KPIs strip
         [id]/page.tsx + _components/    ← MetaConnectionPanel + MetaInsightsPanel + QualificationProfilesPanel + SalesTeamPanel + WhatsAppConfigPanel
       campaigns/
-        page.tsx + _components/         ← CRUD campañas
+        page.tsx + _components/         ← CRUD campañas; layout full-screen con chips de cliente (router.push), grid de CampaignCards (leads count 4xl, toggle activo, ver leads/scripts/editar/eliminar), KPIs strip, card "Nueva campaña" dashed al final
         [id]/leads/
           page.tsx + _components/       ← LeadsView (+ LeadAdsPanel + CreateLeadDialog) + LeadDrawer (AssignmentPanel + WhatsAppPanel + VentaPanel + CAPIPanel)
       performance/
-        page.tsx + _components/         ← tabla rendimiento + SummaryCards + CSV export con sanitizeCsv; 3 tabs: Rendimiento / Visitantes / Insights Meta
+        page.tsx + _components/         ← tabla rendimiento + SummaryCards + CSV export con sanitizeCsv; 2 tabs: Rendimiento / Insights Meta; ?tab=visitantes redirige automáticamente a /dashboard/visitors
         _components/InsightsDecisionCenter.tsx ← Centro de Decisiones Meta Ads: HealthScoreCard, KpiCards, RecommendationsPanel, CampaignDecisionTable (con Checkouts/Ventas/Tipo), AdPerformanceTable, LeadQualityPanel, SyncInfoFooter; usa Promise.allSettled para resiliencia
       funnels/
         page.tsx + _components/         ← Kanban dnd-kit (tabla funnels deprecated; rollback optimista)
@@ -781,7 +781,7 @@ npx drizzle-kit studio   # UI visual de la DB
     - Account settings: eyebrow "CUENTA", `opsField` inputs, `opsBtnPrimary`/`opsBtnSecondary`, dropzone `rounded-[20px]`
     - Reports: eyebrow "REPORTES", Panel wrapping, `opsTable`, pill buttons
     - Ad Research: eyebrow "INVESTIGADOR DE ANUNCIOS", tabs pill `rounded-full`, card borders ops tokens
-  - [x] **`/dashboard/visitors`** (nueva página org-level): `requireOrganizationMembership`, grid de clientes → selector, 4 `KPICard` (únicos/con intención/leads vinculados/tiempo promedio), tabla de sesiones con signal chips, días 7/30/90, link a detalle por cliente. Pure server component. Usa `getVisitorSessionsByClient` existente.
+  - [x] **`/dashboard/visitors`** (rediseñado como sección principal potenciada): fusiona `/dashboard/visitors` y `/dashboard/performance?tab=visitantes` (tab eliminado + redirect). Layout full-screen con chips de cliente (router.push), selector 7/30/90 días, 7 KPIs (únicos/con intención/leads vinculados/checkouts/carritos abandonados/compras/avg sesión), 3 capas de filtros instantáneos por estado (fuente/landing/acción), filtro "Carrito abandonado" nuevo (hasCheckout && !hasPurchase), strip de leads generados por landing, lista de sesiones con card-link al detalle del visitante. `VisitorsTab.tsx` eliminado.
   - [x] **`/dashboard/insights-meta`** (nueva página): estado "no conectado" con `Panel` + `EmptyState`, chip "No conectado", botones "Conectar Meta" y "Ver diagnóstico". Sección de vista previa borrosa (backdrop-blur) con ribbon "VISTA PREVIA" + datos de ejemplo estáticos (tarjetas canales, tabla señales, panel navy Radar de intención). Sin API wiring, sin tablas nuevas.
 - [x] Agentes IA — Fase 08: Bandeja real y controles de despliegue (2026-10-10)
   - [x] Schema: tabla `wa_conversation_notes` (notas privadas, `authorId → user.id`, `conversationId → wa_conversations`); tabla `ai_deployment_schedules` (IANA timezone + windows JSONB, UNIQUE deploymentId); columnas `paused/paused_at/paused_by` en `ai_agent_deployments`
@@ -819,6 +819,12 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] **Engine usa clave de DB**: `runEngine()` llama `getProviderApiKey(orgId, provider)` → si existe en DB la usa, si no usa env var. Constructores de los tres providers aceptan `apiKey?: string` opcional.
   - [x] **`CRON_SECRET` generado**: `da52bf7c0c9cc8dff28735ca7811d91a2f97d5ad4b765bde9f9a21cde4b94802` — guardado en `.env.local`; pendiente agregar en Vercel → Settings → Environment Variables.
   - [x] Decisiones críticas: millicents = 1/100_000 USD (bigint, sin floats); rates almacenadas mc/1000tokens (tokens < 1mc cada uno); source `anthropic_published` ≠ tarifas Callbell; costos WhatsApp siempre "N/D" (sin datos verificados, nunca cero supuesto); budget exhaustion → `waiting_human` + endEpisode("budget") (nunca chat invisible)
+- [x] Rediseño full-screen campañas, clientes y visitantes (2026-10-13)
+  - [x] **`CampaignsView.tsx`** reescrito: layout `flex min-h-full flex-col` (sin PageShell), chips de cliente horizontal scrollable con `router.push` para cambio de datos, KPIs strip (total/activas/pausadas/leads/ventas), grid `CampaignCard` (leads count 4xl, status badge, toggle activo, "Ver leads" primary, scripts/editar/eliminar), card "Nueva campaña" dashed al final, delete confirm inline
+  - [x] **`ClientsView.tsx`** reescrito: mismo patrón full-screen, chips de estado (Todos/Activos/Inactivos) con useState (sin reload), KPIs strip (total/activos/inactivos/con CAPI), grid `ClientCard` (indicadores CAPI/Pixel/WA con CheckCircle2/XCircle, toggle activo, "Ver cliente" primary, editar/eliminar), card "Nuevo cliente" dashed al final
+  - [x] **`/dashboard/visitors` + `VisitorsView.tsx`** creados (sección potenciada fusionando ambos orígenes): ver entrada anterior en rediseño visual
+  - [x] **`/dashboard/performance?tab=visitantes` eliminado**: `VisitorsTab.tsx` borrado; `?tab=visitantes` hace `redirect()` server-side hacia `/dashboard/visitors` (con `clientId` si estaba en la URL)
+  - [x] **Patrón de diseño canonizado**: todas las secciones principales del dashboard usan `flex min-h-full flex-col`, chips de filtro horizontal scrollable (`bg-ops-blue text-white` activo), KPIs strip con dividers `h-4 w-px bg-ops-line`, card grid `grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4`, cards `rounded-[20px] border-ops-line shadow-ops-card`, delete confirm inline (`confirmDeleteId` state)
 - [x] Agentes IA — Fase 13 (cont.): DeepSeek + Groq + OpenRouter + fixes de prompt (2026-10-11)
   - [x] **DeepSeek provider** (`src/lib/llm/deepseek.ts`): OpenAI SDK con `baseURL: "https://api.deepseek.com/v1"`; modelos `deepseek-chat` y `deepseek-reasoner`. `ProviderName` actualizado en `provider-keys-repository.ts` para incluir `"deepseek"`.
   - [x] **Groq provider** (`src/lib/llm/groq.ts`): OpenAI SDK con `baseURL: "https://api.groq.com/openai/v1"`; modelos `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `gemma2-9b-it`, `mixtral-8x7b-32768`. Gratis pero inaccesible desde Venezuela.
