@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server"
 import type { LeadData } from "./schema"
-import { normalizePhone, calculateTemperature, normalizeCity } from "@/domains/leads/normalize"
+import { normalizePhone, normalizeCity } from "@/domains/leads/normalize"
 import { normalizeYesNo, normalizeCityCanonical } from "@/domains/qualification/normalize"
 
 export interface NormalizedLead {
@@ -13,7 +13,6 @@ export interface NormalizedLead {
   negocioRaw: string | null
   negocioNormalized: "si" | "no" | null
   cityCanonical: string | null
-  temperature: "hot" | "warm" | "cold"
   externalEventId: string | null
   utmSource: string | null
   utmMedium: string | null
@@ -48,7 +47,6 @@ export function normalizeLeadData(data: LeadData): NormalizedLead {
     data.negocio === "true" ||
     data.negocio === 1 ||
     data.negocio === "1"
-  const temperature = calculateTemperature(negocio, city)
 
   // Qualification inputs
   const negocioRaw = data.negocio != null ? String(data.negocio) : null
@@ -67,7 +65,6 @@ export function normalizeLeadData(data: LeadData): NormalizedLead {
     negocioRaw,
     negocioNormalized,
     cityCanonical,
-    temperature,
     externalEventId: nullable(data.event_id),
     utmSource: nullable(data.utm_source),
     utmMedium: nullable(data.utm_medium),

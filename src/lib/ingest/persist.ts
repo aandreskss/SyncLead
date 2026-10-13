@@ -156,7 +156,6 @@ export async function persistLead(input: PersistInput): Promise<PersistResult> {
       metadata: {
         source,
         channel: lead.utmMedium ?? (lead.fbclid ? "paid_social" : "direct"),
-        temperature: lead.temperature,
         hasEmail: !!lead.email,
         hasPhone: !!lead.phone,
       },
