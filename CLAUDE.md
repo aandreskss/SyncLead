@@ -75,7 +75,7 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **Conversiones importadas NUNCA crean meta_events** — `runImport()` en `processor.ts` no llama CAPI. Solo ventas registradas manualmente desde el drawer generan eventos CAPI.
 - **`withJobRun(jobName, fn)`** — wrapper obligatorio para todos los crons. Registra cada ejecución en `cron_runs`. Si el insert inicial falla, el job igual corre (non-fatal). `correlationId` = UUID, nunca PII.
 - **`isOverBudget(-1)`** para tests de "siempre excedido" — evita flakiness en entornos rápidos.
-- **`drizzle-kit push` para sincronización de schema**: `npx drizzle-kit migrate` puede reportar éxito sin crear todas las tablas cuando `__drizzle_migrations` no existe o está desincronizado. Usar `npx drizzle-kit push` para comparar el schema Drizzle actual contra la DB y aplicar diferencias directamente. Verificar tablas tras migrar: 48 tablas en Neon después de sync completo.
+- **`drizzle-kit push` para sincronización de schema**: `npx drizzle-kit migrate` puede reportar éxito sin crear todas las tablas cuando `__drizzle_migrations` no existe o está desincronizado. Usar `npx drizzle-kit push` para comparar el schema Drizzle actual contra la DB y aplicar diferencias directamente. Verificar tablas tras migrar: **80 tablas en Neon** después de Phase 09 aplicada (2026-10-13).
 - **Drizzle relaciones: siempre declarar ambos lados**: Al añadir `many(X)` en un `relations()`, SIEMPRE añadir el `relations()` inverso para la tabla X. Si falta el lado inverso, Drizzle lanza un error en runtime al ejecutar CUALQUIER query relacional que toque ese schema — no solo las que usan la relación faltante — causando React error #441 (server component crash) en producción. El fix es añadir el bloque `relations(X, ({ one }) => ({ ... }))` correspondiente. Ver commit `49063ee`: `leadStageHistoryRelations` faltaba porque `leadsRelations` tenía `stageHistory: many(leadStageHistory)` sin su inverso.
 - **`drizzle.config.ts` requiere dotenv**: `drizzle-kit` no carga `.env.local` automáticamente. Añadir `import { config } from "dotenv"; config({ path: ".env.local" })` al inicio del archivo; sin esto los comandos drizzle-kit leen `DATABASE_URL` como `undefined`.
 - **`createOrgAction` DEBE llamar `ensureOwnerMembership()`**: `provisionOrganization()` crea la org pero no inserta en `org_members`. `requireOrganizationMembership()` solo consulta `org_members`, por lo que sin este insert todos los usuarios nuevos son redirigidos al onboarding en un bucle infinito. Ver `src/app/onboarding/actions.ts`.
@@ -107,8 +107,9 @@ Estás trabajando sobre el repositorio existente de SyncLead. La arquitectura of
 - **`hasPendingCapi` excluye Purchase events**: la query de `metaEvents pending/retrying` en `getLeadsByCampaignWithActivity()` filtra `ne(metaEvents.eventName, "Purchase")`. El filtro "CAPI pendiente" y el botón ⚡ en LeadsView solo reflejan eventos de comportamiento (Lead, Contact, etc.), no ventas pendientes de envío.
 - **`sendLeadPendingCapiAction(leadId)`**: envía en paralelo todos los `meta_events` con `status = pending OR retrying AND eventName != Purchase` para un lead. Usa `Promise.allSettled` para que un fallo no cancele los demás. Llamado desde el botón ⚡ en la tabla de leads de una campaña (`LeadsView.tsx`).
 - **Botón "Enviar" en LeadsView para CAPI pendiente**: el ícono ⚡ en `ActivityBadges` es un botón clickeable. `e.stopPropagation()` evita abrir el LeadDrawer. State `sendingCapiLeadId` trackea el lead en proceso. Después del send hace `router.refresh()` para refrescar `hasPendingCapi`.
+- **`requireOrganizationMembership()` usa `db.query.orgMembers.findFirst`**: NO usar `db.select().from(orgMembers)` aquí. Los tests de auth (`auth-isolation.test.ts`, `permissions-matrix.test.ts`) mockean `db.query.orgMembers.findFirst` — cambiar a `db.select` rompe silenciosamente los 48+ tests de seguridad sin error visible en build. Cualquier cambio en esta función debe verificar que ambos test files siguen pasando.
 - **`drizzle-kit push` puede bloquearse por prompts TTY**: cuando la CLI detecta cambios que podrían ser destructivos (ej. añadir UNIQUE constraint a tabla con datos), pide confirmación interactiva. En entornos no-TTY usar SQL directo via `neon()` client. Para agregar columnas simples con DEFAULT, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` siempre es seguro.
-- **`calculateTemperature()` eliminado de todos los flujos de ingest**: los tres ingest paths (Modo A `/api/ingest/form`, Modo B `/api/ingest/server`, legacy `/api/leads/ingest`) guardan `temperature: "cold"` y delegan a `autoQualifyLeadInternal()` fire-and-forget. La función `calculateTemperature` aún existe en `normalize.ts` para no romper imports que no se han migrado, pero no se debe invocar en código nuevo.
+- **`calculateTemperature()` eliminada completamente** (2026-10-13): función removida de `src/domains/leads/normalize.ts` junto con `MAJOR_CITIES`. `NormalizedLead` ya no tiene campo `temperature`. `persist.ts` siempre guarda `temperature: "cold"` — la calificación real la hace `autoQualifyLeadInternal()` fire-and-forget. No invocar ni reimplementar esta función.
 - **`leads` tabla no tiene columna `summary`**: usar `leads.notes` en cualquier query o tipo que necesite notas del lead. `LeadPanel.tsx` usa `lead.notes`, `ConversationDetail.lead` define el campo como `notes`. Error de TypeScript garantiza que `leads.summary` no existe.
 - **`waConversationNotes` y `waConversationMessages` son tablas estructuralmente separadas**: las notas del equipo son siempre privadas por diseño — no existe campo `isPrivate`, la tabla misma es la garantía. `waConversationNotes` tiene `authorId` (texto FK → user.id), no `isAi`. Nunca mostrar el contenido de `waConversationNotes` en la vista de mensajes del cliente.
 - **Takeover atómico de conversación (sin transacciones)**: `UPDATE waConversations SET controlMode='human' WHERE controlMode NOT IN ('human')` — si retorna 0 filas, la conversación ya fue tomada por otro agente. Compatible con neon-http PgBouncer (no requiere transacción interactiva). Cancelar también los items de `aiMessageQueue` en estado `enqueued`/`processing` con una segunda UPDATE (non-fatal con `.catch(() => undefined)`).
@@ -243,7 +244,7 @@ src/
         form/route.ts                   ← Modo A: token público, CORS, Turnstile, honeypot
         server/route.ts                 ← Modo B: Authorization Bearer, hash lookup
       behavior/route.ts                 ← POST: eventos de comportamiento (begin_checkout/checkout_abandoned/add_to_cart/remove_from_cart/form_submitted/info_requested/view_product/payment_failed/purchase); auth: Bearer pub_xxx; CORS wildcard; escribe en lead_behavior_events; idempotente con externalId; evento "purchase" → temperature=hot directo (awaited, sin motor de calificación)
-      leads/ingest/route.ts             ← @deprecated: legacy X-Campaign-Key adapter; temperature="cold" (calculateTemperature eliminado); llama autoQualifyLeadInternal fire-and-forget
+      leads/ingest/route.ts             ← @deprecated: legacy X-Campaign-Key adapter; temperature="cold" hardcoded; llama autoQualifyLeadInternal fire-and-forget
       auth/[...nextauth]/route.ts       ← Auth.js handler
       webhook/whatsapp/[clientId]/route.ts ← webhook proveedor WA (verificación de firma)
       webhook/meta-leads/route.ts         ← GET: hub.verify_token challenge; POST: HMAC-SHA256 verify + processEntries fire-and-forget
@@ -260,7 +261,7 @@ src/
     clients/        repository.ts, actions.ts, types.ts
     campaigns/      repository.ts, actions.ts, types.ts
     leads/
-      normalize.ts  ← normalizePhone, normalizeCity (calculateTemperature eliminado — no se usa en ningún flujo de ingest)
+      normalize.ts  ← normalizePhone, normalizeCity (calculateTemperature y MAJOR_CITIES eliminados completamente en 2026-10-13)
       repository.ts ← getLeadsByCampaign, getLeadsByCampaignWithActivity (4 queries: leads+conversions+behavior+metaEvents pending/retrying EXCLUDING Purchase via ne()), getLeadDetail, updateLeadTemperature/Stage/Notes/assign; LeadWithActivity: saleCount/saleTotalAmount/saleCurrency/hasPendingCapi/activity
       actions.ts    ← mutations + writeAuditLog (temperature.change, stage.change, assign); updateLeadInfoAction retorna { success, error? }; deleteLeadsAction(ids[]), deleteLeadsByCampaignAction(campaignId), deleteLeadsByClientAction(clientId); createLeadManuallyAction(campaignId, input); sendLeadPendingCapiAction(leadId): envía todos los eventos pending/retrying no-Purchase del lead directamente
     analytics/
@@ -505,7 +506,7 @@ npm run dev              # desarrollo
 npm run build            # build de producción
 npm run lint             # ESLint
 npx tsc --noEmit         # typecheck
-npx vitest run           # unit tests (1265 tests en 33 suites)
+npx vitest run           # unit tests (1377 tests en 36 suites)
 npm run preflight        # verifica env vars obligatorias (exit 0/1)
 npm run preflight:full   # también verifica DB y migraciones aplicadas
 npm run seed:launch      # seed beta: 2 orgs completas (idempotente)
@@ -640,7 +641,7 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] `src/app/onboarding/actions.ts` — `ensureOwnerMembership()` llamada en `createOrgAction` para corregir bucle de onboarding
   - [x] `drizzle.config.ts` — dotenv carga `.env.local` para que drizzle-kit lea DATABASE_URL
   - [x] `src/lib/db/schema.ts` — `importRows.dedupeKey` cambiado a `.notNull().unique()` para soportar ON CONFLICT DO NOTHING
-  - [x] Schema Neon sincronizado a 48 tablas via `drizzle-kit push` (wa_client_config, message_templates, cron_runs, tracking_sites, etc. faltaban tras migrate)
+  - [x] Schema Neon sincronizado a 48 tablas via `drizzle-kit push` (wa_client_config, message_templates, cron_runs, tracking_sites, etc. faltaban tras migrate). **2026-10-13: Phase 09 aplicada via `scripts/apply-phase09.ts` → 80 tablas total** (ai_pricing_tiers, ai_budget_limits, ai_budget_reservations + extensión ai_usage_records)
 - [x] Diseño del dashboard y landing
   - [x] `src/components/app/DashboardNav.tsx` — nav principal con design system sg-*
   - [x] `src/components/landing/` — Hero, LandingNav, Sections, CapiDemo, KanbanDemo, Reveal, InView, Logo, Analytics, ProductTabs, Steps, data, ui
@@ -819,6 +820,10 @@ npx drizzle-kit studio   # UI visual de la DB
   - [x] **Engine usa clave de DB**: `runEngine()` llama `getProviderApiKey(orgId, provider)` → si existe en DB la usa, si no usa env var. Constructores de los tres providers aceptan `apiKey?: string` opcional.
   - [x] **`CRON_SECRET` generado**: `da52bf7c0c9cc8dff28735ca7811d91a2f97d5ad4b765bde9f9a21cde4b94802` — guardado en `.env.local`; pendiente agregar en Vercel → Settings → Environment Variables.
   - [x] Decisiones críticas: millicents = 1/100_000 USD (bigint, sin floats); rates almacenadas mc/1000tokens (tokens < 1mc cada uno); source `anthropic_published` ≠ tarifas Callbell; costos WhatsApp siempre "N/D" (sin datos verificados, nunca cero supuesto); budget exhaustion → `waiting_human` + endEpisode("budget") (nunca chat invisible)
+- [x] Fixes de bugs y limpieza de código muerto (2026-10-13)
+  - [x] **Bug crítico auth**: `requireOrganizationMembership()` en `server.ts` usaba `db.select()` en lugar de `db.query.orgMembers.findFirst` — los mocks de ambas suites de seguridad solo interceptan `findFirst`, por lo que los 48 tests de auth/permisos fallaban silenciosamente. Restaurado a `findFirst`. Tests: 1377/1377 pasando.
+  - [x] **`calculateTemperature` eliminada**: función en `src/domains/leads/normalize.ts` junto con `MAJOR_CITIES`. `NormalizedLead` ya no tiene campo `temperature` — `persist.ts` siempre guarda `"cold"` y delega calificación real a `autoQualifyLeadInternal`. 12 tests de la función también eliminados.
+  - [x] **Phase 09 migration aplicada**: `scripts/apply-phase09.ts` → Neon DB tiene **80 tablas**. `ai_pricing_tiers` (rates Sonnet 4.6 + Haiku 4.5 seeded), `ai_budget_limits`, `ai_budget_reservations`, 10 columnas nuevas en `ai_usage_records`. El sistema de presupuestos de IA está ahora operativo en DB.
 - [x] Rediseño full-screen campañas, clientes y visitantes (2026-10-13)
   - [x] **`CampaignsView.tsx`** reescrito: layout `flex min-h-full flex-col` (sin PageShell), chips de cliente horizontal scrollable con `router.push` para cambio de datos, KPIs strip (total/activas/pausadas/leads/ventas), grid `CampaignCard` (leads count 4xl, status badge, toggle activo, "Ver leads" primary, scripts/editar/eliminar), card "Nueva campaña" dashed al final, delete confirm inline
   - [x] **`ClientsView.tsx`** reescrito: mismo patrón full-screen, chips de estado (Todos/Activos/Inactivos) con useState (sin reload), KPIs strip (total/activos/inactivos/con CAPI), grid `ClientCard` (indicadores CAPI/Pixel/WA con CheckCircle2/XCircle, toggle activo, "Ver cliente" primary, editar/eliminar), card "Nuevo cliente" dashed al final
