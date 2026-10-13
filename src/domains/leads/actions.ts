@@ -15,6 +15,7 @@ import { db } from "@/lib/db"
 import { leads, campaigns, leadActivities, metaConnections, metaEvents } from "@/lib/db/schema"
 import { and, eq, inArray, ne, or } from "drizzle-orm"
 import { sendMetaEventDirect } from "@/lib/meta-outbox/worker"
+import { buildHashedUserData } from "@/lib/meta-capi"
 import { z } from "zod"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 
@@ -90,7 +91,12 @@ export async function updateLeadStageAction(leadId: string, stage: LeadStage) {
               event_id: eventId,
               action_source: "website",
               event_time: Math.floor(Date.now() / 1000),
-              user_data: {},
+              user_data: buildHashedUserData({
+                email: lead.email,
+                phone: lead.phone,
+                name: lead.name,
+                city: lead.city,
+              }),
             },
             status: "pending",
             attemptCount: 0,

@@ -16,6 +16,39 @@ function hashIfPresent(value: string | null | undefined): string[] {
   return [sha256(value)]
 }
 
+// ─── Shared user_data builder ─────────────────────────────────────────────────
+
+export interface UserDataParams {
+  email?: string | null
+  phone?: string | null
+  name?: string | null
+  city?: string | null
+  fbc?: string | null
+  fbp?: string | null
+  ip?: string | null
+  userAgent?: string | null
+}
+
+/**
+ * Builds a hashed user_data object for Meta CAPI events.
+ * All PII fields are SHA-256 hashed. Non-PII fields (fbc, fbp, ip, ua) are passed raw.
+ * Must be called server-side only — imported module already has "server-only".
+ */
+export function buildHashedUserData(params: UserDataParams): Record<string, unknown> {
+  const firstName = params.name?.split(" ")[0] ?? params.name
+  const userData: Record<string, unknown> = {
+    em: hashIfPresent(params.email),
+    ph: hashIfPresent(params.phone?.replace(/\D/g, "")),
+    fn: hashIfPresent(firstName),
+    ct: hashIfPresent(params.city),
+  }
+  if (params.fbc) userData.fbc = params.fbc
+  if (params.fbp) userData.fbp = params.fbp
+  if (params.ip) userData.client_ip_address = params.ip
+  if (params.userAgent) userData.client_user_agent = params.userAgent
+  return userData
+}
+
 // ─── Lead event ───────────────────────────────────────────────────────────────
 
 export interface LeadEventParams {

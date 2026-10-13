@@ -8,6 +8,7 @@ import { parseUserAgent } from "./normalize"
 import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 import { decryptTokenVersioned } from "@/lib/crypto"
 import { sendMetaEventDirect } from "@/lib/meta-outbox/worker"
+import { buildHashedUserData } from "@/lib/meta-capi"
 
 export interface PersistInput {
   credential: {
@@ -210,8 +211,16 @@ export async function persistLead(input: PersistInput): Promise<PersistResult> {
             event_id: eventId,
             action_source: "website",
             event_time: Math.floor(Date.now() / 1000),
-            // PII will be re-fetched by worker; payload is minimal for Lead events
-            user_data: {},
+            user_data: buildHashedUserData({
+              email: lead.email,
+              phone: lead.phone,
+              name: lead.name,
+              city: lead.city,
+              fbc: lead.fbc,
+              fbp: lead.fbp,
+              ip,
+              userAgent,
+            }),
           },
           status: "pending",
           attemptCount: 0,
