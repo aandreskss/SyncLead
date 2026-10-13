@@ -6,16 +6,13 @@ import { getOrganizationById } from "@/domains/organizations/repository"
 import { getClientsByOrgId } from "@/domains/clients/repository"
 import { parseDateRange, formatRangeLabel } from "@/lib/date-range"
 import { getPerformanceTable, getMetaSpendForPeriod, getMetaAdsetSpendForPeriod } from "@/domains/analytics/repository"
-import { getVisitorSessionsByClient } from "@/domains/tracking/repository"
-import { getClientLeadLandingStats } from "@/domains/leads/repository"
 import { DateRangeSelector } from "../_components/DateRangeSelector"
 import { PageShell, PageHeader } from "@/components/app/ops"
 import { SummaryCards } from "./_components/SummaryCards"
 import { PerformanceView } from "./_components/PerformanceView"
-import { VisitorsTab } from "./_components/VisitorsTab"
 import { InsightsDecisionCenter } from "./_components/InsightsDecisionCenter"
 
-type Tab = "rendimiento" | "visitantes" | "insights"
+type Tab = "rendimiento" | "insights"
 
 export default async function PerformancePage({
   searchParams,
@@ -26,10 +23,7 @@ export default async function PerformancePage({
     to?: string
     clientId?: string
     tab?: string
-    action?: string
     days?: string
-    landingPath?: string
-    source?: string
   }>
 }) {
   let ctx: { orgId: string; userId: string }
@@ -47,25 +41,23 @@ export default async function PerformancePage({
   }
 
   const sp = await searchParams
-  const range = parseDateRange(sp.range ?? "30d", sp.from, sp.to)
   const clientId = sp.clientId || undefined
-  const tab: Tab =
-    sp.tab === "visitantes"
-      ? "visitantes"
-      : sp.tab === "insights"
-      ? "insights"
-      : "rendimiento"
-  const currentAction = sp.action ?? "all"
-  const currentDays = sp.days ?? "30"
-  const currentLandingPath = sp.landingPath || undefined
-  const currentSource = sp.source || "all"
-  const daysNum = currentDays === "7" ? 7 : currentDays === "90" ? 90 : 30
+
+  // Redirect legacy visitantes tab to the dedicated visitors page
+  if (sp.tab === "visitantes") {
+    const target = clientId
+      ? `/dashboard/visitors?clientId=${clientId}`
+      : "/dashboard/visitors"
+    redirect(target)
+  }
+
+  const range = parseDateRange(sp.range ?? "30d", sp.from, sp.to)
+  const tab: Tab = sp.tab === "insights" ? "insights" : "rendimiento"
   const insightsDays = sp.days === "7" ? 7 : sp.days === "90" ? 90 : 30
 
   const clients = await getClientsByOrgId(ctx.orgId)
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
-  // Only fetch performance data when on that tab
   const [rawRows, prevRows, metaSpend, adsetSpend] =
     tab === "rendimiento"
       ? await Promise.all([
@@ -76,7 +68,6 @@ export default async function PerformancePage({
         ])
       : [[], [], null, []]
 
-  // Merge adset spend into performance rows (matched by adset name, case-insensitive)
   const adsetSpendMap = new Map(
     adsetSpend.map((s) => [s.adsetName.trim().toLowerCase(), s])
   )
@@ -87,24 +78,8 @@ export default async function PerformancePage({
       : r
   })
 
-  // Only fetch visitor data when on that tab and a client is selected
-  const [allSessions, leadLandingStats] = await (
-    tab === "visitantes" && clientId
-      ? Promise.all([
-          getVisitorSessionsByClient(ctx.orgId, clientId, 200, daysNum),
-          getClientLeadLandingStats(ctx.orgId, clientId, daysNum),
-        ])
-      : Promise.resolve([[], { total: 0, breakdown: [] }] as [Awaited<ReturnType<typeof getVisitorSessionsByClient>>, { total: number; breakdown: { path: string; count: number }[] }])
-  )
-
-  // Base URL params to preserve across tab/filter links in the visitors tab
-  const baseParams: Record<string, string> = { tab: "visitantes" }
-  if (clientId) baseParams.clientId = clientId
-  if (sp.range) baseParams.range = sp.range
-
   const TABS: { key: Tab; label: string }[] = [
     { key: "rendimiento", label: "Rendimiento" },
-    { key: "visitantes", label: "Visitantes" },
     { key: "insights", label: "Insights Meta" },
   ]
 
@@ -123,28 +98,6 @@ export default async function PerformancePage({
         <SummaryCards rows={rows} metaSpend={metaSpend} />
         <PerformanceView rows={rows} prevRows={prevRows} />
       </>
-    )
-  } else if (tab === "visitantes" && clientId) {
-    tabContent = (
-      <VisitorsTab
-        clientId={clientId}
-        allSessions={allSessions}
-        currentAction={currentAction}
-        currentDays={currentDays}
-        currentSource={currentSource}
-        currentLandingPath={currentLandingPath}
-        baseParams={baseParams}
-        leadLandingStats={leadLandingStats}
-      />
-    )
-  } else if (tab === "visitantes" && !clientId) {
-    tabContent = (
-      <div className="rounded-lg border border-ops-line bg-ops-s1 px-6 py-16 text-center space-y-2">
-        <p className="text-sm font-medium text-ops-tx">Selecciona un cliente</p>
-        <p className="text-xs text-ops-tx3">
-          Usa el filtro de arriba para elegir un cliente y ver sus visitantes de Meta.
-        </p>
-      </div>
     )
   } else if (tab === "insights" && clientId) {
     tabContent = (
