@@ -5,11 +5,10 @@ import { AuthError, ForbiddenError } from "@/lib/auth/errors"
 import { getOrganizationById } from "@/domains/organizations/repository"
 import { getClientsByOrgId } from "@/domains/clients/repository"
 import { parseDateRange, formatRangeLabel } from "@/lib/date-range"
-import { getPerformanceTable, getMetaSpendForPeriod, getMetaAdsetSpendForPeriod } from "@/domains/analytics/repository"
+import { getPerformanceTable, getMetaSpendForPeriod, getMetaAdsetSpendForPeriod, getLeadsByDay } from "@/domains/analytics/repository"
 import { DateRangeSelector } from "../_components/DateRangeSelector"
 import { PageShell, PageHeader } from "@/components/app/ops"
-import { SummaryCards } from "./_components/SummaryCards"
-import { PerformanceView } from "./_components/PerformanceView"
+import { RendimientoView } from "./_components/RendimientoView"
 import { InsightsDecisionCenter } from "./_components/InsightsDecisionCenter"
 
 type Tab = "rendimiento" | "insights"
@@ -58,15 +57,16 @@ export default async function PerformancePage({
   const clients = await getClientsByOrgId(ctx.orgId)
   const selectedClient = clientId ? clients.find((c) => c.id === clientId) : null
 
-  const [rawRows, prevRows, metaSpend, adsetSpend] =
+  const [rawRows, prevRows, metaSpend, adsetSpend, timeSeries] =
     tab === "rendimiento"
       ? await Promise.all([
           getPerformanceTable(ctx.orgId, range.from, range.to, clientId),
           getPerformanceTable(ctx.orgId, range.prevFrom, range.prevTo, clientId),
           clientId ? getMetaSpendForPeriod(ctx.orgId, clientId, range.from, range.to) : Promise.resolve(null),
           clientId ? getMetaAdsetSpendForPeriod(ctx.orgId, clientId, range.from, range.to) : Promise.resolve([]),
+          getLeadsByDay(ctx.orgId, range.from, range.to, clientId),
         ])
-      : [[], [], null, []]
+      : [[], [], null, [], []]
 
   const adsetSpendMap = new Map(
     adsetSpend.map((s) => [s.adsetName.trim().toLowerCase(), s])
@@ -94,10 +94,12 @@ export default async function PerformancePage({
 
   if (tab === "rendimiento") {
     tabContent = (
-      <>
-        <SummaryCards rows={rows} metaSpend={metaSpend} />
-        <PerformanceView rows={rows} prevRows={prevRows} />
-      </>
+      <RendimientoView
+        rows={rows}
+        prevRows={prevRows}
+        timeSeries={timeSeries}
+        metaSpend={metaSpend}
+      />
     )
   } else if (tab === "insights" && clientId) {
     tabContent = (
