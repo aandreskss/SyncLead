@@ -8,6 +8,8 @@ import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeD
 import { LeadDrawer } from "./LeadDrawer"
 import { CreateLeadDialog } from "./CreateLeadDialog"
 import { LeadAdsPanel } from "./LeadAdsPanel"
+import { MessagingSourcePanel } from "./MessagingSourcePanel"
+import type { IgMessageSourcePublic } from "@/domains/ig-messages/repository"
 import { cn } from "@/lib/utils"
 import { PageShell, PageHeader, Panel, StatusChip, EmptyState, opsTable, opsField } from "@/components/app/ops"
 import type { Campaign, Client, Temperature, LeadStage, SalesRep } from "@/lib/db/schema"
@@ -27,6 +29,7 @@ interface Props {
   salesReps?: SalesRep[]
   currentUserId?: string
   leadAdSource?: { pageId: string; formId?: string | null; active?: boolean } | null
+  igSource?: IgMessageSourcePublic | null
   landingBreakdown?: LandingPageEntry[]
   currentLandingPage?: string
   metaAttributionValues?: MetaAttributionValues
@@ -274,7 +277,7 @@ function ActivityBadges({
   )
 }
 
-export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId, leadAdSource, landingBreakdown = [], currentLandingPage = "", metaAttributionValues, currentMetaCampaignName = "", currentMetaAdsetName = "", currentMetaAdName = "" }: Props) {
+export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps = [], currentUserId, leadAdSource, igSource, landingBreakdown = [], currentLandingPage = "", metaAttributionValues, currentMetaCampaignName = "", currentMetaAdsetName = "", currentMetaAdName = "" }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
@@ -544,7 +547,10 @@ export function LeadsView({ leads, campaign, whatsappNumbers, orgName, salesReps
         ))}
       </div>
 
-      <LeadAdsPanel campaignId={campaign.id} existing={leadAdSource ?? null} />
+      {campaign.channelType === "messaging"
+        ? <MessagingSourcePanel campaignId={campaign.id} igSource={igSource ?? null} />
+        : <LeadAdsPanel campaignId={campaign.id} existing={leadAdSource ?? null} />
+      }
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">

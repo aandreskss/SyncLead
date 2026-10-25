@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Globe, MessageSquare } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { createCampaignAction, updateCampaignAction } from "@/domains/campaigns/actions"
 import type { Campaign, Client } from "@/lib/db/schema"
 
@@ -29,6 +31,9 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [channelType, setChannelType] = useState<"web_form" | "messaging">(
+    (campaign?.channelType as "web_form" | "messaging") ?? "web_form"
+  )
   const formRef = useRef<HTMLFormElement>(null)
 
   const isEdit = !!campaign
@@ -64,6 +69,48 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
 
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
           {isEdit && <input type="hidden" name="campaignId" value={campaign.id} />}
+          <input type="hidden" name="channelType" value={channelType} />
+
+          {/* Tipo de campaña — solo editable en creación */}
+          <div className="space-y-1.5">
+            <Label className="text-ops-tx">Tipo de campaña</Label>
+            {isEdit ? (
+              <div className="flex items-center gap-2 rounded-lg border border-ops-bd bg-ops-s2/50 px-3 py-2">
+                {channelType === "messaging"
+                  ? <MessageSquare className="h-3.5 w-3.5 text-ops-blue" />
+                  : <Globe className="h-3.5 w-3.5 text-ops-tx3" />}
+                <span className="text-sm text-ops-tx2">
+                  {channelType === "messaging" ? "Mensajes (WA / IG)" : "Web / Formularios"}
+                </span>
+                <span className="ml-auto text-xs text-ops-tx3">No se puede cambiar</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: "web_form", icon: <Globe className="h-4 w-4" />, label: "Web / Formularios", sub: "Pixel, landing pages, forms" },
+                  { value: "messaging", icon: <MessageSquare className="h-4 w-4" />, label: "Mensajes (WA / IG)", sub: "WhatsApp CTWA, Instagram DM" },
+                ] as const).map(({ value, icon, label, sub }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setChannelType(value)}
+                    className={cn(
+                      "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors",
+                      channelType === value
+                        ? "border-ops-blue bg-ops-blue/5 text-ops-blue"
+                        : "border-ops-bd bg-ops-s2 text-ops-tx2 hover:border-ops-blue/40 hover:text-ops-tx"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {icon}
+                      <span className="text-xs font-semibold">{label}</span>
+                    </div>
+                    <span className="text-[10px] text-ops-tx3 leading-snug">{sub}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="cp-name" className="text-ops-tx">
@@ -119,24 +166,26 @@ export function CampaignDialog({ open, onOpenChange, campaign, clients }: Props)
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="cp-utm" className="text-ops-tx">
-              Clave UTM de campaña <span className="text-ops-tx3 font-normal">(opcional)</span>
-            </Label>
-            <input
-              id="cp-utm"
-              name="utmCampaignKey"
-              type="text"
-              maxLength={200}
-              defaultValue={campaign?.utmCampaignKey ?? ""}
-              placeholder="Ej: producto-a-2025"
-              className={inputClass}
-            />
-            <p className="text-xs text-ops-tx3">
-              Valor exacto de <code className="text-ops-tx2">utm_campaign</code> que usas en Meta Ads para esta campaña.
-              El pixel asignará automáticamente los leads que lleguen con ese UTM.
-            </p>
-          </div>
+          {channelType === "web_form" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cp-utm" className="text-ops-tx">
+                Clave UTM de campaña <span className="text-ops-tx3 font-normal">(opcional)</span>
+              </Label>
+              <input
+                id="cp-utm"
+                name="utmCampaignKey"
+                type="text"
+                maxLength={200}
+                defaultValue={campaign?.utmCampaignKey ?? ""}
+                placeholder="Ej: producto-a-2025"
+                className={inputClass}
+              />
+              <p className="text-xs text-ops-tx3">
+                Valor exacto de <code className="text-ops-tx2">utm_campaign</code> que usas en Meta Ads para esta campaña.
+                El pixel asignará automáticamente los leads que lleguen con ese UTM.
+              </p>
+            </div>
+          )}
 
           {error && (
             <p className="text-sm text-ops-coral bg-ops-coral/10 border border-ops-coral/20 rounded-md px-3 py-2">

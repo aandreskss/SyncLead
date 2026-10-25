@@ -6,6 +6,7 @@ import { getCampaignWithClientById } from "@/domains/campaigns/repository"
 import { getLeadsByCampaignWithActivity, getLandingPageBreakdown, getCampaignMetaAttributionValues } from "@/domains/leads/repository"
 import { listSalesReps } from "@/domains/team/repository"
 import { getLeadAdSourceByCampaign } from "@/domains/lead-ads/repository"
+import { getIgMessageSourceByCampaignId } from "@/domains/ig-messages/repository"
 import type { LeadFilters } from "@/domains/leads/repository"
 import type { Temperature, LeadStage } from "@/lib/db/schema"
 import { LeadsView } from "./_components/LeadsView"
@@ -46,12 +47,15 @@ export default async function LeadsPage({
     metaAdName: sp.metaAdName || undefined,
   }
 
-  const [leads, salesReps, leadAdSource, landingBreakdown, metaAttributionValues] = await Promise.all([
+  const isMessaging = campaign.channelType === "messaging"
+
+  const [leads, salesReps, leadAdSource, igSource, landingBreakdown, metaAttributionValues] = await Promise.all([
     getLeadsByCampaignWithActivity(id, ctx.orgId, filters),
     campaign.clientId
       ? listSalesReps(ctx.orgId, campaign.clientId)
       : Promise.resolve([]),
-    getLeadAdSourceByCampaign(id, ctx.orgId),
+    isMessaging ? Promise.resolve(null) : getLeadAdSourceByCampaign(id, ctx.orgId),
+    isMessaging ? getIgMessageSourceByCampaignId(id, ctx.orgId) : Promise.resolve(null),
     getLandingPageBreakdown(ctx.orgId, id),
     getCampaignMetaAttributionValues(id, ctx.orgId),
   ])
@@ -69,6 +73,7 @@ export default async function LeadsPage({
       salesReps={salesReps}
       currentUserId={ctx.userId}
       leadAdSource={leadAdSourcePublic}
+      igSource={igSource}
       landingBreakdown={landingBreakdown}
       currentLandingPage={sp.landingPage || ""}
       metaAttributionValues={metaAttributionValues}

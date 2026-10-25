@@ -47,6 +47,8 @@ export async function createCampaignAction(
   const name = (formData.get("name") as string)?.trim()
   const clientId = formData.get("clientId") as string
   const utmCampaignKey = (formData.get("utmCampaignKey") as string)?.trim().toLowerCase() || null
+  const rawChannelType = formData.get("channelType") as string
+  const channelType = rawChannelType === "messaging" ? "messaging" : "web_form"
 
   if (!name) return { error: "El nombre de la campaña es requerido." }
   if (name.length > 120) return { error: "El nombre es demasiado largo." }
@@ -60,6 +62,7 @@ export async function createCampaignAction(
     slug: generateSlug(name),
     apiKey: generateApiKey(),
     utmCampaignKey,
+    channelType,
   })
 
   return { success: true }

@@ -17,6 +17,96 @@ export interface IgMessageSourceRow {
   verifyToken: string
 }
 
+export interface IgMessageSourcePublic {
+  id: string
+  igPageId: string
+  verifyToken: string
+  campaignId: string | null
+  hasToken: boolean
+}
+
+export async function getIgMessageSourceByCampaignId(
+  campaignId: string,
+  orgId: string,
+): Promise<IgMessageSourcePublic | null> {
+  const rows = await db
+    .select({
+      id: instagramMessageSources.id,
+      igPageId: instagramMessageSources.igPageId,
+      verifyToken: instagramMessageSources.verifyToken,
+      campaignId: instagramMessageSources.campaignId,
+      pageAccessTokenEnc: instagramMessageSources.pageAccessTokenEnc,
+    })
+    .from(instagramMessageSources)
+    .where(
+      and(
+        eq(instagramMessageSources.campaignId, campaignId),
+        eq(instagramMessageSources.orgId, orgId),
+      )
+    )
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
+  return {
+    id: row.id,
+    igPageId: row.igPageId,
+    verifyToken: row.verifyToken,
+    campaignId: row.campaignId,
+    hasToken: !!row.pageAccessTokenEnc,
+  }
+}
+
+export async function insertIgMessageSource(data: {
+  orgId: string
+  campaignId: string
+  igPageId: string
+  pageAccessTokenEnc: string
+  keyVersion: number
+  verifyToken: string
+}): Promise<IgMessageSourcePublic> {
+  const [row] = await db
+    .insert(instagramMessageSources)
+    .values({ ...data, isActive: true })
+    .returning({
+      id: instagramMessageSources.id,
+      igPageId: instagramMessageSources.igPageId,
+      verifyToken: instagramMessageSources.verifyToken,
+      campaignId: instagramMessageSources.campaignId,
+    })
+  return { ...row, hasToken: true }
+}
+
+export async function updateIgMessageSource(
+  id: string,
+  orgId: string,
+  data: { igPageId?: string; pageAccessTokenEnc?: string; keyVersion?: number },
+): Promise<void> {
+  await db
+    .update(instagramMessageSources)
+    .set(data)
+    .where(
+      and(
+        eq(instagramMessageSources.id, id),
+        eq(instagramMessageSources.orgId, orgId),
+      )
+    )
+}
+
+export async function deleteIgMessageSourceByCampaign(
+  campaignId: string,
+  orgId: string,
+): Promise<void> {
+  await db
+    .delete(instagramMessageSources)
+    .where(
+      and(
+        eq(instagramMessageSources.campaignId, campaignId),
+        eq(instagramMessageSources.orgId, orgId),
+      )
+    )
+}
+
 /**
  * Finds an active Instagram message source by ig_page_id.
  * Used by the webhook to determine which org+campaign owns the inbound DM.
