@@ -80,6 +80,15 @@ function extractPayload(payload: MetaWebhookPayload): ParseWebhookResult {
           timestamp: new Date(parseInt(msg.timestamp, 10) * 1000),
         }
 
+        if (msg.referral?.source_type === "ad") {
+          normalized.referral = {
+            adId: msg.referral.source_id,
+            sourceType: msg.referral.source_type,
+            ctwaClid: msg.referral.ctwa_clid,
+            headline: msg.referral.headline,
+          }
+        }
+
         if (msg.type === "text" && msg.text) {
           normalized.textContent = msg.text.body
         } else if (

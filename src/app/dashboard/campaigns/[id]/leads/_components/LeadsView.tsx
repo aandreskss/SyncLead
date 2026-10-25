@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import * as XLSX from "xlsx"
-import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign, Trash2, Zap, Target, Globe, Upload, UserPlus, Download } from "lucide-react"
+import { ArrowLeft, Search, Users, ShoppingCart, X, FileText, Info, Plus, BadgeDollarSign, Trash2, Zap, Target, Globe, Upload, UserPlus, Download, MessageSquare, Camera } from "lucide-react"
 import { LeadDrawer } from "./LeadDrawer"
 import { CreateLeadDialog } from "./CreateLeadDialog"
 import { LeadAdsPanel } from "./LeadAdsPanel"
@@ -55,6 +55,8 @@ const STAGES: { value: LeadStage | ""; label: string }[] = [
 const SOURCES: { value: string; label: string }[] = [
   { value: "", label: "Fuente" },
   { value: "meta_ads", label: "Meta Ads" },
+  { value: "whatsapp_ctwa", label: "WA Mensaje" },
+  { value: "instagram_message", label: "IG Mensaje" },
   { value: "organic", label: "Orgánico" },
   { value: "imported", label: "Importado" },
   { value: "manual", label: "Manual" },
@@ -124,6 +126,8 @@ function toWaPhone(phone: string): string {
 function sourceLabel(s: string): string {
   const map: Record<string, string> = {
     meta_ads: "Meta Ads",
+    whatsapp_ctwa: "WA Mensaje",
+    instagram_message: "IG Mensaje",
     organic: "Orgánico",
     imported: "Importado",
     manual: "Manual",
@@ -189,6 +193,18 @@ function SourceBadge({ source }: { source: string }) {
         <Target className="h-2.5 w-2.5" />Meta
       </span>
     )
+  if (source === "whatsapp_ctwa")
+    return (
+      <span title="WhatsApp Click-to-WhatsApp" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+        <MessageSquare className="h-2.5 w-2.5" />WA
+      </span>
+    )
+  if (source === "instagram_message")
+    return (
+      <span title="Instagram DM" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-pink-500/20 text-pink-400 border border-pink-500/30 whitespace-nowrap">
+        <Camera className="h-2.5 w-2.5" />IG
+      </span>
+    )
   if (source === "imported")
     return (
       <span title="Importado desde archivo" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-ops-cold/20 text-ops-cold border border-ops-cold/30 whitespace-nowrap">
@@ -198,7 +214,7 @@ function SourceBadge({ source }: { source: string }) {
   if (source === "manual")
     return (
       <span title="Lead manual" className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/30 whitespace-nowrap">
-        <UserPlus className="h-2.5 w-2.5" />WA
+        <UserPlus className="h-2.5 w-2.5" />Manual
       </span>
     )
   return (

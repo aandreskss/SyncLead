@@ -271,6 +271,10 @@ export const campaigns = pgTable(
      * Must be unique per client. Example: "producto-a-2025"
      */
     utmCampaignKey: text("utm_campaign_key"),
+    // Channel type: determines lead ingestion method and UI module
+    // "web_form" = pixel/landing page/form campaigns (default)
+    // "messaging" = WhatsApp CTWA or Instagram DM campaigns
+    channelType: text("channel_type").notNull().default("web_form"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -279,6 +283,7 @@ export const campaigns = pgTable(
     index("campaigns_client_id_idx").on(t.clientId),
     uniqueIndex("campaigns_api_key_idx").on(t.apiKey),
     index("campaigns_utm_campaign_key_idx").on(t.clientId, t.utmCampaignKey),
+    index("campaigns_channel_type_idx").on(t.channelType),
   ]
 )
 
@@ -440,6 +445,10 @@ export const leads = pgTable(
     externalEventId: text("external_event_id"),
     /** @deprecated use externalEventId */
     eventId: text("event_id"),
+
+    // Messaging channel identifiers — used for CAPI business_messaging events
+    igScopedId: text("ig_scoped_id"),   // Instagram-Scoped ID; hashed as instagram_login_id in CAPI
+    ctwaClid: text("ctwa_clid"),        // Click-to-WhatsApp click ID; sent as fbc in CAPI
 
     // Assignment v1 — @deprecated: use lead_assignments
     assignedTo: text("assigned_to"),
@@ -1516,6 +1525,31 @@ export const metaLeadAdSources = pgTable(
   ]
 )
 
+// ─── Instagram Message Sources ────────────────────────────────────────────────
+// Maps an Instagram Page → a SyncLead campaign for DM ad lead ingestion.
+// When a user messages via an Instagram ad, the webhook routes to this record.
+// campaign_id is nullable — falls back to catalog-based routing if null.
+
+export const instagramMessageSources = pgTable(
+  "instagram_message_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id").references(() => campaigns.id, { onDelete: "set null" }),
+    igPageId: text("ig_page_id").notNull(),
+    pageAccessTokenEnc: text("page_access_token_enc"),
+    keyVersion: integer("key_version").notNull().default(1),
+    verifyToken: text("verify_token").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("instagram_message_sources_org_idx").on(t.orgId),
+    index("instagram_message_sources_campaign_idx").on(t.campaignId),
+    uniqueIndex("instagram_message_sources_page_idx").on(t.igPageId),
+  ]
+)
+
 // Kept for backward compatibility with existing Kanban UI.
 
 export interface FunnelStageConfig {
@@ -1745,6 +1779,11 @@ export const metaAdAccountAllowlistRelations = relations(metaAdAccountAllowlist,
 export const metaLeadAdSourcesRelations = relations(metaLeadAdSources, ({ one }) => ({
   organization: one(organizations, { fields: [metaLeadAdSources.orgId], references: [organizations.id] }),
   campaign: one(campaigns, { fields: [metaLeadAdSources.campaignId], references: [campaigns.id] }),
+}))
+
+export const instagramMessageSourcesRelations = relations(instagramMessageSources, ({ one }) => ({
+  organization: one(organizations, { fields: [instagramMessageSources.orgId], references: [organizations.id] }),
+  campaign: one(campaigns, { fields: [instagramMessageSources.campaignId], references: [campaigns.id] }),
 }))
 
 export const metaCatalogCampaignsRelations = relations(metaCatalogCampaigns, ({ one }) => ({
@@ -3100,6 +3139,8 @@ export type MetaCatalogAd = typeof metaCatalogAds.$inferSelect
 export type NewMetaCatalogAd = typeof metaCatalogAds.$inferInsert
 export type MetaLeadAdSource = typeof metaLeadAdSources.$inferSelect
 export type NewMetaLeadAdSource = typeof metaLeadAdSources.$inferInsert
+export type InstagramMessageSource = typeof instagramMessageSources.$inferSelect
+export type NewInstagramMessageSource = typeof instagramMessageSources.$inferInsert
 
 // Enum value types
 export type MemberRole = typeof memberRoleEnum.enumValues[number]

@@ -6,8 +6,10 @@ import {
   waConversations,
   waConversationMessages,
   aiMessageQueue,
+  metaCatalogAds,
+  metaCatalogCampaigns,
 } from "@/lib/db/schema"
-import { eq, and, desc, notInArray } from "drizzle-orm"
+import { eq, and, desc, notInArray, isNotNull, isNull } from "drizzle-orm"
 import type { ParsedIncomingMessage, ParsedStatusUpdate } from "./types"
 
 // ─── Tenant resolution ────────────────────────────────────────────────────────
@@ -449,4 +451,85 @@ export async function getConversationById(conversationId: string, orgId: string)
     .where(and(eq(waConversations.id, conversationId), eq(waConversations.orgId, orgId)))
     .limit(1)
   return rows[0] ?? null
+}
+
+// ─── CTWA (Click-to-WhatsApp) lead helpers ────────────────────────────────────
+
+/**
+ * Resolves a SyncLead campaign from a Meta ad_id via the catalog chain:
+ * meta_catalog_ads.meta_ad_id → meta_catalog_campaigns.internal_campaign_id
+ *
+ * Returns null if the ad isn't in the catalog or has no linked internal campaign.
+ * Scoped to orgId to prevent cross-tenant data access.
+ */
+export async function resolveCampaignFromAdId(
+  orgId: string,
+  metaAdId: string,
+): Promise<{
+  campaignId: string
+  metaCampaignId: string
+  metaAdsetId: string
+  adName: string
+  campaignName: string
+} | null> {
+  const adRows = await db
+    .select({
+      metaCampaignId: metaCatalogAds.metaCampaignId,
+      metaAdsetId: metaCatalogAds.metaAdsetId,
+      adName: metaCatalogAds.name,
+    })
+    .from(metaCatalogAds)
+    .where(and(eq(metaCatalogAds.orgId, orgId), eq(metaCatalogAds.metaAdId, metaAdId)))
+    .limit(1)
+
+  const ad = adRows[0]
+  if (!ad) return null
+
+  const campaignRows = await db
+    .select({
+      internalCampaignId: metaCatalogCampaigns.internalCampaignId,
+      campaignName: metaCatalogCampaigns.name,
+    })
+    .from(metaCatalogCampaigns)
+    .where(
+      and(
+        eq(metaCatalogCampaigns.orgId, orgId),
+        eq(metaCatalogCampaigns.metaCampaignId, ad.metaCampaignId),
+        isNotNull(metaCatalogCampaigns.internalCampaignId),
+      )
+    )
+    .limit(1)
+
+  const campaign = campaignRows[0]
+  if (!campaign?.internalCampaignId) return null
+
+  return {
+    campaignId: campaign.internalCampaignId,
+    metaCampaignId: ad.metaCampaignId,
+    metaAdsetId: ad.metaAdsetId,
+    adName: ad.adName,
+    campaignName: campaign.campaignName,
+  }
+}
+
+/**
+ * Links a WhatsApp conversation to a SyncLead lead.
+ * Guard: only updates if leadId is not already set — prevents overwriting on duplicate webhooks.
+ */
+export async function linkConversationToLead(
+  conversationId: string,
+  leadId: string,
+  orgId: string,
+): Promise<void> {
+  await db
+    .update(waConversations)
+    .set({ leadId, updatedAt: new Date() })
+    .where(
+      and(
+        eq(waConversations.id, conversationId),
+        eq(waConversations.orgId, orgId),
+        isNull(waConversations.leadId), // only update if not already linked — idempotency guard
+      )
+    )
+    .catch(() => undefined)
 }

@@ -12,7 +12,8 @@ import type { CampaignWithClient } from "@/domains/campaigns/repository"
 import Link from "next/link"
 import {
   Plus, Pencil, Trash2, Key, Megaphone, Users, Code2, Link2,
-  Play, Pause, TrendingUp, Layers, BarChart2, ChevronRight, Building2
+  Play, Pause, TrendingUp, Layers, BarChart2, ChevronRight, Building2,
+  Globe, MessageSquare
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -238,6 +239,7 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletePending, startDeleteTransition] = useTransition()
   const [clientFilter, setClientFilter] = useState("all")
+  const [channelFilter, setChannelFilter] = useState<"all" | "web_form" | "messaging">("all")
   const [togglePending, startToggleTransition] = useTransition()
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : ""
@@ -267,11 +269,10 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
     })
   }
 
-  // Campañas filtradas por cliente
-  const filtered =
-    clientFilter === "all"
-      ? campaigns
-      : campaigns.filter((c) => (c.client?.id ?? "") === clientFilter)
+  // Campañas filtradas por cliente y canal
+  const filtered = campaigns
+    .filter((c) => clientFilter === "all" || (c.client?.id ?? "") === clientFilter)
+    .filter((c) => channelFilter === "all" || c.channelType === channelFilter)
 
   // KPIs del slice actual
   const totalLeads = filtered.reduce((s, c) => s + c.leadCount, 0)
@@ -368,6 +369,39 @@ export function CampaignsView({ campaigns, clients, orgName }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── Selector de canal ───────────────────────────────────────────── */}
+      <div className="border-b border-ops-line bg-white">
+        <div className="flex items-center gap-1.5 px-4 py-2.5 md:px-7">
+          {([
+            { value: "all", label: "Todas", icon: <Layers className="h-3.5 w-3.5" />, count: campaigns.length },
+            { value: "web_form", label: "Web / Formularios", icon: <Globe className="h-3.5 w-3.5" />, count: campaigns.filter((c) => c.channelType !== "messaging").length },
+            { value: "messaging", label: "Mensajes", icon: <MessageSquare className="h-3.5 w-3.5" />, count: campaigns.filter((c) => c.channelType === "messaging").length },
+          ] as const).map(({ value, label, icon, count }) => (
+            <button
+              key={value}
+              onClick={() => setChannelFilter(value)}
+              className={cn(
+                "flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
+                channelFilter === value
+                  ? "bg-ops-blue text-white"
+                  : "border border-ops-line bg-white text-ops-tx2 hover:border-ops-blue/40 hover:text-ops-tx"
+              )}
+            >
+              {icon}
+              {label}
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                  channelFilter === value ? "bg-white/20 text-white" : "bg-ops-line text-ops-tx2"
+                )}
+              >
+                {count}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* ── KPIs strip ──────────────────────────────────────────────────── */}
       {campaigns.length > 0 && (

@@ -43,6 +43,13 @@
       "when": 1789917349222,
       "tag": "0005_slim_nightcrawler",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792891225335,
+      "tag": "0006_tiny_amphibian",
+      "breakpoints": true
     }
   ]
 }

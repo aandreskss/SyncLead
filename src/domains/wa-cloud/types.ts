@@ -18,6 +18,17 @@ const MetaReactionSchema = z.object({
   emoji: z.string(),
 })
 
+const MetaCtwaReferralSchema = z.object({
+  source_url: z.string().optional(),
+  source_id: z.string(),          // Meta ad_id
+  source_type: z.string(),        // "ad" for Click-to-WhatsApp ads
+  headline: z.string().optional(),
+  body: z.string().optional(),
+  ctwa_clid: z.string().optional(), // Click-to-WhatsApp click ID (use as fbc in CAPI)
+  media_type: z.string().optional(),
+  image_url: z.string().optional(),
+})
+
 export const MetaIncomingMessageSchema = z.object({
   id: z.string(),         // wamid — globally unique message ID from Meta
   from: z.string(),       // sender phone number (E.164 format)
@@ -34,6 +45,8 @@ export const MetaIncomingMessageSchema = z.object({
   video: MetaMediaContentSchema.optional(),
   sticker: MetaMediaContentSchema.optional(),
   reaction: MetaReactionSchema.optional(),
+  // Present only on the first message when the user clicked a Click-to-WhatsApp ad
+  referral: MetaCtwaReferralSchema.optional(),
 })
 export type MetaIncomingMessage = z.infer<typeof MetaIncomingMessageSchema>
 
@@ -84,6 +97,13 @@ export const MetaHubVerifySchema = z.object({
 
 // ─── Normalized types (parsed from webhook) ───────────────────────────────────
 
+export interface CtwaReferral {
+  adId: string              // Meta ad_id from referral.source_id
+  sourceType: string        // "ad"
+  ctwaClid?: string         // Click-to-WhatsApp click ID (send as fbc in CAPI)
+  headline?: string         // ad headline (for lead notes)
+}
+
 export interface ParsedIncomingMessage {
   wamid: string              // external_message_id
   fromPhone: string          // customer's phone number
@@ -97,6 +117,8 @@ export interface ParsedIncomingMessage {
   mimeType?: string
   caption?: string
   timestamp: Date
+  // Set only on the first message from a Click-to-WhatsApp ad
+  referral?: CtwaReferral
 }
 
 export interface ParsedStatusUpdate {

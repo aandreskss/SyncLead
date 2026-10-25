@@ -51,19 +51,28 @@ export interface BuildPayloadInput {
     ip: string | null
     userAgent: string | null
     landingUrl: string | null
+    // Messaging channel fields — used when action_source is "business_messaging"
+    ctwaClid?: string | null   // WhatsApp CTWA click ID (sent as fbc when lead.fbc is empty)
+    igScopedId?: string | null // Instagram-Scoped ID (hashed as instagram_login_id)
   }
   /** Decimal string representation of the amount (e.g. "100.50") */
   amount: string
   currency: string
   orderId: string
   convertedAt: Date
+  /**
+   * Meta CAPI action_source value.
+   * "crm"               — manual registrations from dashboard (default)
+   * "business_messaging" — leads from WhatsApp CTWA or Instagram DM ads
+   */
+  actionSource?: "crm" | "business_messaging"
 }
 
 export interface PurchaseEvent {
   event_name: "Purchase"
   event_time: number
   event_id: string
-  action_source: "crm"
+  action_source: "crm" | "business_messaging"
   event_source_url?: string
   user_data: Record<string, unknown>
   custom_data: Record<string, unknown>
@@ -80,7 +89,7 @@ export interface PurchaseEvent {
  * META_TEST_EVENT_CODE is configured.
  */
 export function buildPurchasePayload(input: BuildPayloadInput): PurchaseEvent {
-  const { conversionId, lead, amount, currency, orderId, convertedAt } = input
+  const { conversionId, lead, amount, currency, orderId, convertedAt, actionSource = "crm" } = input
 
   const userData: Record<string, unknown> = {}
 
@@ -96,17 +105,25 @@ export function buildPurchasePayload(input: BuildPayloadInput): PurchaseEvent {
   const ctHashed = hashIfPresent(normalizeCity(lead.city))
   if (ctHashed.length) userData.ct = ctHashed
 
-  // Sent verbatim (no hash) as per Meta spec
+  // Verbatim fields (no hash) as per Meta spec
   if (lead.fbc) userData.fbc = lead.fbc
   if (lead.fbp) userData.fbp = lead.fbp
   if (lead.ip) userData.client_ip_address = lead.ip
   if (lead.userAgent) userData.client_user_agent = lead.userAgent
 
+  // Messaging channel signals — only for business_messaging action_source
+  if (actionSource === "business_messaging") {
+    // CTWA click ID functions as fbc when the lead has no web-based fbc
+    if (!lead.fbc && lead.ctwaClid) userData.fbc = lead.ctwaClid
+    // Instagram-Scoped ID hashed as instagram_login_id for IG DM leads
+    if (lead.igScopedId) userData.instagram_login_id = hashIfPresent(lead.igScopedId)
+  }
+
   const event: PurchaseEvent = {
     event_name: "Purchase",
     event_time: Math.floor(convertedAt.getTime() / 1000),
     event_id: `purchase_${conversionId}`,
-    action_source: "crm",
+    action_source: actionSource,
     user_data: userData,
     custom_data: {
       currency: currency.toUpperCase(),
@@ -115,7 +132,8 @@ export function buildPurchasePayload(input: BuildPayloadInput): PurchaseEvent {
     },
   }
 
-  if (lead.landingUrl) event.event_source_url = lead.landingUrl
+  // event_source_url only makes sense for web-originated leads
+  if (actionSource === "crm" && lead.landingUrl) event.event_source_url = lead.landingUrl
 
   return event
 }

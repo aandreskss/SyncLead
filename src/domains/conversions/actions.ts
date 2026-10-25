@@ -130,6 +130,9 @@ export async function registerSaleAction(
         ip: true,
         userAgent: true,
         landingUrl: true,
+        leadSource: true,
+        ctwaClid: true,
+        igScopedId: true,
       },
     })
     if (!lead) return { success: false, error: "Lead no encontrado" }
@@ -165,6 +168,7 @@ export async function registerSaleAction(
       : undefined
 
     if (metaConn?.pixelId) {
+      const isMessagingLead = lead.leadSource === "whatsapp_ctwa" || lead.leadSource === "instagram_message"
       const event = buildPurchasePayload({
         conversionId: conversion.id,
         lead: {
@@ -177,11 +181,14 @@ export async function registerSaleAction(
           ip: lead.ip,
           userAgent: lead.userAgent,
           landingUrl: lead.landingUrl,
+          ctwaClid: lead.ctwaClid,
+          igScopedId: lead.igScopedId,
         },
         amount: input.amount.toFixed(2),
         currency: input.currency.toUpperCase(),
         orderId: input.orderId,
         convertedAt: input.convertedAt,
+        actionSource: isMessagingLead ? "business_messaging" : "crm",
       })
 
       const { metaEvent } = await createMetaEventIdempotent({

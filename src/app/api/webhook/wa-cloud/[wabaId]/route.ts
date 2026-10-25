@@ -6,13 +6,16 @@ import {
   persistIncomingMessage,
   updateDeliveryStatusByWamid,
   enqueueForAiProcessing,
+  resolveCampaignFromAdId,
+  linkConversationToLead,
 } from "@/domains/wa-cloud/repository"
 import type { ParsedIncomingMessage, ParsedStatusUpdate } from "@/domains/wa-cloud/types"
 import { MetaHubVerifySchema } from "@/domains/wa-cloud/types"
 import { db } from "@/lib/db"
-import { waBusinessAccounts, aiAgentDeployments } from "@/lib/db/schema"
+import { waBusinessAccounts, aiAgentDeployments, leads, leadActivities, leadAttributionTouchpoints, waConversations, webhookEvents } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
 import { enqueueMediaMessage } from "@/domains/ai-agents/media/repository"
+import { autoQualifyLeadInternal } from "@/domains/qualification/actions"
 
 // Message types that have media content requiring async processing
 const MEDIA_CONTENT_TYPES = new Set(["image", "audio", "video", "sticker", "document"])
@@ -173,6 +176,12 @@ async function processIncomingMessage(msg: ParsedIncomingMessage): Promise<void>
   const messageRowId = await persistIncomingMessage(tenant.orgId, conversationId, msg)
   if (!messageRowId) return // Duplicate wamid — already processed
 
+  // Detect Click-to-WhatsApp lead: first message from an ad referral.
+  // AI response is NOT auto-enabled — it depends on the existing deployment config for this phone.
+  if (msg.referral?.sourceType === "ad") {
+    processCtwaLead(conversationId, msg, tenant.orgId).catch(() => undefined)
+  }
+
   // For media messages, enqueue for async media processing (download + understand).
   // The text job will check for pending media and defer until it's done.
   if (MEDIA_CONTENT_TYPES.has(msg.type) && msg.mediaId) {
@@ -203,4 +212,122 @@ async function processIncomingMessage(msg: ParsedIncomingMessage): Promise<void>
       headers: { Authorization: `Bearer ${cronSecret}` },
     }).catch(() => undefined)
   }
+}
+
+// ─── Click-to-WhatsApp lead ingestion ─────────────────────────────────────────
+
+/**
+ * Creates a SyncLead lead when the first WhatsApp message arrives from a CTWA ad.
+ *
+ * Idempotency: skips if the conversation already has a leadId set (duplicate webhook).
+ * Campaign routing: resolves via meta_catalog_ads → meta_catalog_campaigns chain.
+ * AI response: not affected — determined by existing deployment config on the phone number.
+ */
+async function processCtwaLead(
+  conversationId: string,
+  msg: ParsedIncomingMessage,
+  orgId: string,
+): Promise<void> {
+  if (!msg.referral) return
+
+  // Idempotency: skip if this conversation already has a lead linked
+  const convo = await db
+    .select({ leadId: waConversations.leadId })
+    .from(waConversations)
+    .where(eq(waConversations.id, conversationId))
+    .limit(1)
+  if (convo[0]?.leadId) return
+
+  // Resolve SyncLead campaign from ad_id via catalog
+  const campaignInfo = await resolveCampaignFromAdId(orgId, msg.referral.adId)
+  if (!campaignInfo) return // Ad not in catalog or campaign not linked — skip
+
+  // Idempotency: one lead per wamid (first message ID)
+  const existingEvent = await db
+    .select({ id: webhookEvents.id })
+    .from(webhookEvents)
+    .where(and(
+      eq(webhookEvents.campaignId, campaignInfo.campaignId),
+      eq(webhookEvents.eventId, msg.wamid),
+    ))
+    .limit(1)
+  if (existingEvent[0]) return
+
+  // Anchor idempotency record
+  await db
+    .insert(webhookEvents)
+    .values({
+      campaignId: campaignInfo.campaignId,
+      eventId: msg.wamid,
+      rawPayload: { source: "whatsapp_ctwa", adId: msg.referral.adId },
+      processed: false,
+    })
+    .onConflictDoNothing()
+
+  // Build lead notes from first message and ad context
+  const noteLines: string[] = []
+  if (msg.referral.headline) noteLines.push(`Anuncio: ${msg.referral.headline}`)
+  if (msg.textContent) noteLines.push(`Primer mensaje: ${msg.textContent}`)
+
+  const [lead] = await db
+    .insert(leads)
+    .values({
+      orgId,
+      campaignId: campaignInfo.campaignId,
+      name: msg.customerName ?? msg.fromPhone,
+      phone: msg.fromPhone,
+      leadSource: "whatsapp_ctwa",
+      platform: "whatsapp",
+      temperature: "cold",
+      stage: "new",
+      externalEventId: msg.wamid,
+      ctwaClid: msg.referral.ctwaClid ?? null,
+      metaCampaignName: campaignInfo.campaignName ?? null,
+      metaAdName: campaignInfo.adName ?? null,
+      notes: noteLines.length ? noteLines.join("\n") : null,
+    })
+    .returning({ id: leads.id })
+    .catch(() => [])
+
+  if (!lead) return
+
+  // Link conversation → lead
+  await linkConversationToLead(conversationId, lead.id, orgId)
+
+  // Attribution touchpoint
+  await db
+    .insert(leadAttributionTouchpoints)
+    .values({
+      leadId: lead.id,
+      orgId,
+      campaignId: campaignInfo.campaignId,
+      touchType: "first_touch",
+      channel: "paid_social",
+      metaCampaignId: campaignInfo.metaCampaignId ?? null,
+      metaAdsetId: campaignInfo.metaAdsetId ?? null,
+      metaAdId: msg.referral.adId,
+    })
+    .catch(() => undefined)
+
+  // Activity log
+  await db
+    .insert(leadActivities)
+    .values({
+      leadId: lead.id,
+      orgId,
+      actorType: "api",
+      activityType: "created",
+      metadata: { source: "whatsapp_ctwa", adId: msg.referral.adId, hasPhone: true },
+    })
+    .catch(() => undefined)
+
+  // Mark webhook processed
+  await db
+    .update(webhookEvents)
+    .set({ processed: true })
+    .where(and(eq(webhookEvents.campaignId, campaignInfo.campaignId), eq(webhookEvents.eventId, msg.wamid)))
+    .catch(() => undefined)
+
+  // Auto-qualify fire-and-forget (same as other lead sources)
+  autoQualifyLeadInternal(lead.id, orgId, campaignInfo.campaignId).catch(() => undefined)
 }
